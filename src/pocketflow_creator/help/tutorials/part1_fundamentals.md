@@ -1,9 +1,244 @@
 # Part 1 — Getting Started with PocketFlow Creator
 
-Work through these six tutorials in order. They cover every panel and every core
+Work through these tutorials in order. They cover every panel and every core
 workflow you'll use in later tutorials.
 
 [← Tutorials Index](index.md)
+
+---
+
+## Tutorial 0: Hello LLM
+
+**What you'll learn:** Make your first real LLM call from a PocketFlow node — plain
+text first, then structured JSON — and configure four different LLM providers.
+
+**Prerequisites:** None. You do not need an open project; you can run this code directly
+from a terminal once you have chosen a provider.
+
+---
+
+### Part A — Plain Text Response
+
+The simplest possible flow asks the LLM for a specific string and prints it.
+
+#### Graph
+
+```
+[Start] --default--> [HelloLlm] --default--> [Stop]
+```
+
+#### Node code
+
+```python
+class HelloLlm(Node):
+    def prep(self, shared: dict) -> str:
+        return 'Reply with exactly this text and nothing else: LLM says: Hello User'
+
+    def exec(self, prep_res: str) -> str:
+        return call_llm(prep_res)
+
+    def post(self, shared: dict, prep_res: str, exec_res: str) -> str:
+        shared["message"] = exec_res
+        print(exec_res)          # → LLM says: Hello User
+        return "default"
+```
+
+**Expected output:**
+```
+LLM says: Hello User
+```
+
+---
+
+### Part B — Structured JSON Response
+
+Now modify the node to instruct the LLM to respond with a JSON object.
+The `exec()` method parses the response so the rest of the flow gets a dict,
+not a raw string.
+
+#### Node code
+
+```python
+import json
+
+class HelloLlm(Node):
+    def prep(self, shared: dict) -> str:
+        return (
+            'Respond with ONLY valid JSON — no markdown, no extra text.\n'
+            'Use exactly this structure: {"message": "LLM says: Hello User"}'
+        )
+
+    def exec(self, prep_res: str) -> dict:
+        raw = call_llm(prep_res)
+        # Strip accidental markdown fences if the model adds them
+        raw = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        return json.loads(raw)
+
+    def post(self, shared: dict, prep_res: str, exec_res: dict) -> str:
+        shared["result"] = exec_res
+        print(exec_res["message"])   # → LLM says: Hello User
+        return "default"
+```
+
+**Expected output:**
+```
+LLM says: Hello User
+```
+
+The value at `shared["result"]` is now a Python dict:
+```python
+{"message": "LLM says: Hello User"}
+```
+
+---
+
+### Part C — Configuring an LLM Provider
+
+Replace the `call_llm` stub below with the provider you want to use.
+Put this function at the top of your code file (outside the node class).
+
+---
+
+#### Option 1 — Ollama (local, free)
+
+[Ollama](https://ollama.com) runs open-source models on your own machine.
+No API key required.
+
+**Install and pull a model:**
+```bash
+# Install Ollama from https://ollama.com, then:
+ollama pull llama3.2          # ~2 GB, fast on CPU
+# or
+ollama pull mistral           # good alternative
+```
+
+**PocketFlow provider code:**
+```python
+import json
+import urllib.request
+
+def call_llm(prompt: str, model: str = "llama3.2") -> str:
+    url = "http://localhost:11434/api/generate"
+    payload = json.dumps({
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+    }).encode()
+    req = urllib.request.Request(
+        url, data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        return json.loads(resp.read())["response"].strip()
+```
+
+**In PocketFlow Creator:**
+- Tools > Provider Manager
+- Set **Provider** to `Ollama`
+- Set **Base URL** to `http://localhost:11434`
+- Set **Model** to `llama3.2` (or whichever you pulled)
+
+---
+
+#### Option 2 — OpenAI API
+
+```bash
+pip install openai
+```
+
+```python
+from openai import OpenAI
+
+_client = OpenAI(api_key="sk-...")   # or set OPENAI_API_KEY env var
+
+def call_llm(prompt: str, model: str = "gpt-4o-mini") -> str:
+    response = _client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.choices[0].message.content.strip()
+```
+
+**Common models:** `gpt-4o-mini` (fast, cheap), `gpt-4o` (flagship).
+
+**In PocketFlow Creator:**
+- Tools > Provider Manager
+- Set **Provider** to `OpenAI`
+- Paste your API key (or set `OPENAI_API_KEY` in your shell before launching)
+- Set **Model** to `gpt-4o-mini`
+
+---
+
+#### Option 3 — Anthropic Claude API
+
+```bash
+pip install anthropic
+```
+
+```python
+import anthropic
+
+_client = anthropic.Anthropic(api_key="sk-ant-...")  # or ANTHROPIC_API_KEY env var
+
+def call_llm(prompt: str, model: str = "claude-haiku-4-5-20251001") -> str:
+    message = _client.messages.create(
+        model=model,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return message.content[0].text.strip()
+```
+
+**Common models:** `claude-haiku-4-5-20251001` (fast), `claude-sonnet-4-6` (balanced),
+`claude-opus-4-7` (most capable).
+
+**In PocketFlow Creator:**
+- Tools > Provider Manager
+- Set **Provider** to `Claude`
+- Paste your Anthropic API key (or set `ANTHROPIC_API_KEY`)
+- Set **Model** to `claude-haiku-4-5-20251001`
+
+---
+
+#### Option 4 — Google Gemini API
+
+```bash
+pip install google-generativeai
+```
+
+```python
+import google.generativeai as genai
+
+genai.configure(api_key="AIza...")   # or GOOGLE_API_KEY env var
+_model = genai.GenerativeModel("gemini-1.5-flash")
+
+def call_llm(prompt: str) -> str:
+    response = _model.generate_content(prompt)
+    return response.text.strip()
+```
+
+**Common models:** `gemini-1.5-flash` (fast, free tier available),
+`gemini-1.5-pro` (more capable).
+
+**In PocketFlow Creator:**
+- Tools > Provider Manager
+- Set **Provider** to `Gemini`
+- Paste your Google AI Studio API key (or set `GOOGLE_API_KEY`)
+- Set **Model** to `gemini-1.5-flash`
+
+---
+
+### Summary
+
+| Step | What changed |
+|---|---|
+| Part A | Node calls LLM, stores plain string in `shared["message"]` |
+| Part B | Node parses JSON response, stores dict in `shared["result"]` |
+| Part C | `call_llm()` wired to a real provider of your choice |
+
+The node code is identical regardless of which provider you choose — only the
+`call_llm()` helper changes. This is the core PocketFlow promise: the graph
+logic is decoupled from the infrastructure underneath it.
 
 ---
 

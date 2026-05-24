@@ -25,6 +25,7 @@ Code shown in `code blocks` is written in the **Python editor** tab.
 
 | Tutorial | Topic |
 |---|---|
+| Tutorial 0 | [Hello LLM — Your First LLM Call](part1_fundamentals.md#tutorial-0-hello-llm) |
 | Tutorial 1 | [IDE Tour](part1_fundamentals.md#tutorial-1-ide-tour) |
 | Tutorial 2 | [Your First Flow — Hello World](part1_fundamentals.md#tutorial-2-your-first-flow--hello-world) |
 | Tutorial 3 | [Using the Properties Inspector](part1_fundamentals.md#tutorial-3-using-the-properties-inspector) |
