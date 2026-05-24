@@ -3,42 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-_HTML_WRAPPER = """\
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-body {{ font-family: sans-serif; margin: 12px 16px; line-height: 1.5; }}
-h1, h2, h3 {{ margin-top: 1em; }}
-code {{ background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 0.92em; }}
-pre  {{ background: #f0f0f0; padding: 8px; border-radius: 4px; overflow-x: auto; }}
-pre code {{ background: none; padding: 0; }}
-table {{ border-collapse: collapse; width: 100%; }}
-th, td {{ border: 1px solid #ccc; padding: 4px 8px; text-align: left; }}
-th {{ background: #e8e8e8; }}
-</style>
-</head>
-<body>{body}</body>
-</html>"""
-
-try:
-    import markdown as _md_lib
-
-    def _to_html(text: str) -> str:
-        body = _md_lib.markdown(  # type: ignore[no-any-return]
-            text,
-            extensions=["fenced_code", "tables", "toc"],
-        )
-        return _HTML_WRAPPER.format(body=body)
-
-except ImportError:  # pragma: no cover
-    def _to_html(text: str) -> str:  # type: ignore[misc]
-        import html as _html
-
-        return _HTML_WRAPPER.format(body=f"<pre>{_html.escape(text)}</pre>")
-
-
 try:
     from PySide6.QtCore import QUrl
     from PySide6.QtWidgets import (
@@ -96,7 +60,6 @@ class HelpBrowser(QDialog):  # type: ignore[misc]
         self._browser = QTextBrowser()
         self._browser.setOpenLinks(False)
         self._browser.anchorClicked.connect(self._on_link_clicked)
-        # QTextBrowser resolves relative img paths from search paths
         self._browser.setSearchPaths([str(self._help_root)])
 
         # ── button box ──────────────────────────────────────────────────────
@@ -120,8 +83,7 @@ class HelpBrowser(QDialog):  # type: ignore[misc]
             )
             return
         text = path.read_text(encoding="utf-8")
-        html = _to_html(text)
-        self._browser.setHtml(html)
+        self._browser.setMarkdown(text)
         self._browser.setSearchPaths([str(path.parent), str(self._help_root)])
 
         # Trim forward history when navigating to a new page
@@ -144,8 +106,7 @@ class HelpBrowser(QDialog):  # type: ignore[misc]
     def _load_current(self) -> None:
         path = self._history[self._history_pos]
         text = path.read_text(encoding="utf-8")
-        html = _to_html(text)
-        self._browser.setHtml(html)
+        self._browser.setMarkdown(text)
         self._browser.setSearchPaths([str(path.parent), str(self._help_root)])
         self._update_nav_buttons()
 
@@ -156,7 +117,6 @@ class HelpBrowser(QDialog):  # type: ignore[misc]
     def _on_link_clicked(self, url: QUrl) -> None:
         href = url.toString()
         if href.startswith("http://") or href.startswith("https://"):
-            # Let the OS open external URLs
             try:
                 from PySide6.QtGui import QDesktopServices
 
