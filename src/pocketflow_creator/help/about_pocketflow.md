@@ -1,114 +1,108 @@
 # About PocketFlow
 
-PocketFlow is a minimalist LLM framework — 100 lines of Python — that expresses LLM
-workflows as directed graphs of nodes connected by labelled action edges.
+PocketFlow is a minimalist LLM framework — the entire runtime is **100 lines of Python** —
+that expresses LLM workflows as directed graphs of nodes connected by labelled action edges.
 
-**Repository:** [https://github.com/The-Pocket/PocketFlow](https://github.com/The-Pocket/PocketFlow)
+| | |
+|---|---|
+| **Repository** | [https://github.com/The-Pocket/PocketFlow](https://github.com/The-Pocket/PocketFlow) |
+| **Author** | Zachary Huang ([@ZacharyHuang](https://github.com/zachary62)) |
+| **Organisation** | [The Pocket](https://github.com/The-Pocket) |
+| **Licence** | MIT |
 
 ---
 
-## Core Concepts
+## The philosophy
 
-### Nodes
+Most LLM frameworks grow into sprawling abstractions that hide what is actually happening.
+PocketFlow takes the opposite approach: the framework is small enough to read in a single
+sitting, yet powerful enough to express every major LLM pattern — chat loops, agents,
+retrieval-augmented generation, batch processing, human-in-the-loop, and multi-agent
+systems.
 
-Every unit of work is a **Node**. A node has three lifecycle methods:
+The core insight is that *every* LLM application is a directed graph:
+
+- **Nodes** do the work — they call LLMs, tools, databases, or run arbitrary Python.
+- **Edges** are labelled with action strings that `post()` returns, making control flow
+  explicit and testable.
+- **The shared store** is a plain `dict` — the only communication channel between nodes,
+  no hidden state.
+
+---
+
+## How a node works
 
 ```python
 class MyNode(Node):
     def prep(self, shared):
-        # Read from shared store; prepare inputs for exec
+        # Read from the shared store; prepare inputs for exec.
         return shared.get("question", "")
 
     def exec(self, prep_res):
-        # Do the work (LLM call, tool call, computation)
+        # Do the work: LLM call, tool call, file I/O, anything.
         return llm.complete(prep_res)
 
     def post(self, shared, prep_res, exec_res):
-        # Write results back to shared store; return an action string
+        # Write results back; return an action string to route the flow.
         shared["answer"] = exec_res
         return "default"
 ```
 
-### The Shared Store
+---
 
-The **shared store** is a plain Python `dict` passed to every node in the flow.
-Nodes read from it in `prep()` and write to it in `post()`.
-It is the only communication channel between nodes.
-
-### Actions and Edges
-
-`post()` returns an **action string** (e.g. `"default"`, `"yes"`, `"no"`).
-The flow follows the edge whose label matches that action string to determine the next node.
+## Wiring a flow
 
 ```python
-flow = node_a - "yes" >> node_b
-flow = node_a - "no" >> node_c
+flow = fetch_node - "ok" >> summarise_node
+flow = fetch_node - "error" >> retry_node
+flow = summarise_node >> done_node   # shorthand for "default"
 ```
 
-### Flows
-
-A **Flow** is a directed graph of nodes. You set a start node and wire edges.
-The flow engine executes nodes in sequence, following action edges.
+`post()` returns `"ok"` or `"error"` and the framework follows the matching edge.
+There is no magic — the routing table is just a dict of action strings to next nodes.
 
 ---
 
-## Node Types
+## Node base classes
 
-| Base class | Purpose |
+| Class | Purpose |
 |---|---|
 | `Node` | Standard single-execution node |
-| `BatchNode` | Runs `exec()` once per item in a list returned by `prep()` |
-| `AsyncNode` | Async version of Node (uses `async def exec`) |
+| `BatchNode` | Runs `exec()` once per item returned by `prep()` |
+| `AsyncNode` | Async node (`async def exec`) |
 | `AsyncBatchNode` | Async batch processing |
 
 ---
 
-## Key Patterns
+## Cookbook patterns
 
-| Pattern | Description |
-|---|---|
-| **Single Q&A** | One LLM node answers a question |
-| **Chat loop** | LLM node + history accumulation + routing back to itself |
-| **Structured output** | LLM node with JSON schema validation and retry |
-| **Conditional routing** | `post()` returns different actions to branch the flow |
-| **Agent with tools** | LLM decides which tool node to call; routing back until done |
-| **RAG** | Retrieval node → context injection → LLM node |
-| **Map-reduce batch** | `BatchNode` fans out; aggregator node fans in |
-| **Human-in-the-loop** | Node pauses and waits for user input via shared store |
-| **LLM-as-judge** | Evaluator node scores output; retry edge loops back on failure |
-| **Multi-agent** | Multiple flows communicate via a shared store or message queue |
-
-Each pattern is covered in [Part 2 Tutorials](tutorials/part2_patterns.md).
-
----
-
-## The Three-Layer Architecture
-
-```
-┌──────────────────────────────────────────────┐
-│  Your nodes (custom Python in custom/)       │
-├──────────────────────────────────────────────┤
-│  PocketFlow runtime (pocketflow package)     │
-├──────────────────────────────────────────────┤
-│  LLM Provider (Ollama, OpenAI, etc.)         │
-└──────────────────────────────────────────────┘
-```
-
-PocketFlow does not bundle an LLM provider. You wire your preferred provider into each
-LLM node. PocketFlow Creator uses `OllamaProvider` by default and supports any provider
-that implements the `LLMProvider` protocol.
-
----
-
-## Cookbook Examples
-
-The PocketFlow repository ships 40+ cookbook examples:
+The PocketFlow repository ships 40+ cookbook examples covering:
 
 | Level | Topics |
 |---|---|
 | Beginner | Hello World, Chat, Structured Output, Workflow, Routing |
-| Intermediate | Agent, RAG, Map-Reduce, HITL, LLM-as-Judge, Multi-Agent |
+| Intermediate | Agent with tools, RAG, Map-Reduce, HITL, LLM-as-Judge, Multi-Agent |
 | Advanced | Streaming, Memory, Subflow, Async, Web search, Code execution |
 
-PocketFlow Creator provides visual equivalents of every cookbook example in its
-[tutorial series](tutorials/index.md).
+---
+
+## Why PocketFlow Creator was born
+
+PocketFlow's simplicity is a strength, but designing a multi-node flow by writing Python
+directly means holding the entire graph in your head — which nodes exist, how they connect,
+what actions each one declares, and how shared store keys flow between them.
+
+**PocketFlow Creator** was built to give PocketFlow a visual design surface without
+taking away any of its transparency.  The goal is the same RAD experience that made
+Delphi and Visual Basic productive for a generation of developers — drag a node onto a
+canvas, wire its action ports, inspect its properties, and see the generated Python
+immediately — while keeping the output as plain, readable PocketFlow code that runs
+without the designer installed.
+
+The designer is a *generator*, not a runtime wrapper.  Every exported project is
+self-contained Python that you own completely.
+
+- [Getting Started](getting_started.md)
+- [Your First Flow](your_first_flow.md)
+- [About PocketFlow Creator](about_pocketflow_creator.md)
+- [Help Home](index.md)
