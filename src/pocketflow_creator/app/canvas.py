@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import uuid
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ try:
         QPainterPath,
         QPen,
         QPixmap,
+        QPolygonF,
     )
     from PySide6.QtWidgets import (
         QAbstractItemView,
@@ -61,56 +63,291 @@ _WIDTH = 160
 _HEIGHT = 60
 _PORT_R = 5
 
-# ── Node type visual metadata ──────────────────────────────────────────────
-# (display_name, type_id, bg_color_hex, symbol)
-# symbol is drawn as white text centred in the icon square
-_PALETTE_ITEMS_EX: list[tuple[str, str, str, str]] = [
-    ("Start Node",       "start_node",       "#27ae60", "▶"),
-    ("Stop Node",        "stop_node",         "#e74c3c", "■"),
-    ("Basic Node",       "basic_node",        "#2980b9", "N"),
-    ("Router Node",      "router_node",       "#e67e22", "⬡"),
-    ("LLM Prompt Node",  "llm_prompt_node",   "#8e44ad", "✦"),
-    ("JSON LLM Node",    "json_llm_node",     "#16a085", "{}"),
-    ("Classifier Node",  "classifier_node",   "#d35400", "⑂"),
-    ("Python Tool Node", "python_tool_node",  "#2c3e50", "Py"),
-    ("File Reader Node", "file_reader_node",  "#1a6b3c", "📄"),
-    ("Human Review Node","human_review_node", "#c0392b", "👤"),
-    ("Batch Node",       "batch_node",        "#34495e", "⊞"),
-    ("Subflow Node",     "subflow_node",      "#7f8c8d", "⊂"),
+# ── Node type visual metadata ─────────────────────────────────────────────
+# (display_name, type_id, bg_color_hex)
+_PALETTE_ITEMS_EX: list[tuple[str, str, str]] = [
+    ("Start Node",        "start_node",       "#27ae60"),
+    ("Stop Node",         "stop_node",        "#e74c3c"),
+    ("Basic Node",        "basic_node",       "#2980b9"),
+    ("Router Node",       "router_node",      "#e67e22"),
+    ("LLM Prompt Node",   "llm_prompt_node",  "#8e44ad"),
+    ("JSON LLM Node",     "json_llm_node",    "#16a085"),
+    ("Classifier Node",   "classifier_node",  "#d35400"),
+    ("Python Tool Node",  "python_tool_node", "#2c3e50"),
+    ("File Reader Node",  "file_reader_node", "#1a6b3c"),
+    ("Human Review Node", "human_review_node","#c0392b"),
+    ("Batch Node",        "batch_node",       "#34495e"),
+    ("Subflow Node",      "subflow_node",     "#7f8c8d"),
 ]
 
 _PALETTE_ITEMS: list[tuple[str, str]] = [
-    (name, tid) for name, tid, _, _ in _PALETTE_ITEMS_EX
+    (name, tid) for name, tid, _ in _PALETTE_ITEMS_EX
 ]
 
-# Map type_id → bg hex used by NodeItem paint and icon generator
-NODE_TYPE_COLOR: dict[str, str] = {tid: color for _, tid, color, _ in _PALETTE_ITEMS_EX}
+# Map type_id → bg hex (used by NodeItem paint and icon generator)
+NODE_TYPE_COLOR: dict[str, str] = {tid: color for _, tid, color in _PALETTE_ITEMS_EX}
+
+# ── Per-type icon drawing functions ──────────────────────────────────────────
+# Each receives (painter, size) with antialiasing already enabled and the
+# background already painted. Draw white shapes that communicate the node's purpose.
+
+def _ico_start(p: QPainter, sz: float) -> None:
+    """Right-pointing play triangle — universally means 'start/begin'."""
+    m = sz * 0.22
+    poly = QPolygonF([QPointF(m, m), QPointF(sz - m, sz / 2), QPointF(m, sz - m)])
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    p.drawPolygon(poly)
+
+
+def _ico_stop(p: QPainter, sz: float) -> None:
+    """Rounded stop square — universally means 'stop/end'."""
+    m = sz * 0.27
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    p.drawRoundedRect(QRectF(m, m, sz - 2 * m, sz - 2 * m), sz * 0.1, sz * 0.1)
+
+
+def _ico_gear(p: QPainter, sz: float) -> None:
+    """Gear/cog — means 'process / compute'."""
+    cx, cy = sz / 2, sz / 2
+    outer_r = sz * 0.42
+    inner_r = sz * 0.29
+    hole_r = sz * 0.14
+    n = 6  # teeth (6 reads cleanly at small sizes)
+    pts: list[QPointF] = []
+    for i in range(n * 2):
+        angle = math.pi * i / n - math.pi / (n * 2)
+        r = outer_r if i % 2 == 0 else inner_r
+        pts.append(QPointF(cx + r * math.cos(angle), cy + r * math.sin(angle)))
+    gear = QPainterPath()
+    gear.addPolygon(QPolygonF(pts))
+    gear.closeSubpath()
+    hole = QPainterPath()
+    hole.addEllipse(QPointF(cx, cy), hole_r, hole_r)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.fillPath(gear.subtracted(hole), QColor("white"))
+
+
+def _ico_fork(p: QPainter, sz: float) -> None:
+    """Y-fork: one line in, two lines out — means 'route / branch'."""
+    w = max(2.0, sz * 0.12)
+    pen = QPen(
+        QColor("white"), w, Qt.PenStyle.SolidLine,
+        Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin,
+    )
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    cx, cy = sz * 0.46, sz / 2
+    # Input stem
+    p.drawLine(QPointF(sz * 0.1, cy), QPointF(cx, cy))
+    # Two output branches
+    p.drawLine(QPointF(cx, cy), QPointF(sz * 0.9, sz * 0.26))
+    p.drawLine(QPointF(cx, cy), QPointF(sz * 0.9, sz * 0.74))
+    # Arrowhead tips (small V shapes)
+    ah = sz * 0.1
+    for ty in (sz * 0.26, sz * 0.74):
+        p.drawLine(QPointF(sz * 0.9 - ah, ty - ah * 0.6), QPointF(sz * 0.9, ty))
+        p.drawLine(QPointF(sz * 0.9 - ah, ty + ah * 0.6), QPointF(sz * 0.9, ty))
+
+
+def _ico_chat_bubble(p: QPainter, sz: float) -> None:
+    """Speech bubble — means 'language model / AI prompt'."""
+    bx, by = sz * 0.08, sz * 0.08
+    bw, bh = sz * 0.84, sz * 0.64
+    r = sz * 0.16
+    path = QPainterPath()
+    path.addRoundedRect(QRectF(bx, by, bw, bh), r, r)
+    # Triangular tail pointing down-left
+    tail = QPolygonF([
+        QPointF(sz * 0.18, by + bh),
+        QPointF(sz * 0.09, sz * 0.94),
+        QPointF(sz * 0.38, by + bh),
+    ])
+    path.addPolygon(tail)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.fillPath(path, QColor("white"))
+
+
+def _ico_json_llm(p: QPainter, sz: float, bg: QColor) -> None:
+    """Chat bubble + '{}' label — means 'structured LLM output'."""
+    _ico_chat_bubble(p, sz)
+    font = QFont()
+    font.setPixelSize(max(7, int(sz * 0.30)))
+    font.setBold(True)
+    p.setFont(font)
+    p.setPen(QPen(bg))
+    # Draw '{}' centred in the bubble body
+    p.drawText(
+        QRectF(sz * 0.08, sz * 0.08, sz * 0.84, sz * 0.64),
+        Qt.AlignmentFlag.AlignCenter,
+        "{}",
+    )
+
+
+def _ico_funnel(p: QPainter, sz: float) -> None:
+    """Filter funnel — means 'classify / filter / categorise'."""
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    # Wide trapezoid body
+    body = QPolygonF([
+        QPointF(sz * 0.07, sz * 0.12),
+        QPointF(sz * 0.93, sz * 0.12),
+        QPointF(sz * 0.62, sz * 0.56),
+        QPointF(sz * 0.38, sz * 0.56),
+    ])
+    p.drawPolygon(body)
+    # Narrow outlet tube
+    p.drawRect(QRectF(sz * 0.38, sz * 0.56, sz * 0.24, sz * 0.32))
+
+
+def _ico_terminal(p: QPainter, sz: float) -> None:
+    """'>_' terminal prompt — means 'execute code / Python tool'."""
+    w = max(2.0, sz * 0.11)
+    pen = QPen(
+        QColor("white"), w, Qt.PenStyle.SolidLine,
+        Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin,
+    )
+    p.setPen(pen)
+    # '>' chevron on left half
+    tip_x = sz * 0.46
+    cy = sz / 2
+    p.drawLine(QPointF(sz * 0.16, cy - sz * 0.22), QPointF(tip_x, cy))
+    p.drawLine(QPointF(tip_x, cy), QPointF(sz * 0.16, cy + sz * 0.22))
+    # '_' cursor on right half
+    p.drawLine(QPointF(sz * 0.54, cy + sz * 0.22), QPointF(sz * 0.84, cy + sz * 0.22))
+
+
+def _ico_document(p: QPainter, sz: float, bg: QColor) -> None:
+    """Document with folded corner — means 'read / load a file'."""
+    bx, by = sz * 0.16, sz * 0.07
+    bw, bh = sz * 0.68, sz * 0.86
+    fold = sz * 0.22
+    # Page body (minus fold triangle)
+    page = QPainterPath()
+    page.moveTo(bx, by)
+    page.lineTo(bx + bw - fold, by)
+    page.lineTo(bx + bw, by + fold)
+    page.lineTo(bx + bw, by + bh)
+    page.lineTo(bx, by + bh)
+    page.closeSubpath()
+    p.setPen(Qt.PenStyle.NoPen)
+    p.fillPath(page, QColor("white"))
+    # Fold crease triangle in a slightly lighter bg shade
+    crease = QPainterPath()
+    crease.moveTo(bx + bw - fold, by)
+    crease.lineTo(bx + bw - fold, by + fold)
+    crease.lineTo(bx + bw, by + fold)
+    crease.closeSubpath()
+    p.fillPath(crease, bg.lighter(145))
+    # Three content lines in bg colour
+    p.setPen(QPen(bg, max(1, int(sz * 0.07))))
+    x1, x2 = bx + sz * 0.08, bx + bw - sz * 0.1
+    for i in range(3):
+        ly = by + sz * 0.36 + i * sz * 0.17
+        p.drawLine(QPointF(x1, ly), QPointF(x2, ly))
+
+
+def _ico_person(p: QPainter, sz: float) -> None:
+    """Person silhouette — means 'human in the loop / review'."""
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    # Head
+    p.drawEllipse(QPointF(sz / 2, sz * 0.30), sz * 0.17, sz * 0.17)
+    # Shoulders: top half of a wide ellipse
+    body = QPainterPath()
+    body.addEllipse(QRectF(sz * 0.10, sz * 0.50, sz * 0.80, sz * 0.62))
+    clip = QPainterPath()
+    clip.addRect(QRectF(0, sz * 0.50, sz, sz * 0.50))
+    p.fillPath(body.intersected(clip), QColor("white"))
+
+
+def _ico_stack(p: QPainter, sz: float) -> None:
+    """Three stacked offset pages — means 'batch / process many items'."""
+    p.setPen(Qt.PenStyle.NoPen)
+    rw, rh = sz * 0.58, sz * 0.52
+    rx0, ry0 = sz * 0.14, sz * 0.26
+    off = sz * 0.1
+    for i, alpha in enumerate((110, 160, 255)):
+        col = QColor(255, 255, 255, alpha)
+        p.setBrush(QBrush(col))
+        p.drawRoundedRect(
+            QRectF(rx0 + (2 - i) * off, ry0 - (2 - i) * off, rw, rh),
+            sz * 0.06, sz * 0.06,
+        )
+
+
+def _ico_subflow(p: QPainter, sz: float) -> None:
+    """Box enclosing a mini-flowchart — means 'embedded / nested flow'."""
+    # Outer dashed border
+    pen = QPen(QColor("white"), max(1.5, sz * 0.08), Qt.PenStyle.DashLine)
+    pen.setDashPattern([3, 2])
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    m = sz * 0.07
+    p.drawRoundedRect(QRectF(m, m, sz - 2 * m, sz - 2 * m), sz * 0.12, sz * 0.12)
+    # Inner mini-boxes and arrow
+    solid = QPen(QColor("white"), max(1.0, sz * 0.06))
+    p.setPen(solid)
+    p.drawRect(QRectF(sz * 0.18, sz * 0.36, sz * 0.22, sz * 0.26))
+    p.drawRect(QRectF(sz * 0.60, sz * 0.36, sz * 0.22, sz * 0.26))
+    cy = sz * 0.49
+    p.drawLine(QPointF(sz * 0.40, cy), QPointF(sz * 0.60, cy))
+    ah = sz * 0.08
+    p.drawLine(QPointF(sz * 0.60 - ah, cy - ah), QPointF(sz * 0.60, cy))
+    p.drawLine(QPointF(sz * 0.60 - ah, cy + ah), QPointF(sz * 0.60, cy))
+
+
+# Dispatch map: type_id → drawing function
+_ICON_DRAW: dict[str, Any] = {
+    "start_node":       _ico_start,
+    "stop_node":        _ico_stop,
+    "basic_node":       _ico_gear,
+    "router_node":      _ico_fork,
+    "llm_prompt_node":  _ico_chat_bubble,
+    "json_llm_node":    None,  # handled specially (needs bg colour)
+    "classifier_node":  _ico_funnel,
+    "python_tool_node": _ico_terminal,
+    "file_reader_node": None,  # handled specially (needs bg colour)
+    "human_review_node":_ico_person,
+    "batch_node":       _ico_stack,
+    "subflow_node":     _ico_subflow,
+}
 
 
 def make_node_icon(type_id: str, size: int = 32) -> QIcon:
-    """Return a QIcon for the given node type_id, painted programmatically."""
+    """Return a QIcon for type_id, painted with purpose-built shapes."""
     color_hex = NODE_TYPE_COLOR.get(type_id, "#555555")
-    symbol = next((s for _, tid, _, s in _PALETTE_ITEMS_EX if tid == type_id), "?")
+    bg = QColor(color_hex)
 
     px = QPixmap(size, size)
     px.fill(QColor("transparent"))
     p = QPainter(px)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-    # rounded-rect background
-    bg = QColor(color_hex)
+    # Rounded-rect background
     p.setBrush(QBrush(bg))
     p.setPen(QPen(bg.darker(130), 1))
-    radius = size * 0.22
-    p.drawRoundedRect(1, 1, size - 2, size - 2, radius, radius)
+    r = size * 0.22
+    p.drawRoundedRect(1, 1, size - 2, size - 2, r, r)
 
-    # white symbol centred
-    p.setPen(QPen(QColor("white")))
-    font = QFont()
-    font.setPixelSize(max(8, int(size * 0.42)))
-    font.setBold(True)
-    p.setFont(font)
-    p.drawText(QRectF(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, symbol)
+    # Draw the type-specific icon
+    draw_fn = _ICON_DRAW.get(type_id)
+    if draw_fn is not None:
+        draw_fn(p, float(size))
+    elif type_id == "json_llm_node":
+        _ico_json_llm(p, float(size), bg)
+    elif type_id == "file_reader_node":
+        _ico_document(p, float(size), bg)
+    else:
+        # Fallback: draw type_id initials as text
+        font = QFont()
+        font.setPixelSize(max(8, int(size * 0.38)))
+        font.setBold(True)
+        p.setFont(font)
+        p.setPen(QPen(QColor("white")))
+        initials = "".join(w[0].upper() for w in type_id.split("_") if w)[:2]
+        p.drawText(QRectF(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, initials)
 
     p.end()
     return QIcon(px)

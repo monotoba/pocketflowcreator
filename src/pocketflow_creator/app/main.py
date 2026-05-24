@@ -289,7 +289,7 @@ class MainWindow(QMainWindow):
         tb.setMovable(False)
         self.addToolBar(tb)
 
-        for display_name, type_id, _color, _sym in _PALETTE_ITEMS_EX:
+        for display_name, type_id, _color in _PALETTE_ITEMS_EX:
             icon = make_node_icon(type_id, 32)
             btn = QToolButton()
             btn.setIcon(icon)
