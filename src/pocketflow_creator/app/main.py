@@ -17,7 +17,7 @@ try:
     )
     from PySide6.QtWidgets import (
         QApplication,
-        QCheckBox,
+        QButtonGroup,
         QDialog,
         QDialogButtonBox,
         QDockWidget,
@@ -35,6 +35,7 @@ try:
         QMessageBox,
         QPlainTextEdit,
         QPushButton,
+        QRadioButton,
         QSplitter,
         QTableWidget,
         QTableWidgetItem,
@@ -110,7 +111,15 @@ class MainWindow(QMainWindow):
         self._debug_thread: object = None  # QThread when active
         self._breakpoints: set[str] = set()
         _settings = QSettings("Monotoba", "PocketFlowCreator")
-        self._dark_mode: bool = bool(_settings.value("ui/dark_mode", True))
+        # Migrate old bool setting → string if needed
+        _stored = _settings.value("ui/theme", None)
+        if _stored is None:
+            _old = _settings.value("ui/dark_mode", None)
+            _stored = "dark" if _old is True or _old == "true" else (
+                "light" if _old is False or _old == "false" else "system"
+            )
+        self._theme_mode: str = str(_stored)
+        self._dark_mode: bool = self._resolve_dark()
         self._stop_action: object  # QAction — assigned in _build_menu_bar
         self._resume_action: object  # QAction — assigned in _build_menu_bar
         # Assigned by their respective _build_* methods:
@@ -1176,7 +1185,23 @@ class MainWindow(QMainWindow):
         self._graph_scene.auto_layout()
         self._graph_view.zoom_to_fit()
 
+    def _resolve_dark(self) -> bool:
+        """Return True if the effective theme is dark, based on _theme_mode."""
+        if self._theme_mode == "dark":
+            return True
+        if self._theme_mode == "light":
+            return False
+        # "system" — query Qt's style hints; fall back to palette luminance
+        try:
+            hints = QApplication.styleHints()
+            scheme = hints.colorScheme()  # type: ignore[attr-defined]
+            return str(scheme).endswith("Dark")
+        except AttributeError:
+            palette = QApplication.palette()
+            return palette.color(palette.ColorRole.Window).lightness() < 128
+
     def _apply_theme(self) -> None:
+        self._dark_mode = self._resolve_dark()
         self._graph_scene.set_dark(self._dark_mode)
         if self._dark_mode:
             self._graph_view.setStyleSheet("background: #1a1a1a;")
@@ -1192,9 +1217,22 @@ class MainWindow(QMainWindow):
 
         appearance_group = QGroupBox("Appearance")
         group_layout = QVBoxLayout(appearance_group)
-        dark_check = QCheckBox("Dark mode")
-        dark_check.setChecked(self._dark_mode)
-        group_layout.addWidget(dark_check)
+
+        btn_group = QButtonGroup(dlg)
+        radio_system = QRadioButton("System (follow OS setting)")
+        radio_light = QRadioButton("Light")
+        radio_dark = QRadioButton("Dark")
+        for rb in (radio_system, radio_light, radio_dark):
+            btn_group.addButton(rb)
+            group_layout.addWidget(rb)
+
+        if self._theme_mode == "light":
+            radio_light.setChecked(True)
+        elif self._theme_mode == "dark":
+            radio_dark.setChecked(True)
+        else:
+            radio_system.setChecked(True)
+
         layout.addWidget(appearance_group)
 
         buttons = QDialogButtonBox(
@@ -1206,8 +1244,15 @@ class MainWindow(QMainWindow):
 
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
-        self._dark_mode = dark_check.isChecked()
-        settings.setValue("ui/dark_mode", self._dark_mode)
+
+        if radio_light.isChecked():
+            self._theme_mode = "light"
+        elif radio_dark.isChecked():
+            self._theme_mode = "dark"
+        else:
+            self._theme_mode = "system"
+
+        settings.setValue("ui/theme", self._theme_mode)
         self._apply_theme()
         self.statusBar().showMessage("Options saved.")
 
