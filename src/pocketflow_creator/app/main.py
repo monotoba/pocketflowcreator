@@ -51,14 +51,30 @@ from pocketflow_creator.generation.python_generator import PythonGenerator
 from pocketflow_creator.generation.report import generate_project_report
 from pocketflow_creator.graph_io import GraphLoader, GraphSaver
 from pocketflow_creator.model.graph_model import EdgeModel, GraphModel, NodeModel
+from pocketflow_creator.model.node_type import NodeTypeDefinition
 from pocketflow_creator.model.project import ProjectModel
 from pocketflow_creator.project_io import ProjectLoader, ProjectSaver
 from pocketflow_creator.runtime.providers import MockProvider, OllamaProvider
-from pocketflow_creator.runtime.runner import FlowRunner
+from pocketflow_creator.runtime.runner import FlowRunner, RunStep, StepController
 from pocketflow_creator.validation.graph_validator import GraphValidator
 
 _MAX_RECENT = 5
 _VERSION = "0.1.0"
+
+
+def _node_skeleton_text(type_id: str, base_class: str) -> str:
+    class_name = "".join(p.capitalize() for p in type_id.replace("-", "_").split("_"))
+    return (
+        f"from __future__ import annotations\n\n\n"
+        f"class {class_name}:  # TODO: inherit from appropriate PocketFlow base\n"
+        f"    # base_class: {base_class}\n\n"
+        f"    def prep(self, shared: dict) -> dict:\n"
+        f"        return shared\n\n"
+        f"    def exec(self, prep_res: dict) -> str:\n"
+        f"        return 'default'\n\n"
+        f"    def post(self, shared: dict, prep_res: dict, exec_res: str) -> str:\n"
+        f"        return exec_res\n"
+    )
 _EDITOR_TABS: frozenset[str] = frozenset({"Python", "Markdown", "YAML"})
 _ROLE_PATH = Qt.ItemDataRole.UserRole  # type: ignore[attr-defined]
 _ROLE_KIND = Qt.ItemDataRole(Qt.ItemDataRole.UserRole.value + 1)  # type: ignore[attr-defined]
@@ -79,6 +95,11 @@ class MainWindow(QMainWindow):
         self._current_node: NodeModel | None = None
         self._current_node_item: NodeItem | None = None
         self._current_edge: EdgeModel | None = None
+        self._debug_controller: StepController | None = None
+        self._debug_thread: object = None  # QThread when active
+        self._breakpoints: set[str] = set()
+        self._stop_action: object  # QAction — assigned in _build_menu_bar
+        self._resume_action: object  # QAction — assigned in _build_menu_bar
         # Assigned by their respective _build_* methods:
         self._explorer_tree: QTreeWidget
         self._bottom_tab_widget: QTabWidget
@@ -147,31 +168,31 @@ class MainWindow(QMainWindow):
         project_menu.addAction("Export Project Report...", self._on_export_project_report)
         project_menu.addAction("Provider Profiles...")
 
-        for menu_name, actions in [
-            (
-                "Flow",
-                ["New Flow...", "New Subflow...", "Set Start Node", "Validate Active Flow"],
-            ),
-            (
-                "Node",
-                ["New Custom Node Type...", "Generate Node Skeleton", "Validate Selected Node"],
-            ),
-        ]:
-            m = self.menuBar().addMenu(menu_name)
-            for action in actions:
-                m.addAction(action)
+        flow_menu = self.menuBar().addMenu("Flow")
+        for name in ["New Flow...", "New Subflow...", "Set Start Node", "Validate Active Flow"]:
+            flow_menu.addAction(name)
+
+        node_menu = self.menuBar().addMenu("Node")
+        node_menu.addAction("New Custom Node Type...", self._on_new_custom_node_type)
+        node_menu.addAction("Generate Node Skeleton", self._on_generate_node_skeleton)
+        node_menu.addAction("Toggle Breakpoint", self._on_toggle_breakpoint)
+        node_menu.addAction("Validate Selected Node")
 
         run_menu = self.menuBar().addMenu("Run")
         run_menu.addAction("Run Active Flow", self._on_run_active_flow)
+        run_menu.addAction("Debug Active Flow", self._on_debug_active_flow)
         run_menu.addAction("Run Tests", self._on_run_tests)
         run_menu.addSeparator()
-        for name in ["Run Project", "Debug Active Flow", "Stop"]:
-            run_menu.addAction(name)
+        self._stop_action = run_menu.addAction("Stop", self._on_stop_debug)
+        self._stop_action.setEnabled(False)
+        self._resume_action = run_menu.addAction("Resume", self._on_resume_debug)
+        self._resume_action.setEnabled(False)
 
         tools_menu = self.menuBar().addMenu("Tools")
         tools_menu.addAction("Provider Manager...", self._on_provider_manager)
         tools_menu.addAction("Tool Registry...", self._on_tool_registry)
         tools_menu.addAction("Shared Store Inspector...", self._on_shared_store_inspector)
+        tools_menu.addAction("Node Type Library...", self._on_node_type_library)
         tools_menu.addAction("Options...")
 
         window_menu = self.menuBar().addMenu("Window")
@@ -633,6 +654,79 @@ class MainWindow(QMainWindow):
         self._bottom_editors["Test Results"].setPlainText(output)
         self.statusBar().showMessage("Tests finished.")
 
+    def _on_debug_active_flow(self) -> None:
+        if self._project is None or not self._graphs:
+            self.statusBar().showMessage("No graphs to debug.")
+            return
+        graph = next(iter(self._graphs.values()))
+        settings = QSettings("Monotoba", "PocketFlowCreator")
+        prov_type = str(settings.value("run/provider", "mock"))
+        if prov_type == "ollama":
+            provider: MockProvider | OllamaProvider = OllamaProvider(
+                base_url=str(settings.value("ollama/base_url", "http://localhost:11434")),
+                default_model=str(settings.value("ollama/default_model", "qwen2.5-coder:14b")),
+            )
+        else:
+            provider = MockProvider(
+                response=str(settings.value("mock/response", "mock response"))
+            )
+
+        ctrl = StepController()
+        self._debug_controller = ctrl
+        runner = FlowRunner()
+        self._bottom_editors["Run Log"].setPlainText("Debug run started…\n")
+        self._switch_bottom_tab("Run Log")
+
+        def _on_step(step: object) -> None:
+            if not isinstance(step, RunStep):
+                return
+            lines = self._bottom_editors["Run Log"].toPlainText()
+            lines += f"  [{step.node_id}] {step.node_title} → {step.action}\n"
+            if step.response:
+                lines += f"      response: {step.response}\n"
+            self._bottom_editors["Run Log"].setPlainText(lines)
+            shared_text = "\n".join(f"{k}: {v}" for k, v in step.shared_after.items())
+            self._bottom_editors["Shared Store"].setPlainText(shared_text or "{}")
+            if step.node_id in self._breakpoints:
+                self.statusBar().showMessage(
+                    f"Paused at [{step.node_id}] — click Resume to continue."
+                )
+
+        import threading as _threading
+
+        collected: list[object] = []
+
+        def _run_thread() -> None:
+            trace = runner.run_debug(
+                graph,
+                provider,
+                ctrl,
+                breakpoints=self._breakpoints,
+                on_step=_on_step,
+                project_name=self._project.name if self._project else "",
+            )
+            collected.append(trace)
+
+        t = _threading.Thread(target=_run_thread, daemon=True)
+        self._debug_thread = t
+        t.start()
+        self._stop_action.setEnabled(True)  # type: ignore[attr-defined]
+        self._resume_action.setEnabled(True)  # type: ignore[attr-defined]
+        self.statusBar().showMessage("Debug run started.")
+
+    def _on_stop_debug(self) -> None:
+        if self._debug_controller is not None:
+            self._debug_controller.stop()
+            self._debug_controller = None
+        self._stop_action.setEnabled(False)  # type: ignore[attr-defined]
+        self._resume_action.setEnabled(False)  # type: ignore[attr-defined]
+        self.statusBar().showMessage("Debug run stopped.")
+
+    def _on_resume_debug(self) -> None:
+        if self._debug_controller is not None:
+            self._debug_controller.resume()
+        self.statusBar().showMessage("Resumed.")
+
     def _on_about(self) -> None:
         QMessageBox.about(
             self,
@@ -640,6 +734,90 @@ class MainWindow(QMainWindow):
             f"PocketFlow Creator v{_VERSION}\n\n"
             "RAD visual designer for PocketFlow LLM workflows.",
         )
+
+    # ----------------------------------------------- node menu handlers
+
+    def _on_new_custom_node_type(self) -> None:
+        from pocketflow_creator.app.node_type_wizard import NodeTypeWizard
+
+        if self._project is None:
+            self.statusBar().showMessage("No project open.")
+            return
+        dlg = NodeTypeWizard(self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        defn = dlg.result_definition()
+        node_types_dir = self._project.root / "node_types"
+        node_types_dir.mkdir(parents=True, exist_ok=True)
+        yaml_path = node_types_dir / f"{defn['node_type_id']}.yaml"
+        import yaml as _yaml
+
+        yaml_path.write_text(
+            _yaml.dump(defn, default_flow_style=False, allow_unicode=True), encoding="utf-8"
+        )
+        skeleton_path = self._project.root / "custom" / f"{defn['node_type_id']}.py"
+        skeleton_path.parent.mkdir(parents=True, exist_ok=True)
+        if not skeleton_path.exists():
+            skeleton_path.write_text(
+                _node_skeleton_text(defn["node_type_id"], defn.get("base_class", "Node")),
+                encoding="utf-8",
+            )
+        rel = f"node_types/{defn['node_type_id']}.yaml"
+        if rel not in self._project.node_types:
+            self._project.node_types.append(rel)
+        self._refresh_explorer()
+        self.statusBar().showMessage(f"Created node type: {defn['node_type_id']}")
+
+    def _on_toggle_breakpoint(self) -> None:
+        if self._current_node is None or self._current_node_item is None:
+            self.statusBar().showMessage("Select a node on the canvas first.")
+            return
+        nid = self._current_node.id
+        if nid in self._breakpoints:
+            self._breakpoints.discard(nid)
+            self._current_node_item.set_breakpoint(False)
+            self.statusBar().showMessage(f"Breakpoint cleared: {nid}")
+        else:
+            self._breakpoints.add(nid)
+            self._current_node_item.set_breakpoint(True)
+            self.statusBar().showMessage(f"Breakpoint set: {nid}")
+
+    def _on_generate_node_skeleton(self) -> None:
+        if self._project is None or self._current_node is None:
+            self.statusBar().showMessage("Select a node on the canvas first.")
+            return
+        node = self._current_node
+        type_id = node.type_id
+        skeleton_path = self._project.root / "custom" / f"{type_id}.py"
+        skeleton_path.parent.mkdir(parents=True, exist_ok=True)
+        if skeleton_path.exists():
+            self.statusBar().showMessage(f"Skeleton already exists: {skeleton_path.name}")
+            return
+        skeleton_path.write_text(_node_skeleton_text(type_id, type_id), encoding="utf-8")
+        self._open_file_in_editor(skeleton_path)
+        self.statusBar().showMessage(f"Generated skeleton: {skeleton_path.name}")
+
+    # ----------------------------------------------- prompt preview
+
+    def _update_prompt_preview(self, node: NodeModel) -> None:
+        if "llm" not in node.type_id.lower():
+            return
+        prompt_file = node.properties.get("prompt_file", "") if node.properties else ""
+        if not prompt_file or self._project is None:
+            self._bottom_editors["Prompt Preview"].setPlainText(
+                f"[{node.title}] No prompt_file property set."
+            )
+            self._switch_bottom_tab("Prompt Preview")
+            return
+        full_path = self._project.root / str(prompt_file)
+        try:
+            content = full_path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            content = f"(prompt file not found: {prompt_file})"
+        except Exception as exc:
+            content = f"(error reading {prompt_file}: {exc})"
+        self._bottom_editors["Prompt Preview"].setPlainText(content)
+        self._switch_bottom_tab("Prompt Preview")
 
     # ---------------------------------------------- canvas signal handlers
 
@@ -649,6 +827,7 @@ class MainWindow(QMainWindow):
         self._current_node_item = item
         self._current_node = item.node
         self._populate_inspector_for_node(item.node)
+        self._update_prompt_preview(item.node)
 
     def _on_edge_item_selected(self, item: object) -> None:
         if not isinstance(item, EdgeItem):
@@ -681,6 +860,25 @@ class MainWindow(QMainWindow):
         self._current_node.title = item.text(1)
         self._current_node_item.update()
 
+    def _load_node_type_registry(self) -> dict[str, NodeTypeDefinition]:
+        registry: dict[str, NodeTypeDefinition] = {}
+        if self._project is None:
+            return registry
+        for rel in self._project.node_types:
+            path = self._project.root / rel
+            if not path.exists():
+                continue
+            try:
+                import yaml as _yaml
+
+                data = _yaml.safe_load(path.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    defn = NodeTypeDefinition.from_mapping(data)
+                    registry[defn.node_type_id] = defn
+            except Exception:
+                pass
+        return registry
+
     def _populate_inspector_for_node(self, node: NodeModel) -> None:
         self._inspector.blockSignals(True)
         self._inspector.clear()
@@ -699,6 +897,24 @@ class MainWindow(QMainWindow):
             if editable:
                 row.setFlags(row.flags() | Qt.ItemFlag.ItemIsEditable)
             self._inspector.addTopLevelItem(row)
+
+        # T-603: show inherited type definition properties
+        registry = self._load_node_type_registry()
+        defn = registry.get(node.type_id)
+        if defn is not None:
+            type_section = QTreeWidgetItem([f"[{defn.display_name}]", ""])
+            type_section.setFlags(type_section.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+            for prop_name, prop_meta in defn.properties.items():
+                default = str(prop_meta.get("default", "")) if isinstance(prop_meta, dict) else ""
+                inst_val = str(node.properties.get(prop_name, default))
+                prop_row = QTreeWidgetItem([prop_name, inst_val])
+                prop_row.setFlags(prop_row.flags() | Qt.ItemFlag.ItemIsEditable)
+                type_section.addChild(prop_row)
+            if defn.base_class and defn.base_class != node.type_id:
+                type_section.addChild(QTreeWidgetItem(["base_class", defn.base_class]))
+            self._inspector.addTopLevelItem(type_section)
+            type_section.setExpanded(True)
+
         self._inspector.blockSignals(False)
 
     def _on_zoom_to_fit(self) -> None:
@@ -828,6 +1044,55 @@ class MainWindow(QMainWindow):
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
         buttons.accepted.connect(dlg.accept)
         layout.addWidget(buttons)
+        dlg.exec()
+
+    def _on_node_type_library(self) -> None:
+        if self._project is None:
+            self.statusBar().showMessage("No project open.")
+            return
+        registry = self._load_node_type_registry()
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Node Type Library")
+        dlg.resize(640, 400)
+        layout = QVBoxLayout(dlg)
+        table = QTableWidget(len(registry), 4)
+        table.setHorizontalHeaderLabels(["ID", "Display Name", "Category", "Base Class"])
+        table.horizontalHeader().setStretchLastSection(True)
+        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        for r, defn in enumerate(registry.values()):
+            table.setItem(r, 0, QTableWidgetItem(defn.node_type_id))
+            table.setItem(r, 1, QTableWidgetItem(defn.display_name))
+            table.setItem(r, 2, QTableWidgetItem(defn.category))
+            table.setItem(r, 3, QTableWidgetItem(defn.base_class))
+        layout.addWidget(table)
+        btn_row = QHBoxLayout()
+        import_btn = QPushButton("Import from file…")
+        btn_row.addWidget(import_btn)
+        btn_row.addStretch()
+        layout.addLayout(btn_row)
+
+        def _import() -> None:
+            path_str, _ = QFileDialog.getOpenFileName(
+                dlg, "Import Node Type", "", "YAML (*.yaml *.yml)"
+            )
+            if not path_str:
+                return
+            import shutil
+
+            dest = self._project.root / "node_types" / Path(path_str).name  # type: ignore[union-attr]
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path_str, dest)
+            rel = f"node_types/{dest.name}"
+            if rel not in self._project.node_types:  # type: ignore[union-attr]
+                self._project.node_types.append(rel)  # type: ignore[union-attr]
+            self._refresh_explorer()
+            self.statusBar().showMessage(f"Imported: {dest.name}")
+            dlg.accept()
+
+        import_btn.clicked.connect(_import)
+        ok = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        ok.accepted.connect(dlg.accept)
+        layout.addWidget(ok)
         dlg.exec()
 
     def _on_shared_store_inspector(self) -> None:

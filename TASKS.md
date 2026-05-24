@@ -136,28 +136,28 @@ shared-store state step by step, and preview prompts for LLM nodes.
 - [x] T-501: Implement `OllamaProvider.complete()` — HTTP POST to Ollama `/api/generate`
 - [x] T-502: Wire Run > Run Active Flow with `MockProvider` — capture trace, populate Run Log
 - [x] T-504: Populate Shared Store tab live after each node step
-- [~] T-505: Populate Prompt Preview tab for selected LLM node (show resolved prompt) — deferred M8
-- [~] T-503: Implement step debugger — pause after each node, show shared-store diff — deferred M8
-- [~] T-506: Wire Run > Debug Active Flow — breakpoint markers on node items — deferred M8
+- [x] T-505: Populate Prompt Preview tab for selected LLM node (show resolved prompt)
+- [x] T-503: Implement step debugger — FlowRunner.steps() generator + run_debug() with StepController
+- [x] T-506: Wire Run > Debug Active Flow — breakpoint markers on node items, Stop/Resume menu actions
 - [x] T-507: Implement run trace export — save trace to `run_reports/<timestamp>.json`
 - [x] T-110: Wire Run > Run Active Flow menu action to M7 runner
 - [x] T-111: Wire Run > Run Tests → `pytest` subprocess, populate Test Results tab
 
 ---
 
-## M8 — Custom Node Type System
+## M8 — Custom Node Type System  ✓ Complete
 
 **Deliverable:** Users can define new node types through a wizard, validate them against
 the schema, and manage a local library of custom types.
 
 **Depends on:** M4 (Component Palette must accept custom types), M5 (YAML editor)
 
-- [ ] T-601: Implement node type wizard dialog — name, category, base class, properties, actions
-- [ ] T-602: Validate custom node type YAML against `NodeTypeDefinition` schema on save
-- [ ] T-603: Support node type inheritance — show inherited properties and actions in inspector
-- [ ] T-604: Add custom node library manager — list, import, and version custom node packages
-- [ ] T-605: Wire Node > New Custom Node Type → wizard → write YAML + Python skeleton
-- [ ] T-606: Wire Node > Generate Node Skeleton → write Python class file for selected type
+- [x] T-601: Implement node type wizard dialog — name, category, base class, properties, actions
+- [x] T-602: Validate custom node type YAML against `NodeTypeDefinition` schema on save
+- [x] T-603: Support node type inheritance — show inherited properties and actions in inspector
+- [x] T-604: Add custom node library manager — list, import, and version custom node packages
+- [x] T-605: Wire Node > New Custom Node Type → wizard → write YAML + Python skeleton
+- [x] T-606: Wire Node > Generate Node Skeleton → write Python class file for selected type
 
 ---
 

@@ -1,13 +1,15 @@
 # PocketFlow Creator — Status
 
-## Current State: M7 + M9 Complete (v0.1.0, 2026-05-24)
+## Current State: M7–M9 Complete (v0.1.0, 2026-05-24)
 
-Milestones M0–M7 are done. The app has a working graph canvas, full file I/O, wired menus,
+Milestones M0–M9 are done. The app has a working graph canvas, full file I/O, wired menus,
 syntax-highlighting editors, live Markdown preview, shared-store tooling, Jinja2 template-based
 code generation, full export pipeline with `custom/` guard, graph image export (SVG/PNG),
-project report export (Markdown), and a full run-and-debug pipeline (OllamaProvider HTTP,
-FlowRunner, run trace export, Run Log, Shared Store live view, Run Tests via pytest subprocess).
-M8 (Custom Node Type System) is next.
+project report export (Markdown), a full run-and-debug pipeline (OllamaProvider HTTP,
+FlowRunner generator, StepController, run_debug threaded debugger, breakpoint markers,
+Run Log / Shared Store live view, Run Tests via pytest), and a complete Custom Node Type
+System (wizard, YAML validation, inherited property inspector, library manager,
+node skeleton generator, Prompt Preview tab). All milestones M0–M9 complete.
 
 ---
 
@@ -56,12 +58,16 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 
 ### M7 — Run and Debug ✓
 - `OllamaProvider.complete()` — HTTP POST to `{base_url}/api/generate` using stdlib `urllib.request`
-- `FlowRunner` — interprets `GraphModel` directly; walks nodes by edges; calls provider for LLM nodes
-- `RunTrace` / `RunStep` — per-step snapshot of shared store before/after; prompt and response fields
-- `FlowRunner.save_trace()` — writes `run_reports/<timestamp>.json`
+- `FlowRunner.steps()` generator — yields `RunStep` per node; non-blocking, consumer controls pacing
+- `FlowRunner.run()` — convenience wrapper that collects all steps into a `RunTrace`
+- `FlowRunner.run_debug()` — threaded debug runner with `StepController` pause/resume gate + breakpoints
+- `StepController` — thread-safe `pause()` / `resume()` / `stop()` / `wait_for_resume()` for debug thread
+- `RunTrace.to_json()` / `FlowRunner.save_trace()` — writes `run_reports/<timestamp>.json`
 - Run > Run Active Flow — populates Run Log tab and Shared Store tab; saves trace file
+- Run > Debug Active Flow — runs in background thread with StepController; Stop/Resume menu actions
 - Run > Run Tests — `pytest` subprocess; populates Test Results tab
-- Run menu extracted from generic loop; "Run Active Flow" and "Run Tests" fully wired
+- T-505 Prompt Preview — auto-populates when LLM node selected; reads `prompt_file` from node properties
+- T-506 Debug breakpoints — Toggle Breakpoint on canvas node; red dot marker on `NodeItem`
 
 ### M6 — Code Generation and Export ✓
 - `PythonGenerator` replaced with Jinja2 template-based generator (`nodes.py.j2`, `flow.py.j2`)
@@ -132,7 +138,9 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 | `test_ollama_provider.py` | 5 | Passing |
 | `test_runner.py` | 10 | Passing |
 | `test_generation_completeness.py` | 4 | Passing |
-| **Total** | **63** | **All green** |
+| `test_node_type_wizard.py` | 10 | Passing |
+| `test_runner.py` (expanded) | 22 | Passing |
+| **Total** | **85** | **All green** |
 
 ---
 
@@ -146,11 +154,14 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 
 ## What Is Not Yet Implemented
 
-### M8 — Custom Node Type System (next)
-- Node type wizard dialog
-- Custom type YAML validation against schema
-- Inheritance support in inspector
-- Custom node library manager
+### M8 — Custom Node Type System ✓
+- `NodeTypeWizard` dialog — ID, display name, category, base class, actions list, properties table, flags
+- `NodeTypeDefinition.from_mapping()` validates on wizard Accept — shows error, keeps dialog open
+- Inspector shows inherited type definition properties (T-603) — loaded from project `node_types/` YAML
+- Tools > Node Type Library — table view of loaded types; Import from file copies YAML into project
+- Node > New Custom Node Type → wizard → writes YAML + Python skeleton stub
+- Node > Generate Node Skeleton → writes `custom/<type_id>.py` for selected canvas node
+- Node > Toggle Breakpoint — red dot marker on `NodeItem`, adds to `_breakpoints` set for debug runs
 
 ### M8 — Custom Node Type System
 - Node type wizard dialog

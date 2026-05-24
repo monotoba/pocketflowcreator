@@ -63,6 +63,7 @@ class NodeItem(QGraphicsItem):
         super().__init__(parent)
         self._node = node
         self._has_error = False
+        self._has_breakpoint = False
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
@@ -75,6 +76,10 @@ class NodeItem(QGraphicsItem):
 
     def set_has_error(self, has_error: bool) -> None:
         self._has_error = has_error
+        self.update()
+
+    def set_breakpoint(self, active: bool) -> None:
+        self._has_breakpoint = active
         self.update()
 
     def boundingRect(self) -> QRectF:
@@ -122,6 +127,11 @@ class NodeItem(QGraphicsItem):
         painter.setBrush(QBrush(QColor("#555555")))
         painter.drawEllipse(QPointF(0, _HEIGHT / 2), _PORT_R, _PORT_R)
         painter.drawEllipse(QPointF(_WIDTH, _HEIGHT / 2), _PORT_R, _PORT_R)
+
+        if self._has_breakpoint:
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(QColor("#e05555")))
+            painter.drawEllipse(QPointF(_WIDTH - 10, 10), 5, 5)
 
     def port_scene_pos(self) -> QPointF:
         return self.mapToScene(QPointF(_WIDTH, _HEIGHT / 2))
