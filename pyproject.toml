@@ -32,7 +32,15 @@ pocketflow-creator = "pocketflow_creator.__main__:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-pocketflow_creator = ["templates/*.j2", "translations/*.ts", "translations/*.qm"]
+pocketflow_creator = [
+    "templates/*.j2",
+    "translations/*.ts",
+    "translations/*.qm",
+    "help/*.md",
+    "help/img/*",
+    "help/tutorials/*.md",
+    "help/context/*.md",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

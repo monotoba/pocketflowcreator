@@ -108,6 +108,8 @@ class NodeTypeWizard(QDialog):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+        help_btn = buttons.addButton("?", QDialogButtonBox.ButtonRole.HelpRole)
+        help_btn.clicked.connect(self._on_help)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -133,6 +135,11 @@ class NodeTypeWizard(QDialog):
         row = self._props_table.currentRow()
         if row >= 0:
             self._props_table.removeRow(row)
+
+    def _on_help(self) -> None:
+        from pocketflow_creator.app.help_browser import open_help
+
+        open_help("context/node_type_wizard.md", self)
 
     def _on_accept(self) -> None:
         defn = self._collect()

@@ -158,23 +158,39 @@ PFCE2102 added: subflow_node missing/unresolved `subflow_ref`.
 
 ---
 
-## Tutorials (M10)
+## Help System (M11)
 
-`docs/TUTORIALS.md` is the authoritative user-facing tutorial document.
-It contains **25 tutorials + 4 exercises** in 4 parts:
+The help system lives in `src/pocketflow_creator/help/`. Key layout:
 
-- **Part 1 — Creator Fundamentals** (Tutorials 1–6): IDE tour, first flow, inspector,
-  code editor, custom node wizard, project templates
-- **Part 2 — PocketFlow Patterns** (Tutorials 7–17, 23–24): maps every major PocketFlow
-  cookbook pattern (hello world, chat, structured output, workflow, routing, agent, RAG,
-  batch, HITL, judge, multi-agent, streaming, memory) to Creator graph + code
-- **Part 3 — Advanced Features** (Tutorials 18–22, 25): validation, debug/breakpoints,
-  subflow, export, shared store designer, packaging
-- **Part 4 — Exercises** (A–D): News Summariser, Coding Agent, Multi-Provider Router,
-  Full IDE Workout
+```
+help/
+  index.md, getting_started.md, your_first_flow.md,
+  about_pocketflow.md, about_pocketflow_creator.md
+  img/                      ← user-added screenshots
+  tutorials/
+    index.md, part1_fundamentals.md, part2_patterns.md,
+    part3_advanced.md, part4_exercises.md
+  context/
+    canvas.md, inspector.md, palette.md, explorer.md,
+    options.md, provider_manager.md, shared_store.md,
+    node_type_wizard.md, code_editor.md, run_log.md, validation.md
+```
 
-PocketFlow repo (https://github.com/The-Pocket/PocketFlow) has 40+ cookbook examples
-across beginner/intermediate/advanced levels. All are covered in the tutorials.
+`HelpBrowser` (`app/help_browser.py`) — navigable QDialog; renders Markdown via
+`markdown` package with `fenced_code, tables, toc` extensions; `setOpenLinks(False)`
++ `anchorClicked` for internal `.md` link resolution; `setSearchPaths` for `img/`.
+
+`_add_help_button(button_box, context_id)` on `MainWindow` — adds `?` button using
+`HelpRole` to avoid closing the dialog. Wired in: Options, Provider Manager,
+Shared Store Designer, Node Type Wizard.
+
+F1 shortcut → `Help > PocketFlow Creator Help` → `index.md`.
+
+`docs/TUTORIALS.md` remains as-is (source/archive). The canonical tutorial content is now
+`help/tutorials/` — 4 part files split from the original 1323-line document.
+
+Tutorials cover 25 topics + 4 exercises across all PocketFlow cookbook patterns.
+PocketFlow repo: https://github.com/The-Pocket/PocketFlow — 40+ examples.
 
 ---
 
@@ -192,3 +208,6 @@ These features were added after the backlog (M10+) in response to user feedback:
 | Auto Layout (BFS layered, Ctrl+Shift+L) | `canvas.py`, `main.py` |
 | Zoom to Fit on graph load | `main.py` |
 | System / Light / Dark theme modes (replaces dark-only checkbox) | `main.py` |
+| i18n: QTranslator, tr() wrapping, en/es/fr/de .ts + .qm files, language selector | `main.py`, `translations/` |
+| Help system: HelpBrowser, 21 .md files, ? buttons, F1 shortcut | `help_browser.py`, `help/`, `main.py`, `node_type_wizard.py` |
+| Recursive subflow execution via known_graphs dict | `runner.py` |

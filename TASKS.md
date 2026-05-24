@@ -208,3 +208,22 @@ Tasks identified but not yet scheduled into a milestone:
 - [x] T-B06: Internationalization / localization scaffolding (QTranslator setup, tr() wrapping, .ts files for en/es, update/compile scripts)
 - [x] T-B07: Dark mode support (system palette + user override in settings)
 - [x] T-B08: Windows installer / macOS .app bundle packaging
+
+---
+
+## M11 — Help System  ✓ Complete
+
+**Deliverable:** Full integrated help system with navigable Markdown browser, context help
+in every dialog, and tutorials moved from docs/ to the help/ tree.
+
+- [x] T-H01: Create help folder structure (help/, help/tutorials/, help/context/, help/img/)
+- [x] T-H02: Write main help pages (index, getting_started, your_first_flow, about_pocketflow, about_pocketflow_creator)
+- [x] T-H03: Split TUTORIALS.md into part files in help/tutorials/ (index + 4 part files)
+- [x] T-H04: Write 11 context help files in help/context/
+- [x] T-H05: Implement HelpBrowser (QDialog with QTextBrowser, back/forward/home, Markdown→HTML)
+- [x] T-H06: Wire Help menu (PocketFlow Creator Help → index.md, Quick Reference → tutorials/index.md)
+- [x] T-H07: Add ? button helper (_add_help_button) and wire to Options, Provider Manager, Shared Store Designer
+- [x] T-H08: Add ? button to Node Type Wizard
+- [x] T-H09: Wire F1 shortcut to Help > PocketFlow Creator Help
+- [x] T-H10: Update pyproject.toml package-data for all help/*.md files
+- [x] T-H11: Write 8 tests for HelpBrowser (file existence, rendering, navigation)

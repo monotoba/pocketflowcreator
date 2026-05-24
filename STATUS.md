@@ -1,17 +1,13 @@
 # PocketFlow Creator — Status
 
-## Current State: M10 Complete — Tutorials (v0.1.1, 2026-05-24)
+## Current State: M11 Complete — Help System (v0.1.2, 2026-05-24)
 
-Milestones M0–M10 are done. M10 adds comprehensive tutorials covering all 40+ PocketFlow
-cookbook patterns and all Creator-specific IDE features. M0–M9 delivered: the app has a
-working graph canvas, full file I/O, wired menus,
-syntax-highlighting editors, live Markdown preview, shared-store tooling, Jinja2 template-based
-code generation, full export pipeline with `custom/` guard, graph image export (SVG/PNG),
-project report export (Markdown), a full run-and-debug pipeline (OllamaProvider HTTP,
-FlowRunner generator, StepController, run_debug threaded debugger, breakpoint markers,
-Run Log / Shared Store live view, Run Tests via pytest), and a complete Custom Node Type
-System (wizard, YAML validation, inherited property inspector, library manager,
-node skeleton generator, Prompt Preview tab). All milestones M0–M9 complete.
+Milestones M0–M11 are done. M11 adds a full integrated help system: a navigable Markdown
+help browser (HelpBrowser), 21 help files across index/main/tutorials/context categories,
+`?` buttons in all major dialogs, F1 shortcut, and tutorials moved from `docs/` into the
+help tree. M10 added comprehensive tutorials. M0–M9 delivered the working app: graph canvas,
+file I/O, wired menus, editors, live preview, shared-store tooling, code generation,
+full export pipeline, run/debug engine, and Custom Node Type System.
 
 ---
 
@@ -30,13 +26,24 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 - Round-trip test for load → save → reload equality
 
 ### M10 — Tutorials and Documentation ✓
-- `docs/TUTORIALS.md` — 25 tutorials + 4 exercises covering:
-  - Part 1: IDE Tour, First Flow, Inspector Editing, Code Editor (RAD), Custom Node Wizard, Templates
-  - Part 2: Hello World, Chat, Structured Output, Workflow, Routing, Agent, RAG, Batch,
-    HITL, Judge, Multi-Agent, Streaming, Memory (maps to all major PocketFlow cookbook patterns)
-  - Part 3: Validation, Debug/Breakpoints, Subflow, Export, Shared Store Designer, Packaging
-  - Part 4: Exercises — News Summariser, Coding Agent, Multi-Provider Router, Full IDE Workout
+- `docs/TUTORIALS.md` — 25 tutorials + 4 exercises (source; canonical copy now in `help/tutorials/`)
 - PocketFlow repo researched: 40+ examples catalogued across beginner/intermediate/advanced
+
+### M11 — Help System ✓
+- `src/pocketflow_creator/help/` — 21 Markdown help files in 3 directories:
+  - Main: `index.md`, `getting_started.md`, `your_first_flow.md`, `about_pocketflow.md`,
+    `about_pocketflow_creator.md`
+  - `tutorials/`: `index.md` + 4 part files (Fundamentals, Patterns, Advanced, Exercises)
+  - `context/`: 11 files (canvas, inspector, palette, explorer, options, provider_manager,
+    shared_store, node_type_wizard, code_editor, run_log, validation)
+- `HelpBrowser` dialog — navigable QTextBrowser with Markdown→HTML, back/forward/home,
+  image search paths, external URL handling
+- `open_help()` convenience function for use from dialogs
+- Help menu wired: `PocketFlow Creator Help` (F1) → index.md; `Quick Reference` → tutorials/index.md
+- `_add_help_button()` helper method adds `?` to QDialogButtonBox with HelpRole
+- `?` buttons in: Options, Provider Manager, Shared Store Designer, Node Type Wizard
+- `pyproject.toml` updated: `help/**/*.md` in package-data
+- 8 new tests in `tests/test_help_browser.py`
 
 ### M3 — GUI Shell Wired ✓
 - File > New/Open/Save/Save All/Project Settings all dispatch to real handlers
@@ -151,7 +158,9 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 | `test_generation_completeness.py` | 4 | Passing |
 | `test_node_type_wizard.py` | 10 | Passing |
 | `test_runner.py` (expanded) | 22 | Passing |
-| **Total** | **85** | **All green** |
+| `test_subflow.py` | 6 | Passing |
+| `test_help_browser.py` | 8 | Passing |
+| **Total** | **106** | **All green** |
 
 ---
 

@@ -154,6 +154,11 @@ class MainWindow(QMainWindow):
         self._update_recent_menu()
         self._apply_theme()
         self.statusBar().showMessage(self.tr("Ready"))
+        # F1 opens the help browser from anywhere in the main window
+        f1 = QKeySequence(Qt.Key.Key_F1)
+        help_action = self.menuBar().actions()[-1].menu()  # Help menu
+        if help_action:
+            help_action.actions()[0].setShortcut(f1)
 
     # ------------------------------------------------------------------ menus
 
@@ -270,8 +275,8 @@ class MainWindow(QMainWindow):
             window_menu.addAction(name)
 
         help_menu = self.menuBar().addMenu(self.tr("Help"))
-        help_menu.addAction(self.tr("PocketFlow Creator Help"))
-        help_menu.addAction(self.tr("PocketFlow Quick Reference"))
+        help_menu.addAction(self.tr("PocketFlow Creator Help"), self._on_help)
+        help_menu.addAction(self.tr("PocketFlow Quick Reference"), self._on_help_tutorials)
         help_menu.addAction(self.tr("About PocketFlow Creator"), self._on_about)
 
     # --------------------------------------------------------------- layout
@@ -884,6 +889,27 @@ class MainWindow(QMainWindow):
             self._debug_controller.resume()
         self.statusBar().showMessage("Resumed.")
 
+    # ----------------------------------------------- help handlers
+
+    def _open_help(self, page: str = "index.md") -> None:
+        from pocketflow_creator.app.help_browser import HelpBrowser
+
+        dlg = HelpBrowser(page, self)
+        dlg.exec()
+
+    def _on_help(self) -> None:
+        self._open_help("index.md")
+
+    def _on_help_tutorials(self) -> None:
+        self._open_help("tutorials/index.md")
+
+    def _add_help_button(
+        self, button_box: QDialogButtonBox, context_id: str
+    ) -> None:
+        """Add a ? button that opens context help without closing the dialog."""
+        btn = button_box.addButton("?", QDialogButtonBox.ButtonRole.HelpRole)
+        btn.clicked.connect(lambda: self._open_help(f"context/{context_id}.md"))
+
     def _on_about(self) -> None:
         QMessageBox.about(
             self,
@@ -1287,6 +1313,7 @@ class MainWindow(QMainWindow):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+        self._add_help_button(buttons, "options")
         buttons.accepted.connect(dlg.accept)
         buttons.rejected.connect(dlg.reject)
         layout.addWidget(buttons)
@@ -1408,6 +1435,7 @@ class MainWindow(QMainWindow):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+        self._add_help_button(buttons, "provider_manager")
         buttons.accepted.connect(dlg.accept)
         buttons.rejected.connect(dlg.reject)
         layout.addWidget(buttons)
@@ -1611,6 +1639,7 @@ class MainWindow(QMainWindow):
         dialog_btns = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+        self._add_help_button(dialog_btns, "shared_store")
         dialog_btns.accepted.connect(dlg.accept)
         dialog_btns.rejected.connect(dlg.reject)
         main_layout.addWidget(dialog_btns)
