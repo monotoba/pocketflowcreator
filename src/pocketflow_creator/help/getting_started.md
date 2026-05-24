@@ -32,6 +32,8 @@ pocketflow-creator
 
 ## First Launch
 
+![PocketFlow Creator main window](img/main_window.png)
+
 On first launch the application opens with no project loaded. The canvas is empty and
 most menu items are greyed out until a project is opened or created.
 

@@ -208,6 +208,9 @@ These features were added after the backlog (M10+) in response to user feedback:
 | Auto Layout (BFS layered, Ctrl+Shift+L) | `canvas.py`, `main.py` |
 | Zoom to Fit on graph load | `main.py` |
 | System / Light / Dark theme modes (replaces dark-only checkbox) | `main.py` |
-| i18n: QTranslator, tr() wrapping, en/es/fr/de .ts + .qm files, language selector | `main.py`, `translations/` |
+| i18n: QTranslator, tr() wrapping, en/es/fr/de/zh/ja .ts + .qm files, language selector | `main.py`, `translations/` |
+| Tool Registry: discovers @tool functions from project tools/ directory | `main.py` |
+| Subflow execution wired to GUI run handler via known_graphs | `main.py`, `runner.py` |
+| Code manager stub uses correct PocketFlow base class from node type definition | `code_manager.py` |
 | Help system: HelpBrowser, 21 .md files, ? buttons, F1 shortcut | `help_browser.py`, `help/`, `main.py`, `node_type_wizard.py` |
 | Recursive subflow execution via known_graphs dict | `runner.py` |

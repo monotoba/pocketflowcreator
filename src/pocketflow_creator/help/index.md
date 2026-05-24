@@ -3,6 +3,8 @@
 Welcome to PocketFlow Creator — the RAD visual designer for building LLM workflows with
 the [PocketFlow](https://github.com/The-Pocket/PocketFlow) framework.
 
+![PocketFlow Creator main window](img/main_window.png)
+
 ---
 
 ## Getting Started

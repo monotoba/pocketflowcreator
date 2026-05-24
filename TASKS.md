@@ -227,3 +227,15 @@ in every dialog, and tutorials moved from docs/ to the help/ tree.
 - [x] T-H09: Wire F1 shortcut to Help > PocketFlow Creator Help
 - [x] T-H10: Update pyproject.toml package-data for all help/*.md files
 - [x] T-H11: Write 8 tests for HelpBrowser (file existence, rendering, navigation)
+
+---
+
+## M12 — Polish and Completion  ✓ Complete
+
+**Deliverable:** Close all known stub/gap items identified after M11.
+
+- [x] T-P01: Fix code_manager base class — resolve actual PocketFlow base from node type, not `# TODO` comment
+- [x] T-P02: Wire known_graphs into GUI run handler so subflow recursive execution works end-to-end
+- [x] T-P03: Implement Tool Registry — discover and display @tool-decorated functions from project tools/ directory
+- [x] T-P04: Add Chinese (zh) and Japanese (ja) .ts + .qm translation files
+- [x] T-P05: Populate help/img/ with UI screenshots and link them from help pages

@@ -47,7 +47,7 @@ class HelpBrowser(QDialog):  # type: ignore[misc]
     """
 
     def __init__(self, start_page: str = "index.md", parent: object = None) -> None:
-        super().__init__(parent)  # type: ignore[call-arg]
+        super().__init__(parent)  # type: ignore[arg-type]
         self.setWindowTitle("PocketFlow Creator Help")
         self.resize(820, 620)
 

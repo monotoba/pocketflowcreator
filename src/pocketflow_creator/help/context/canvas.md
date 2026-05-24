@@ -2,6 +2,8 @@
 
 The canvas is the central panel where you visually design your PocketFlow workflow.
 
+![PocketFlow Creator canvas and panels](../img/main_window.png)
+
 ## Basic Operations
 
 | Operation | How |

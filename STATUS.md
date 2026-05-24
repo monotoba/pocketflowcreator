@@ -1,13 +1,14 @@
 # PocketFlow Creator — Status
 
-## Current State: M11 Complete — Help System (v0.1.2, 2026-05-24)
+## Current State: M12 Complete — Polish and Completion (v0.1.3, 2026-05-24)
 
-Milestones M0–M11 are done. M11 adds a full integrated help system: a navigable Markdown
-help browser (HelpBrowser), 21 help files across index/main/tutorials/context categories,
-`?` buttons in all major dialogs, F1 shortcut, and tutorials moved from `docs/` into the
-help tree. M10 added comprehensive tutorials. M0–M9 delivered the working app: graph canvas,
-file I/O, wired menus, editors, live preview, shared-store tooling, code generation,
-full export pipeline, run/debug engine, and Custom Node Type System.
+Milestones M0–M12 are done. M12 closes all known stub/gap items: code_manager base class
+resolved from node type definition, GUI run handler passes known_graphs for subflow execution,
+Tool Registry discovers @tool functions via AST scan, zh/ja translations compiled to .qm, and
+help/img/ populated with UI screenshots linked from help pages.
+M11 added the full integrated help system. M10 added comprehensive tutorials. M0–M9 delivered
+the working app: graph canvas, file I/O, wired menus, editors, live preview, shared-store
+tooling, code generation, full export pipeline, run/debug engine, and Custom Node Type System.
 
 ---
 
@@ -183,18 +184,12 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 - Node > Generate Node Skeleton → writes `custom/<type_id>.py` for selected canvas node
 - Node > Toggle Breakpoint — red dot marker on `NodeItem`, adds to `_breakpoints` set for debug runs
 
-### M8 — Custom Node Type System
-- Node type wizard dialog
-- Custom type YAML validation against schema
-- Inheritance support in inspector
-- Custom node library manager
-
-### M9 — Test Coverage and Polish
-- GUI smoke-test infrastructure (already partially done via offscreen tests)
-- ProjectLoader round-trip test
-- Code generation completeness test
-- OllamaProvider mock HTTP test
-- 50+ tests total
+### M12 — Polish and Completion ✓
+- T-P01: code_manager base class resolved from node type definition (not TODO comment)
+- T-P02: GUI run handler passes known_graphs so subflow execution works end-to-end
+- T-P03: Tool Registry discovers @tool-decorated functions from project tools/ directory
+- T-P04: Chinese (zh) and Japanese (ja) .ts + .qm translation files
+- T-P05: help/img/ populated with UI screenshots; context help pages link them
 
 ---
 

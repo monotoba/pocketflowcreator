@@ -27,7 +27,7 @@ from __future__ import annotations
 
 _STUB = """\
 {start}
-class {class_name}(Node):
+class {class_name}({base_class}):
     \"\"\"{type_id}: {title}\"\"\"
 
     def prep(self, shared: dict) -> object:
@@ -65,8 +65,30 @@ def ensure_code_file(graph_rel: str, project_root: Path) -> Path:
     return path
 
 
-def add_node(code_path: Path, node: NodeModel) -> int:
-    """Add a class stub for node if absent. Returns 1-based line of the NODE_START marker."""
+_BASE_CLASS_MAP: dict[str, str] = {
+    "batch_node": "BatchNode",
+    "async_node": "AsyncNode",
+    "async_batch_node": "AsyncBatchNode",
+}
+
+
+def _resolve_base_class(type_id: str, declared_base: str = "") -> str:
+    """Return the PocketFlow base class for a node type.
+
+    Uses the explicitly declared base_class if provided; otherwise infers from
+    type_id keywords; falls back to "Node".
+    """
+    if declared_base and declared_base not in ("", "Node"):
+        return declared_base
+    return _BASE_CLASS_MAP.get(type_id.lower(), "Node")
+
+
+def add_node(code_path: Path, node: NodeModel, base_class: str = "") -> int:
+    """Add a class stub for node if absent. Returns 1-based line of the NODE_START marker.
+
+    base_class: the PocketFlow base class to inherit from (e.g. "Node", "BatchNode").
+    If empty, resolved from node.type_id.
+    """
     text = code_path.read_text(encoding="utf-8")
     start_marker = _NODE_START.format(node_id=node.id)
     if start_marker in text:
@@ -75,12 +97,14 @@ def add_node(code_path: Path, node: NodeModel) -> int:
                 return i
         return 1
 
+    resolved = _resolve_base_class(node.type_id, base_class)
     stub = _STUB.format(
         start=start_marker,
         end=_NODE_END.format(node_id=node.id),
         class_name=_to_class_name(node.title),
         title=node.title,
         type_id=node.type_id,
+        base_class=resolved,
     )
     new_text = text.rstrip("\n") + "\n\n" + stub
     code_path.write_text(new_text, encoding="utf-8")

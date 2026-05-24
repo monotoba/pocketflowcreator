@@ -76,16 +76,17 @@ _VERSION = "0.1.0"
 
 def _node_skeleton_text(type_id: str, base_class: str) -> str:
     class_name = "".join(p.capitalize() for p in type_id.replace("-", "_").split("_"))
+    resolved = base_class if base_class else "Node"
     return (
         f"from __future__ import annotations\n\n\n"
-        f"class {class_name}:  # TODO: inherit from appropriate PocketFlow base\n"
-        f"    # base_class: {base_class}\n\n"
-        f"    def prep(self, shared: dict) -> dict:\n"
-        f"        return shared\n\n"
-        f"    def exec(self, prep_res: dict) -> str:\n"
-        f"        return 'default'\n\n"
-        f"    def post(self, shared: dict, prep_res: dict, exec_res: str) -> str:\n"
-        f"        return exec_res\n"
+        f"class {class_name}({resolved}):\n"
+        f"    \"\"\"{type_id}\"\"\"\n\n"
+        f"    def prep(self, shared: dict) -> object:\n"
+        f"        return None\n\n"
+        f"    def exec(self, prep_res: object) -> object:\n"
+        f"        return None\n\n"
+        f"    def post(self, shared: dict, prep_res: object, exec_res: object) -> str:\n"
+        f"        return 'default'\n"
     )
 _EDITOR_TABS: frozenset[str] = frozenset({"Python", "Markdown", "YAML"})
 _ROLE_PATH = Qt.ItemDataRole.UserRole  # type: ignore[attr-defined]
@@ -757,8 +758,13 @@ class MainWindow(QMainWindow):
             )
 
         runner = FlowRunner()
+        known_graphs = {k: v for k, v in self._graphs.items() if k != rel}
         try:
-            trace = runner.run(graph, provider, project_name=self._project.name)
+            trace = runner.run(
+                graph, provider,
+                project_name=self._project.name,
+                known_graphs=known_graphs or None,
+            )
         except Exception as exc:
             QMessageBox.critical(self, "Run Failed", str(exc))
             return
@@ -816,7 +822,9 @@ class MainWindow(QMainWindow):
         if self._project is None or not self._graphs:
             self.statusBar().showMessage("No graphs to debug.")
             return
-        graph = next(iter(self._graphs.values()))
+        _debug_rel = next(iter(self._graphs.keys()))
+        graph = self._graphs[_debug_rel]
+        _debug_known = {k: v for k, v in self._graphs.items() if k != _debug_rel}
         settings = QSettings("Monotoba", "PocketFlowCreator")
         prov_type = str(settings.value("run/provider", "mock"))
         if prov_type == "ollama":
@@ -862,6 +870,7 @@ class MainWindow(QMainWindow):
                 breakpoints=self._breakpoints,
                 on_step=_on_step,
                 project_name=self._project.name if self._project else "",
+                known_graphs=_debug_known or None,
             )
             collected.append(trace)
 
@@ -1190,7 +1199,10 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("No project open.")
             return
         code_path = code_manager.ensure_code_file(self._active_graph_rel, self._project.root)
-        line_no = code_manager.add_node(code_path, item.node)
+        registry = self._load_node_type_registry()
+        nt = registry.get(item.node.type_id)
+        bc = nt.base_class if nt else ""
+        line_no = code_manager.add_node(code_path, item.node, base_class=bc)
         self._open_file_in_editor(code_path)
         editor = self._bottom_editors["Python"]
         doc = editor.document()
@@ -1210,7 +1222,10 @@ class MainWindow(QMainWindow):
         if self._project is None or self._active_graph_rel is None:
             return
         code_path = code_manager.ensure_code_file(self._active_graph_rel, self._project.root)
-        code_manager.add_node(code_path, item.node)
+        registry = self._load_node_type_registry()
+        nt = registry.get(item.node.type_id)
+        bc = nt.base_class if nt else ""
+        code_manager.add_node(code_path, item.node, base_class=bc)
 
     def _on_node_deleted(self, node_id: object) -> None:
         from pocketflow_creator.app import code_manager
@@ -1444,17 +1459,69 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Provider settings saved.")
 
     def _on_tool_registry(self) -> None:
+        import ast as _ast
+
         dlg = QDialog(self)
-        dlg.setWindowTitle("Tool Registry")
+        dlg.setWindowTitle(self.tr("Tool Registry"))
+        dlg.resize(700, 420)
         layout = QVBoxLayout(dlg)
-        layout.addWidget(
-            QLabel(
-                "No tools registered.\n\n"
-                "Tools are Python functions decorated with @tool\n"
-                "and discovered from the project's tools/ directory."
-            )
+
+        table = QTableWidget(0, 3)
+        table.setHorizontalHeaderLabels(
+            [self.tr("Function"), self.tr("File"), self.tr("Description")]
         )
+        table.horizontalHeader().setStretchLastSection(True)
+        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        layout.addWidget(table)
+
+        tools_found: list[tuple[str, str, str]] = []
+
+        if self._project is not None:
+            tools_dir = self._project.root / "tools"
+            if tools_dir.is_dir():
+                for py_file in sorted(tools_dir.glob("*.py")):
+                    try:
+                        source = py_file.read_text(encoding="utf-8")
+                        tree = _ast.parse(source, filename=str(py_file))
+                    except SyntaxError:
+                        continue
+                    for node in _ast.walk(tree):
+                        if not isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+                            continue
+                        decorator_names = []
+                        for dec in node.decorator_list:
+                            if isinstance(dec, _ast.Name):
+                                decorator_names.append(dec.id)
+                            elif isinstance(dec, _ast.Attribute):
+                                decorator_names.append(dec.attr)
+                        if "tool" not in decorator_names:
+                            continue
+                        docstring = _ast.get_docstring(node) or ""
+                        first_line = docstring.splitlines()[0] if docstring else ""
+                        tools_found.append((node.name, py_file.name, first_line))
+
+        if tools_found:
+            table.setRowCount(len(tools_found))
+            for row, (name, fname, desc) in enumerate(tools_found):
+                table.setItem(row, 0, QTableWidgetItem(name))
+                table.setItem(row, 1, QTableWidgetItem(fname))
+                table.setItem(row, 2, QTableWidgetItem(desc))
+        else:
+            no_project = self._project is None
+            msg = (
+                self.tr("No project open.")
+                if no_project
+                else self.tr(
+                    "No @tool functions found.\n\n"
+                    "Add Python files with @tool-decorated functions to the"
+                    " project's tools/ directory."
+                )
+            )
+            layout.insertWidget(0, QLabel(msg))
+
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        self._add_help_button(buttons, "tool_registry")
         buttons.accepted.connect(dlg.accept)
         layout.addWidget(buttons)
         dlg.exec()
