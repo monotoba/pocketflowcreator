@@ -74,9 +74,9 @@ Project Explorer reflects the loaded project tree.
 
 ## M4 — Real Graph Canvas
 
-**Deliverable:** Users can place nodes by dragging from the palette, wire action ports,
-select objects, and edit properties in a live inspector. Validation errors appear as
-badges on the canvas.
+**Deliverable:** Users can place nodes by dragging from the palette; edges from loaded
+graphs are visualized as straight lines between nodes. Users can select objects and edit
+properties in a live inspector. Validation errors appear as badges on the canvas.
 
 **Depends on:** M3
 

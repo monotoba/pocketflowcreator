@@ -14,9 +14,7 @@ try:
         QFileDialog,
         QFormLayout,
         QInputDialog,
-        QLabel,
         QLineEdit,
-        QListWidget,
         QMainWindow,
         QMenu,
         QMessageBox,
@@ -25,12 +23,20 @@ try:
         QTreeWidget,
         QTreeWidgetItem,
     )
+
+    from pocketflow_creator.app.canvas import (
+        EdgeItem,
+        GraphScene,
+        GraphView,
+        NodeItem,
+        PaletteWidget,
+    )
 except Exception:  # pragma: no cover - permits import in non-GUI test environments
     QApplication = None  # type: ignore[assignment,misc]
 
 from pocketflow_creator.generation.python_generator import PythonGenerator
 from pocketflow_creator.graph_io import GraphLoader, GraphSaver
-from pocketflow_creator.model.graph_model import GraphModel
+from pocketflow_creator.model.graph_model import EdgeModel, GraphModel, NodeModel
 from pocketflow_creator.model.project import ProjectModel
 from pocketflow_creator.project_io import ProjectLoader, ProjectSaver
 from pocketflow_creator.validation.graph_validator import GraphValidator
@@ -49,15 +55,25 @@ class MainWindow(QMainWindow):
         self._bottom_editors: dict[str, QPlainTextEdit] = {}
         self._undo_stack = QUndoStack(self)
         self._recent: list[Path] = []
+        self._current_node: NodeModel | None = None
+        self._current_node_item: NodeItem | None = None
+        self._current_edge: EdgeModel | None = None
         # Declared here; assigned by their respective _build_* methods below:
         self._explorer_tree: QTreeWidget
         self._bottom_tab_widget: QTabWidget
         self._recent_menu: QMenu
+        self._inspector: QTreeWidget
+        self._graph_view: GraphView
+        self._graph_scene = GraphScene()
         self.setWindowTitle("PocketFlow Creator")
         self.resize(1400, 900)
         self._build_menu_bar()
         self._build_central_area()
         self._build_docks()
+        self._graph_scene.node_item_selected.connect(self._on_node_item_selected)
+        self._graph_scene.edge_item_selected.connect(self._on_edge_item_selected)
+        self._graph_scene.selection_cleared.connect(self._on_selection_cleared)
+        self._inspector.itemChanged.connect(self._on_inspector_item_changed)
         self._recent = self._load_recent()
         self._update_recent_menu()
         self.statusBar().showMessage("Ready")
@@ -90,8 +106,9 @@ class MainWindow(QMainWindow):
             edit_menu.addAction(name)
 
         view_menu = self.menuBar().addMenu("View")
-        for name in ["Project Explorer", "Component Palette", "Object Inspector", "Zoom to Fit"]:
+        for name in ["Project Explorer", "Component Palette", "Object Inspector"]:
             view_menu.addAction(name)
+        view_menu.addAction("Zoom to Fit", self._on_zoom_to_fit)
 
         project_menu = self.menuBar().addMenu("Project")
         project_menu.addAction("Validate Project", self._on_validate_project)
@@ -123,14 +140,9 @@ class MainWindow(QMainWindow):
     # --------------------------------------------------------------- layout
 
     def _build_central_area(self) -> None:
-        placeholder = QLabel(
-            "Graph Designer\n\n"
-            "Drag node types from the Component Palette, edit them in the Object Inspector,\n"
-            "then wire action ports together here."
-        )
-        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setStyleSheet("font-size: 18px; border: 1px solid #888; background: #202020;")
-        self.setCentralWidget(placeholder)
+        self._graph_view = GraphView(self._graph_scene)
+        self._graph_view.setStyleSheet("background: #1a1a1a;")
+        self.setCentralWidget(self._graph_view)
 
     def _build_docks(self) -> None:
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._build_project_explorer())
@@ -147,25 +159,16 @@ class MainWindow(QMainWindow):
 
     def _build_component_palette(self) -> QDockWidget:
         dock = QDockWidget("Component Palette", self)
-        items = QListWidget()
-        for name in [
-            "Start Node", "Stop Node", "Basic Node", "Router Node",
-            "LLM Prompt Node", "JSON LLM Node", "Classifier Node",
-            "Python Tool Node", "File Reader Node", "Human Review Node",
-            "Batch Node", "Subflow Node",
-        ]:
-            items.addItem(name)
-        dock.setWidget(items)
+        dock.setWidget(PaletteWidget())
         return dock
 
     def _build_object_inspector(self) -> QDockWidget:
         dock = QDockWidget("Object Inspector", self)
-        text = QPlainTextEdit()
-        text.setPlainText(
-            "Object: (none)\nType: —\n\n"
-            "Select a node or edge on the canvas to inspect it."
-        )
-        dock.setWidget(text)
+        self._inspector = QTreeWidget()
+        self._inspector.setHeaderLabels(["Property", "Value"])
+        self._inspector.setAlternatingRowColors(True)
+        self._inspector.header().setStretchLastSection(True)
+        dock.setWidget(self._inspector)
         return dock
 
     def _build_bottom_dock(self) -> QDockWidget:
@@ -297,6 +300,8 @@ class MainWindow(QMainWindow):
                         QMessageBox.warning(
                             self, "Load Warning", f"Could not load {rel}:\n{exc}"
                         )
+            if self._graphs:
+                self._graph_scene.load_graph(next(iter(self._graphs.values())))
             self._refresh_explorer()
             self._add_recent(path)
             self.statusBar().showMessage(f"Opened: {self._project.name}")
@@ -365,14 +370,17 @@ class MainWindow(QMainWindow):
             return
         validator = GraphValidator()
         lines: list[str] = []
+        error_ids: set[str] = set()
         for rel, graph in self._graphs.items():
             for issue in validator.validate(graph):
                 lines.append(
                     f"[{issue.severity.upper()}] {rel}:{issue.object_id}  {issue.message}"
                 )
+                error_ids.add(issue.object_id)
         text = "\n".join(lines) if lines else "No issues found."
         self._bottom_editors["Problems"].setPlainText(text)
         self._switch_bottom_tab("Problems")
+        self._graph_scene.apply_validation(error_ids)
         self.statusBar().showMessage(f"Validation: {len(lines)} issue(s).")
 
     def _on_generate_code(self) -> None:
@@ -402,6 +410,69 @@ class MainWindow(QMainWindow):
             f"PocketFlow Creator v{_VERSION}\n\n"
             "RAD visual designer for PocketFlow LLM workflows.",
         )
+
+    # ---------------------------------------------- canvas signal handlers
+
+    def _on_node_item_selected(self, item: object) -> None:
+        if not isinstance(item, NodeItem):
+            return
+        self._current_node_item = item
+        self._current_node = item.node
+        self._populate_inspector_for_node(item.node)
+
+    def _on_edge_item_selected(self, item: object) -> None:
+        if not isinstance(item, EdgeItem):
+            return
+        self._current_node = None
+        self._current_node_item = None
+        self._current_edge = item.edge
+        self._inspector.blockSignals(True)
+        self._inspector.clear()
+        for label, value in [
+            ("ID", self._current_edge.id),
+            ("From", self._current_edge.from_node),
+            ("Action", self._current_edge.action),
+            ("To", self._current_edge.to_node),
+        ]:
+            self._inspector.addTopLevelItem(QTreeWidgetItem([label, value]))
+        self._inspector.blockSignals(False)
+
+    def _on_selection_cleared(self) -> None:
+        self._current_node = None
+        self._current_node_item = None
+        self._current_edge = None
+        self._inspector.clear()
+
+    def _on_inspector_item_changed(self, item: QTreeWidgetItem, col: int) -> None:
+        if col != 1 or item.text(0) != "Title":
+            return
+        if self._current_node is None or self._current_node_item is None:
+            return
+        self._current_node.title = item.text(1)
+        self._current_node_item.update()
+
+    def _populate_inspector_for_node(self, node: NodeModel) -> None:
+        self._inspector.blockSignals(True)
+        self._inspector.clear()
+        rows: list[tuple[str, str, bool]] = [
+            ("ID", node.id, False),
+            ("Type", node.type_id, False),
+            ("Title", node.title, True),
+            ("Position X", str(node.position.get("x", 0.0)), False),
+            ("Position Y", str(node.position.get("y", 0.0)), False),
+            ("Actions", ", ".join(node.actions), False),
+            ("Reads", ", ".join(node.reads), False),
+            ("Writes", ", ".join(node.writes), False),
+        ]
+        for label, value, editable in rows:
+            row = QTreeWidgetItem([label, value])
+            if editable:
+                row.setFlags(row.flags() | Qt.ItemFlag.ItemIsEditable)
+            self._inspector.addTopLevelItem(row)
+        self._inspector.blockSignals(False)
+
+    def _on_zoom_to_fit(self) -> None:
+        self._graph_view.zoom_to_fit()
 
 
 def run(argv: Sequence[str] | None = None) -> int:

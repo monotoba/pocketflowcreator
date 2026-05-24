@@ -12,6 +12,9 @@ class ProjectModel:
     default_provider: str = "ollama_local"
     default_model: str = "qwen2.5-coder:14b"
     graphs: list[str] = field(default_factory=list)
+    prompts: list[str] = field(default_factory=list)
+    node_types: list[str] = field(default_factory=list)
+    shared_store_schema: str | None = None
 
     @property
     def project_file(self) -> Path:
