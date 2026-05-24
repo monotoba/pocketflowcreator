@@ -55,9 +55,8 @@ class PythonGenerator:
                 if edge.action == "default":
                     lines.append(f"    {self._var_name(source)} >> {self._var_name(target)}")
                 else:
-                    lines.append(
-                        f"    {self._var_name(source)} - {edge.action!r} >> {self._var_name(target)}"
-                    )
+                    src, tgt = self._var_name(source), self._var_name(target)
+                    lines.append(f"    {src} - {edge.action!r} >> {tgt}")
         start = graph.find_node(graph.start_node or "") or graph.nodes[0]
         lines.extend(["", f"    return Flow(start={self._var_name(start)})"])
         return "\n".join(lines) + "\n"

@@ -11,7 +11,9 @@ def test_generator_emits_node_and_flow_code():
             NodeModel(id="node_start", type_id="start_node", title="Start", actions=["default"]),
             NodeModel(id="node_stop", type_id="stop_node", title="Stop"),
         ],
-        edges=[EdgeModel(id="edge1", from_node="node_start", action="default", to_node="node_stop")],
+        edges=[
+            EdgeModel(id="edge1", from_node="node_start", action="default", to_node="node_stop"),
+        ],
     )
 
     generator = PythonGenerator()

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 try:
     from PySide6.QtCore import Qt
@@ -14,10 +14,9 @@ try:
         QTabWidget,
         QTreeWidget,
         QTreeWidgetItem,
-        QWidget,
     )
 except Exception:  # pragma: no cover - permits import in non-GUI test environments
-    QApplication = None  # type: ignore[assignment]
+    QApplication = None  # type: ignore[assignment,misc]
 
 
 class MainWindow(QMainWindow):
@@ -51,13 +50,20 @@ class MainWindow(QMainWindow):
             ],
             "Edit": ["Undo", "Redo", "Cut", "Copy", "Paste", "Duplicate", "Delete", "Find..."],
             "View": ["Project Explorer", "Component Palette", "Object Inspector", "Zoom to Fit"],
-            "Project": ["Validate Project", "Generate Code", "Open Project Folder", "Provider Profiles..."],
+            "Project": [
+                "Validate Project", "Generate Code", "Open Project Folder", "Provider Profiles...",
+            ],
             "Flow": ["New Flow...", "New Subflow...", "Set Start Node", "Validate Active Flow"],
             "Node": ["New Custom Node Type...", "Generate Node Skeleton", "Validate Selected Node"],
             "Run": ["Run Project", "Run Active Flow", "Debug Active Flow", "Run Tests", "Stop"],
-            "Tools": ["Provider Manager...", "Tool Registry...", "Shared Store Inspector...", "Options..."],
+            "Tools": [
+                "Provider Manager...", "Tool Registry...",
+                "Shared Store Inspector...", "Options...",
+            ],
             "Window": ["Reset Layout", "Next Tab", "Previous Tab"],
-            "Help": ["PocketFlow Creator Help", "PocketFlow Quick Reference", "About PocketFlow Creator"],
+            "Help": [
+                "PocketFlow Creator Help", "PocketFlow Quick Reference", "About PocketFlow Creator",
+            ],
         }
         for menu_name, actions in menu_specs.items():
             menu = self.menuBar().addMenu(menu_name)
@@ -85,7 +91,10 @@ class MainWindow(QMainWindow):
         tree = QTreeWidget()
         tree.setHeaderHidden(True)
         root = QTreeWidgetItem(["DocumentSummarizer"])
-        for name in ["Flows", "Graphs", "Prompts", "Node Types", "Tools", "Shared Store", "Source", "Tests", "Exports"]:
+        for name in [
+            "Flows", "Graphs", "Prompts", "Node Types", "Tools",
+            "Shared Store", "Source", "Tests", "Exports",
+        ]:
             root.addChild(QTreeWidgetItem([name]))
         tree.addTopLevelItem(root)
         root.setExpanded(True)

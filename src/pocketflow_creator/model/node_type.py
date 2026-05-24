@@ -27,7 +27,7 @@ class NodeTypeDefinition:
     allow_prompt_files: bool = False
 
     @classmethod
-    def from_mapping(cls, data: dict[str, Any]) -> "NodeTypeDefinition":
+    def from_mapping(cls, data: dict[str, Any]) -> NodeTypeDefinition:
         required = ["node_type_id", "display_name", "category", "base_class"]
         missing = [key for key in required if key not in data]
         if missing:
