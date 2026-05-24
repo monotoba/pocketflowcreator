@@ -184,7 +184,7 @@ Tasks identified but not yet scheduled into a milestone:
 - [x] T-B02: Add project template system (File > New From Template)
 - [x] T-B03: Add node template / snippet library (reusable pre-configured nodes)
 - [x] T-B04: Implement shared-store schema editor with JSON Schema validation
-- [ ] T-B05: Add subflow support — `SubflowNode` that embeds another graph
+- [x] T-B05: Add subflow support — `SubflowNode` that embeds another graph
 - [ ] T-B06: Internationalization / localization scaffolding
 - [x] T-B07: Dark mode support (system palette + user override in settings)
 - [ ] T-B08: Windows installer / macOS .app bundle packaging

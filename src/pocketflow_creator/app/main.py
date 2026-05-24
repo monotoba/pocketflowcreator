@@ -1016,6 +1016,23 @@ class MainWindow(QMainWindow):
                 row.setFlags(row.flags() | Qt.ItemFlag.ItemIsEditable)
             self._inspector.addTopLevelItem(row)
 
+        # T-B05: subflow_ref selector for subflow nodes
+        if node.type_id == "subflow_node":
+            subflow_section = QTreeWidgetItem(["[Subflow]", ""])
+            subflow_section.setFlags(subflow_section.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+            ref_row = QTreeWidgetItem(
+                ["subflow_ref", str(node.properties.get("subflow_ref", ""))]
+            )
+            ref_row.setFlags(ref_row.flags() | Qt.ItemFlag.ItemIsEditable)
+            subflow_section.addChild(ref_row)
+            if self._project:
+                for graph_path in self._project.graphs:
+                    hint = QTreeWidgetItem([f"  available: {graph_path}", ""])
+                    hint.setFlags(hint.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+                    subflow_section.addChild(hint)
+            self._inspector.addTopLevelItem(subflow_section)
+            subflow_section.setExpanded(True)
+
         # T-603: show inherited type definition properties
         registry = self._load_node_type_registry()
         defn = registry.get(node.type_id)

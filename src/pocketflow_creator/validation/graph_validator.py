@@ -16,12 +16,18 @@ class ValidationIssue:
 class GraphValidator:
     """Starter validation engine for PocketFlow Creator graphs."""
 
-    def validate(self, graph: GraphModel) -> list[ValidationIssue]:
+    def validate(
+        self,
+        graph: GraphModel,
+        *,
+        known_graph_paths: set[str] | None = None,
+    ) -> list[ValidationIssue]:
         issues: list[ValidationIssue] = []
         issues.extend(self._validate_unique_node_ids(graph))
         issues.extend(self._validate_start_node(graph))
         issues.extend(self._validate_edges(graph))
         issues.extend(self._validate_declared_actions(graph))
+        issues.extend(self._validate_subflow_refs(graph, known_graph_paths or set()))
         return issues
 
     def _validate_unique_node_ids(self, graph: GraphModel) -> list[ValidationIssue]:
@@ -90,6 +96,34 @@ class GraphValidator:
                         "PFCE2101",
                         edge.id,
                         f"Action '{edge.action}' is not declared by node '{source.id}'.",
+                    )
+                )
+        return issues
+
+    def _validate_subflow_refs(
+        self, graph: GraphModel, known_graph_paths: set[str]
+    ) -> list[ValidationIssue]:
+        issues: list[ValidationIssue] = []
+        for node in graph.nodes:
+            if node.type_id != "subflow_node":
+                continue
+            ref = node.properties.get("subflow_ref", "")
+            if not ref:
+                issues.append(
+                    ValidationIssue(
+                        "error",
+                        "PFCE2102",
+                        node.id,
+                        f"Subflow node '{node.id}' has no subflow_ref property.",
+                    )
+                )
+            elif known_graph_paths and ref not in known_graph_paths:
+                issues.append(
+                    ValidationIssue(
+                        "error",
+                        "PFCE2102",
+                        node.id,
+                        f"Subflow node '{node.id}' references missing graph '{ref}'.",
                     )
                 )
         return issues

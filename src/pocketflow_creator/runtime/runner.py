@@ -111,7 +111,11 @@ class FlowRunner:
             shared_before = copy.deepcopy(shared_store)
             prompt = ""
             response = ""
-            if "llm" in node.type_id.lower():
+            if node.type_id == "subflow_node":
+                # TODO: recursive subflow execution (T-B05 MVP passthrough)
+                ref = str(node.properties.get("subflow_ref", ""))
+                shared_store[f"{node.id}_subflow_ref"] = ref
+            elif "llm" in node.type_id.lower():
                 prompt = f"[{node.title}] {node.type_id}"
                 response = provider.complete(prompt)
                 shared_store[f"{node.id}_response"] = response
