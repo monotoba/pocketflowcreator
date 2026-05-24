@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import uuid
+from pathlib import Path
 from typing import Any
 
 try:
@@ -38,6 +40,21 @@ except Exception:  # pragma: no cover - permits import in non-GUI test environme
 from pocketflow_creator.model.graph_model import EdgeModel, GraphModel, NodeModel
 
 _MIME_NODE_TYPE = "application/x-pocketflow-node-type"
+_MIME_NODE_SNIPPET = "application/x-pocketflow-node-snippet"
+_ROLE_SNIPPET = Qt.ItemDataRole(Qt.ItemDataRole.UserRole.value + 1)  # type: ignore[attr-defined]
+
+
+def _load_snippets() -> list[dict[str, Any]]:
+    snippets_path = Path(__file__).parent.parent / "node_snippets.yaml"
+    if not snippets_path.exists():
+        return []
+    try:
+        import yaml
+
+        data = yaml.safe_load(snippets_path.read_text(encoding="utf-8")) or {}
+        return list(data.get("snippets", []))
+    except Exception:
+        return []
 _WIDTH = 160
 _HEIGHT = 60
 _PORT_R = 5
@@ -239,12 +256,22 @@ class GraphScene(QGraphicsScene):
                 self.addItem(ei)
                 self._edge_items.append(ei)
 
-    def create_node_at(self, type_id: str, pos: QPointF) -> NodeItem:
+    def create_node_at(
+        self,
+        type_id: str,
+        pos: QPointF,
+        *,
+        title: str | None = None,
+        actions: list[str] | None = None,
+        properties: dict[str, Any] | None = None,
+    ) -> NodeItem:
         node = NodeModel(
             id=f"node_{uuid.uuid4().hex[:8]}",
             type_id=type_id,
-            title=type_id.replace("_", " ").title(),
+            title=title or type_id.replace("_", " ").title(),
             position={"x": pos.x(), "y": pos.y()},
+            actions=actions or [],
+            properties=properties or {},
         )
         item = NodeItem(node)
         self.addItem(item)
@@ -327,27 +354,46 @@ class GraphView(QGraphicsView):
         else:
             self.resetTransform()
 
+    def _has_node_mime(self, event: Any) -> bool:
+        return event.mimeData().hasFormat(_MIME_NODE_TYPE) or event.mimeData().hasFormat(
+            _MIME_NODE_SNIPPET
+        )
+
     def dragEnterEvent(self, event: Any) -> None:
-        if event.mimeData().hasFormat(_MIME_NODE_TYPE):
+        if self._has_node_mime(event):
             event.acceptProposedAction()
         else:
             event.ignore()
 
     def dragMoveEvent(self, event: Any) -> None:
-        if event.mimeData().hasFormat(_MIME_NODE_TYPE):
+        if self._has_node_mime(event):
             event.acceptProposedAction()
         else:
             event.ignore()
 
     def dropEvent(self, event: Any) -> None:
-        if not event.mimeData().hasFormat(_MIME_NODE_TYPE):
+        scene = self.scene()
+        if not isinstance(scene, GraphScene):
             event.ignore()
             return
-        type_id = bytes(event.mimeData().data(_MIME_NODE_TYPE)).decode()
-        scene = self.scene()
-        if isinstance(scene, GraphScene):
-            pos = self.mapToScene(event.position().toPoint())
+        pos = self.mapToScene(event.position().toPoint())
+        mime = event.mimeData()
+        if mime.hasFormat(_MIME_NODE_SNIPPET):
+            raw = bytes(mime.data(_MIME_NODE_SNIPPET)).decode()
+            snippet: dict[str, Any] = json.loads(raw)
+            scene.create_node_at(
+                snippet.get("type_id", "basic_node"),
+                pos,
+                title=snippet.get("title"),
+                actions=snippet.get("actions"),
+                properties=snippet.get("properties"),
+            )
+        elif mime.hasFormat(_MIME_NODE_TYPE):
+            type_id = bytes(mime.data(_MIME_NODE_TYPE)).decode()
             scene.create_node_at(type_id, pos)
+        else:
+            event.ignore()
+            return
         event.acceptProposedAction()
 
 
@@ -360,13 +406,28 @@ class PaletteWidget(QListWidget):
             item.setData(Qt.ItemDataRole.UserRole, type_id)
             self.addItem(item)
 
+        snippets = _load_snippets()
+        if snippets:
+            sep = QListWidgetItem("— Snippets —")
+            sep.setFlags(sep.flags() & ~Qt.ItemFlag.ItemIsEnabled)
+            self.addItem(sep)
+            for snippet in snippets:
+                sitem = QListWidgetItem(str(snippet.get("display_name", snippet.get("type_id"))))
+                sitem.setData(Qt.ItemDataRole.UserRole, snippet.get("type_id", "basic_node"))
+                sitem.setData(_ROLE_SNIPPET, snippet)
+                self.addItem(sitem)
+
     def startDrag(self, supported_actions: Any) -> None:
         current = self.currentItem()
         if current is None:
             return
-        type_id: str = current.data(Qt.ItemDataRole.UserRole)
+        snippet: dict[str, Any] | None = current.data(_ROLE_SNIPPET)
         mime = QMimeData()
-        mime.setData(_MIME_NODE_TYPE, type_id.encode())
+        if snippet is not None:
+            mime.setData(_MIME_NODE_SNIPPET, json.dumps(snippet).encode())
+        else:
+            type_id: str = current.data(Qt.ItemDataRole.UserRole)
+            mime.setData(_MIME_NODE_TYPE, type_id.encode())
         drag = QDrag(self)
         drag.setMimeData(mime)
         drag.exec(Qt.DropAction.CopyAction)

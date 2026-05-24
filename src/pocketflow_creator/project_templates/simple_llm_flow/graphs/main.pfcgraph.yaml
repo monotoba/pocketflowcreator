@@ -1,0 +1,38 @@
+schema_version: 0.1
+id: main_flow
+title: Main Flow
+nodes:
+  - id: start
+    type_id: start_node
+    title: Start
+    position: {x: 100.0, y: 200.0}
+    actions: [default]
+    reads: []
+    writes: []
+    properties: {}
+  - id: llm_step
+    type_id: llm_prompt_node
+    title: LLM Step
+    position: {x: 320.0, y: 200.0}
+    actions: [default]
+    reads: []
+    writes: []
+    properties:
+      prompt_file: prompts/main.md
+  - id: stop
+    type_id: stop_node
+    title: Stop
+    position: {x: 540.0, y: 200.0}
+    actions: []
+    reads: []
+    writes: []
+    properties: {}
+edges:
+  - id: e1
+    from_node: start
+    to_node: llm_step
+    action: default
+  - id: e2
+    from_node: llm_step
+    to_node: stop
+    action: default

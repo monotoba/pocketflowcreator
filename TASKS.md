@@ -181,8 +181,8 @@ test count at 50+, app ready for broader review.
 Tasks identified but not yet scheduled into a milestone:
 
 - [x] T-B01: Add keyboard shortcuts for all primary actions (designer canvas operations)
-- [ ] T-B02: Add project template system (File > New From Template)
-- [ ] T-B03: Add node template / snippet library (reusable pre-configured nodes)
+- [x] T-B02: Add project template system (File > New From Template)
+- [x] T-B03: Add node template / snippet library (reusable pre-configured nodes)
 - [ ] T-B04: Implement shared-store schema editor with JSON Schema validation
 - [ ] T-B05: Add subflow support — `SubflowNode` that embeds another graph
 - [ ] T-B06: Internationalization / localization scaffolding

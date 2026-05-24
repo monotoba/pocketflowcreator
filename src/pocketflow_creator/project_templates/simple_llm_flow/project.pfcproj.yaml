@@ -1,0 +1,10 @@
+schema_version: 0.1
+name: MyProject
+package_name: my_project
+default_provider: ollama_local
+default_model: qwen2.5-coder:14b
+graphs:
+  - graphs/main.pfcgraph.yaml
+prompts:
+  - prompts/main.md
+node_types: []

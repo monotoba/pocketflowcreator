@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -25,6 +26,8 @@ try:
         QInputDialog,
         QLabel,
         QLineEdit,
+        QListWidget,
+        QListWidgetItem,
         QMainWindow,
         QMenu,
         QMessageBox,
@@ -142,7 +145,7 @@ class MainWindow(QMainWindow):
         file_menu = self.menuBar().addMenu("File")
         act = file_menu.addAction("New Project...", self._on_new_project)
         act.setShortcut(QKeySequence.StandardKey.New)
-        file_menu.addAction("New From Template...")
+        file_menu.addAction("New From Template...", self._on_new_from_template)
         act = file_menu.addAction("Open Project...", self._on_open_project)
         act.setShortcut(QKeySequence.StandardKey.Open)
         file_menu.addSeparator()
@@ -395,6 +398,92 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "New Project Warning", f"Could not write project:\n{exc}")
         self._refresh_explorer()
         self.statusBar().showMessage(f"New project: {name}")
+
+    def _on_new_from_template(self) -> None:
+        templates_root = Path(__file__).parent.parent / "project_templates"
+        entries: list[tuple[str, str, Path]] = []
+        for tdir in sorted(templates_root.iterdir()):
+            info_path = tdir / "template_info.yaml"
+            if not tdir.is_dir() or not info_path.exists():
+                continue
+            try:
+                info = yaml.safe_load(info_path.read_text(encoding="utf-8")) or {}
+            except yaml.YAMLError:
+                continue
+            entries.append(
+                (str(info.get("name", tdir.name)), str(info.get("description", "")), tdir)
+            )
+
+        if not entries:
+            QMessageBox.information(self, "No Templates", "No project templates found.")
+            return
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("New From Template")
+        dlg.resize(480, 320)
+        layout = QVBoxLayout(dlg)
+        layout.addWidget(QLabel("Select a template:"))
+        template_list = QListWidget()
+        for name, description, _ in entries:
+            item = QListWidgetItem(name)
+            item.setToolTip(description)
+            template_list.addItem(item)
+        template_list.setCurrentRow(0)
+        layout.addWidget(template_list)
+        desc_label = QLabel(entries[0][1] if entries else "")
+        desc_label.setWordWrap(True)
+        layout.addWidget(desc_label)
+        template_list.currentRowChanged.connect(
+            lambda r: desc_label.setText(entries[r][1] if 0 <= r < len(entries) else "")
+        )
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        row = template_list.currentRow()
+        if row < 0:
+            return
+        _, _, template_dir = entries[row]
+
+        name, ok = QInputDialog.getText(self, "Project Name", "Project name:")
+        if not ok or not name.strip():
+            return
+        name = name.strip()
+        directory = QFileDialog.getExistingDirectory(self, "Choose Project Location")
+        if not directory:
+            return
+
+        package = name.lower().replace(" ", "_").replace("-", "_")
+        dest = Path(directory) / name
+        try:
+            shutil.copytree(template_dir, dest, ignore=shutil.ignore_patterns("template_info.yaml"))
+        except FileExistsError:
+            QMessageBox.warning(self, "Error", f"Directory already exists: {dest}")
+            return
+
+        # Rename and patch project YAML
+        proj_src = dest / "project.pfcproj.yaml"
+        proj_dest = dest / f"{name}.pfcproj.yaml"
+        if proj_src.exists():
+            raw = yaml.safe_load(proj_src.read_text(encoding="utf-8")) or {}
+            raw["name"] = name
+            raw["package_name"] = package
+            proj_dest.write_text(
+                yaml.dump(raw, default_flow_style=False, allow_unicode=True), encoding="utf-8"
+            )
+            proj_src.unlink()
+
+        try:
+            self._load_project_from_path(proj_dest)
+        except Exception as exc:
+            QMessageBox.warning(
+                self, "Template Warning", f"Project created but could not load:\n{exc}"
+            )
 
     def _on_open_project(self) -> None:
         path_str, _ = QFileDialog.getOpenFileName(

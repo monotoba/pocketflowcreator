@@ -1,0 +1,37 @@
+# Node snippets — pre-configured nodes that appear in the Component Palette.
+# Each snippet has a display_name, type_id, title, and optional properties.
+snippets:
+  - display_name: "LLM (with prompt_file)"
+    type_id: llm_prompt_node
+    title: LLM Step
+    actions: [default]
+    properties:
+      prompt_file: prompts/main.md
+
+  - display_name: "Router (2 branches)"
+    type_id: router_node
+    title: Router
+    actions: [yes, no]
+    properties: {}
+
+  - display_name: "File Reader"
+    type_id: file_reader_node
+    title: Read File
+    actions: [default]
+    properties:
+      file_path: ""
+
+  - display_name: "Human Review Gate"
+    type_id: human_review_node
+    title: Human Review
+    actions: [approved, rejected]
+    properties:
+      prompt: "Please review and approve or reject."
+
+  - display_name: "JSON LLM (structured)"
+    type_id: json_llm_node
+    title: JSON LLM
+    actions: [default]
+    properties:
+      prompt_file: prompts/main.md
+      output_schema: "schemas/output.schema.yaml"

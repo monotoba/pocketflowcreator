@@ -1,0 +1,8 @@
+schema_version: 0.1
+name: MyProject
+package_name: my_project
+default_provider: mock
+default_model: mock
+graphs: []
+prompts: []
+node_types: []
