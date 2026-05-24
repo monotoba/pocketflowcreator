@@ -278,7 +278,8 @@ class MainWindow(QMainWindow):
         help_menu = self.menuBar().addMenu(self.tr("Help"))
         _help_act = help_menu.addAction(self.tr("PocketFlow Creator Help"), self._on_help)
         _help_act.setShortcut(QKeySequence(Qt.Key.Key_F1))
-        help_menu.addAction(self.tr("PocketFlow Quick Reference"), self._on_help_tutorials)
+        help_menu.addAction(self.tr("Tutorials"), self._on_help_tutorials)
+        help_menu.addAction(self.tr("PocketFlow Node Reference"), self._on_help_node_ref)
         help_menu.addSeparator()
         help_menu.addAction(self.tr("About PocketFlow"), self._on_about_pocketflow)
         help_menu.addAction(self.tr("About PocketFlow Creator"), self._on_about)
@@ -957,6 +958,9 @@ class MainWindow(QMainWindow):
 
     def _on_help_tutorials(self) -> None:
         self._open_help("tutorials/index.md")
+
+    def _on_help_node_ref(self) -> None:
+        self._open_help("quick_ref.md")
 
     def _on_about_pocketflow(self) -> None:
         self._open_help("about_pocketflow.md")

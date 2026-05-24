@@ -74,8 +74,8 @@ class HelpBrowser(QDialog):  # type: ignore[misc]
         self._navigate(start_page)
 
     # ------------------------------------------------------------------ nav
-    def _navigate(self, rel: str) -> None:
-        """Load a page by path relative to the help root."""
+    def _navigate(self, rel: str, fragment: str = "") -> None:
+        """Load a page by path relative to the help root, optionally scrolling to fragment."""
         path = (self._help_root / rel).resolve()
         if not path.exists():
             self._browser.setHtml(
@@ -85,6 +85,8 @@ class HelpBrowser(QDialog):  # type: ignore[misc]
         text = path.read_text(encoding="utf-8")
         self._browser.setMarkdown(text)
         self._browser.setSearchPaths([str(path.parent), str(self._help_root)])
+        if fragment:
+            self._browser.scrollToAnchor(fragment)
 
         # Trim forward history when navigating to a new page
         if self._history_pos < len(self._history) - 1:
@@ -124,12 +126,20 @@ class HelpBrowser(QDialog):  # type: ignore[misc]
             except Exception:  # pragma: no cover
                 pass
             return
+        # Split fragment before resolving the file path
+        fragment = ""
+        if "#" in href:
+            href, fragment = href.split("#", 1)
+        # Pure fragment — scroll within the current page
+        if not href:
+            self._browser.scrollToAnchor(fragment)
+            return
         # Internal link: resolve relative to the current page's directory
         if self._history:
             current_dir = self._history[self._history_pos].parent
             target = (current_dir / href).resolve()
             rel = target.relative_to(self._help_root.resolve())
-            self._navigate(str(rel))
+            self._navigate(str(rel), fragment)
 
 
 def open_help(start_page: str = "index.md", parent: object = None) -> None:

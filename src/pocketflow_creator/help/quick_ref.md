@@ -1,0 +1,209 @@
+# PocketFlow Node Reference
+
+A concise description of every built-in node type available in the Component Palette.
+Each node generates a class that inherits from the named PocketFlow base class.
+
+---
+
+## Flow Control
+
+### Start Node
+**Base class:** `Node`
+
+Marks the entry point of a flow. Every graph must have exactly one start node.
+The `post()` method returns `"default"` to continue to the first real processing node.
+The Start Node itself does no work — it is a routing anchor only.
+
+### Stop Node
+**Base class:** `Node`
+
+Marks a terminal point in the flow. A graph may have multiple Stop Nodes (one per
+exit path). When the flow reaches a Stop Node it halts execution. Use separate Stop Nodes
+for distinct exit conditions (e.g. `success` vs `error`) to make the graph self-documenting.
+
+### Router Node
+**Base class:** `Node`
+
+Routes execution to one of several branches based on a decision made in `exec()`.
+The `post()` method returns the chosen action string; each action must be wired to a
+downstream node. Declare all possible actions in the Inspector **Actions** field.
+Use this for conditional logic, guardrails, and state-machine transitions.
+
+### Subflow Node
+**Base class:** `Node`
+
+Embeds a reusable sub-graph inside the current flow. Set the `subflow_ref` property to a
+path relative to the project root (e.g. `graphs/summarizer.pfcgraph.yaml`). When the
+runner reaches this node it executes the referenced graph inline, merging its shared store
+state back into the parent flow before continuing.
+
+---
+
+## LLM / AI
+
+### LLM Prompt Node
+**Base class:** `Node`
+
+The standard node for making a single call to a language model. Set `prompt_file` to a
+Markdown file containing the prompt template (supports `{key}` interpolation from the
+shared store). `exec()` calls the configured provider; `post()` writes the response to
+the shared store and returns `"default"`.
+
+### JSON LLM Node
+**Base class:** `Node`
+
+Like LLM Prompt Node but instructs the model to respond with structured JSON matching
+a schema. Set `output_schema` to a YAML Schema file. The node validates the response
+against the schema and retries if validation fails. Use this for data extraction,
+classification with typed output, and any workflow that feeds LLM output into downstream
+Python code.
+
+### Classifier Node
+**Base class:** `Node`
+
+Sends a classification prompt to the LLM and returns one of a fixed set of labels.
+The labels are declared as **Actions** in the Inspector so the graph can route on the
+result without a separate Router Node. Simpler than a Router Node for pure
+text-in → label-out patterns (sentiment, intent detection, topic routing).
+
+### Agent Node
+**Base class:** `Node`
+
+Implements the decide-act loop of an autonomous LLM agent. On each iteration the LLM
+chooses an action from the `tools` list; the loop continues until the agent returns
+`"answer"` or `max_iterations` is reached. Wire `tool_call` edges to individual tool
+nodes that each loop back to the Agent Node. Wire `answer` to the final output node.
+
+### RAG Node
+**Base class:** `Node`
+
+Encapsulates the embedding and retrieval step of a Retrieval-Augmented Generation
+pipeline. Given a query, it embeds the query vector and retrieves the `top_k` most
+similar chunks from the index stored at `index_key` in the shared store. The retrieved
+context is written to `shared["context"]` for a downstream LLM Prompt Node to consume.
+
+### Judge Node
+**Base class:** `Node`
+
+Evaluates LLM-generated output against a `criteria` string using a second LLM call.
+Returns `"pass"` if the output meets the bar or `"fail"` to trigger a refinement loop.
+A `max_iterations` guard in `post()` forces `"pass"` after N attempts so the flow
+always terminates. Wire `fail` to a Refine node that improves the output and loops back
+to the generator.
+
+---
+
+## Data / I/O
+
+### File Reader Node
+**Base class:** `Node`
+
+Reads a file from disk and writes its contents into the shared store. Set `file_path`
+in the Inspector to a path relative to the project root. The node is intentionally
+minimal — decoding, parsing, and chunking belong in a downstream Basic Node so you
+control the format.
+
+### File Writer Node
+**Base class:** `Node`
+
+Writes data from the shared store to a file on disk. The node stub is intentionally
+left for you to implement because the format (text, JSON, CSV, binary), path strategy,
+and encoding are application-specific. Fill in `exec()` with the serialisation logic
+your flow requires.
+
+### Python Tool Node
+**Base class:** `Node`
+
+Runs an arbitrary Python function or shell command. Use this for calculations,
+external API calls, data transformations, or any work that does not involve an LLM.
+`exec()` is generated as a plain Python method body — write whatever code you need.
+The node is the escape hatch for anything that does not fit another node type.
+
+---
+
+## Processing
+
+### Basic Node
+**Base class:** `Node`
+
+The general-purpose building block. Use a Basic Node for any step that does not fit a
+more specific type: data preparation, state updates, printing output, calling a library,
+or any single-step operation with a `"default"` exit. When in doubt, start with a Basic
+Node and refactor to a more specific type once the pattern becomes clear.
+
+### Batch Node
+**Base class:** `BatchNode`
+
+Processes a list of items by calling `exec()` once per item. `prep()` returns the list;
+`exec(item)` handles one item; `post()` receives the full results list. Use this for
+map-style processing: scoring a batch of resumes, translating a list of sentences,
+or embedding a list of text chunks. The batch runs synchronously and sequentially.
+
+### Async Node
+**Base class:** `AsyncNode`
+
+A single-step node whose `exec_async()` method is an `async def` coroutine. Use this
+whenever the work is I/O-bound (HTTP requests, database queries, file reads) and you
+want to yield the event loop rather than block. Methods are named `prep_async`,
+`exec_async`, and `post_async`. The runner wraps execution in `asyncio.run()`.
+
+### Async Batch Node
+**Base class:** `AsyncBatchNode`
+
+Processes a list of items by awaiting `exec_async(item)` for each item in turn.
+Like Batch Node but non-blocking: each item's I/O yields the event loop while
+waiting. Use when each item requires an async operation (e.g. fetching a URL,
+querying an async database driver) but you do not need parallel execution.
+
+### Async Parallel Batch Node
+**Base class:** `AsyncParallelBatchNode`
+
+Processes a list of items by launching all `exec_async(item)` calls concurrently
+via `asyncio.gather`. Results are collected in the original order. Set `max_concurrency`
+in the Inspector to limit how many coroutines run simultaneously. Use this when items
+are independent and latency dominates — fetching many URLs, calling an API in parallel,
+or embedding many chunks concurrently.
+
+---
+
+## Human in the Loop
+
+### Human Review Node
+**Base class:** `Node`
+
+Pauses the flow and presents content to a human reviewer. `exec()` prints or displays
+the content and waits for input. `post()` routes to `"approved"` or `"rejected"` (or
+any custom actions you declare). Use this for content moderation, data labelling,
+quality gates, or any step that requires a human decision before the flow continues.
+
+---
+
+## Reference
+
+| Node Type | Base Class | Primary Use |
+|---|---|---|
+| Start Node | `Node` | Flow entry point |
+| Stop Node | `Node` | Flow exit point |
+| Basic Node | `Node` | General-purpose single step |
+| Router Node | `Node` | Conditional branching |
+| Subflow Node | `Node` | Embedded sub-graph |
+| LLM Prompt Node | `Node` | LLM call with prompt file |
+| JSON LLM Node | `Node` | LLM call with structured output |
+| Classifier Node | `Node` | LLM-based label classification |
+| Agent Node | `Node` | Autonomous tool-calling loop |
+| RAG Node | `Node` | Embedding and retrieval step |
+| Judge Node | `Node` | LLM output evaluation |
+| File Reader Node | `Node` | Read file from disk |
+| File Writer Node | `Node` | Write file to disk |
+| Python Tool Node | `Node` | Arbitrary Python / shell |
+| Batch Node | `BatchNode` | Sequential batch processing |
+| Async Node | `AsyncNode` | Single async I/O step |
+| Async Batch Node | `AsyncBatchNode` | Sequential async batch |
+| Async Parallel Batch Node | `AsyncParallelBatchNode` | Concurrent async batch |
+| Human Review Node | `Node` | Human approval gate |
+
+---
+
+- [Tutorials](tutorials/index.md)
+- [About PocketFlow](about_pocketflow.md)
+- [Help Home](index.md)
