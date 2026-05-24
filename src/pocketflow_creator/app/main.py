@@ -154,11 +154,6 @@ class MainWindow(QMainWindow):
         self._update_recent_menu()
         self._apply_theme()
         self.statusBar().showMessage(self.tr("Ready"))
-        # F1 opens the help browser from anywhere in the main window
-        f1 = QKeySequence(Qt.Key.Key_F1)
-        help_action = self.menuBar().actions()[-1].menu()  # Help menu
-        if help_action:
-            help_action.actions()[0].setShortcut(f1)
 
     # ------------------------------------------------------------------ menus
 
@@ -275,7 +270,8 @@ class MainWindow(QMainWindow):
             window_menu.addAction(name)
 
         help_menu = self.menuBar().addMenu(self.tr("Help"))
-        help_menu.addAction(self.tr("PocketFlow Creator Help"), self._on_help)
+        _help_act = help_menu.addAction(self.tr("PocketFlow Creator Help"), self._on_help)
+        _help_act.setShortcut(QKeySequence(Qt.Key.Key_F1))
         help_menu.addAction(self.tr("PocketFlow Quick Reference"), self._on_help_tutorials)
         help_menu.addAction(self.tr("About PocketFlow Creator"), self._on_about)
 
