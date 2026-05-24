@@ -3,18 +3,40 @@ from __future__ import annotations
 
 from pathlib import Path
 
+_HTML_WRAPPER = """\
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body {{ font-family: sans-serif; margin: 12px 16px; line-height: 1.5; }}
+h1, h2, h3 {{ margin-top: 1em; }}
+code {{ background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 0.92em; }}
+pre  {{ background: #f0f0f0; padding: 8px; border-radius: 4px; overflow-x: auto; }}
+pre code {{ background: none; padding: 0; }}
+table {{ border-collapse: collapse; width: 100%; }}
+th, td {{ border: 1px solid #ccc; padding: 4px 8px; text-align: left; }}
+th {{ background: #e8e8e8; }}
+</style>
+</head>
+<body>{body}</body>
+</html>"""
+
 try:
     import markdown as _md_lib
 
     def _to_html(text: str) -> str:
-        return _md_lib.markdown(  # type: ignore[no-any-return]
+        body = _md_lib.markdown(  # type: ignore[no-any-return]
             text,
             extensions=["fenced_code", "tables", "toc"],
         )
+        return _HTML_WRAPPER.format(body=body)
 
 except ImportError:  # pragma: no cover
     def _to_html(text: str) -> str:  # type: ignore[misc]
-        return f"<pre>{text}</pre>"
+        import html as _html
+
+        return _HTML_WRAPPER.format(body=f"<pre>{_html.escape(text)}</pre>")
 
 
 try:
