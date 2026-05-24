@@ -75,6 +75,7 @@ _PALETTE_ITEMS_EX: list[tuple[str, str, str]] = [
     ("Classifier Node",   "classifier_node",  "#d35400"),
     ("Python Tool Node",  "python_tool_node", "#2c3e50"),
     ("File Reader Node",  "file_reader_node", "#1a6b3c"),
+    ("File Writer Node",  "file_writer_node", "#1565c0"),
     ("Human Review Node", "human_review_node","#c0392b"),
     ("Batch Node",        "batch_node",       "#34495e"),
     ("Subflow Node",      "subflow_node",     "#7f8c8d"),
@@ -248,6 +249,61 @@ def _ico_document(p: QPainter, sz: float, bg: QColor) -> None:
         p.drawLine(QPointF(x1, ly), QPointF(x2, ly))
 
 
+def _ico_file_writer(p: QPainter, sz: float, bg: QColor) -> None:
+    """Document with pencil — means 'write / save to file'."""
+    bx, by = sz * 0.16, sz * 0.07
+    bw, bh = sz * 0.68, sz * 0.86
+    fold = sz * 0.22
+    # Page body
+    page = QPainterPath()
+    page.moveTo(bx, by)
+    page.lineTo(bx + bw - fold, by)
+    page.lineTo(bx + bw, by + fold)
+    page.lineTo(bx + bw, by + bh)
+    page.lineTo(bx, by + bh)
+    page.closeSubpath()
+    p.setPen(Qt.PenStyle.NoPen)
+    p.fillPath(page, QColor("white"))
+    # Fold crease
+    crease = QPainterPath()
+    crease.moveTo(bx + bw - fold, by)
+    crease.lineTo(bx + bw - fold, by + fold)
+    crease.lineTo(bx + bw, by + fold)
+    crease.closeSubpath()
+    p.fillPath(crease, bg.lighter(145))
+    # One short line near top to suggest a document
+    p.setPen(QPen(bg, max(1, int(sz * 0.07))))
+    x2 = bx + bw - sz * 0.22
+    p.drawLine(QPointF(bx + sz * 0.08, by + sz * 0.32), QPointF(x2, by + sz * 0.32))
+    # Pencil: diagonal shaft (bg-dark colour, visible against white page)
+    shaft_w = max(3, int(sz * 0.13))
+    shaft_pen = QPen(
+        bg.darker(110), shaft_w, Qt.PenStyle.SolidLine,
+        Qt.PenCapStyle.FlatCap, Qt.PenJoinStyle.MiterJoin,
+    )
+    p.setPen(shaft_pen)
+    # Shaft runs from upper-right toward lower-left
+    p.drawLine(QPointF(sz * 0.60, sz * 0.44), QPointF(sz * 0.32, sz * 0.72))
+    # Tip: filled triangle pointing to the write point
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(bg.darker(125)))
+    tip = QPolygonF([
+        QPointF(sz * 0.32, sz * 0.72),
+        QPointF(sz * 0.25, sz * 0.65),
+        QPointF(sz * 0.18, sz * 0.82),
+    ])
+    p.drawPolygon(tip)
+    # Eraser cap: small rectangle at the top of the shaft
+    p.setBrush(QBrush(QColor(220, 160, 160)))
+    cap = QPolygonF([
+        QPointF(sz * 0.60, sz * 0.44),
+        QPointF(sz * 0.65, sz * 0.39),
+        QPointF(sz * 0.70, sz * 0.44),
+        QPointF(sz * 0.65, sz * 0.49),
+    ])
+    p.drawPolygon(cap)
+
+
 def _ico_person(p: QPainter, sz: float) -> None:
     """Person silhouette — means 'human in the loop / review'."""
     p.setPen(Qt.PenStyle.NoPen)
@@ -309,6 +365,7 @@ _ICON_DRAW: dict[str, Any] = {
     "classifier_node":  _ico_funnel,
     "python_tool_node": _ico_terminal,
     "file_reader_node": None,  # handled specially (needs bg colour)
+    "file_writer_node": None,  # handled specially (needs bg colour)
     "human_review_node":_ico_person,
     "batch_node":       _ico_stack,
     "subflow_node":     _ico_subflow,
@@ -336,6 +393,8 @@ def _paint_node_pixmap(type_id: str, size: int, bg: QColor) -> QPixmap:
         _ico_json_llm(p, float(size), bg)
     elif type_id == "file_reader_node":
         _ico_document(p, float(size), bg)
+    elif type_id == "file_writer_node":
+        _ico_file_writer(p, float(size), bg)
     else:
         font = QFont()
         font.setPixelSize(max(8, int(size * 0.38)))
