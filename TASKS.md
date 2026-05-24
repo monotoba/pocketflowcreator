@@ -118,15 +118,15 @@ Generated code uses templates. Re-export never overwrites `custom/`.
 
 **Depends on:** M2, M3
 
-- [ ] T-401: Replace ad-hoc `PythonGenerator` with Jinja2 template-based generator
+- [x] T-401: Replace ad-hoc `PythonGenerator` with Jinja2 template-based generator
   (templates in `src/pocketflow_creator/templates/`)
-- [ ] T-402: Generate test scaffolding alongside each exported flow (`tests/test_<flow>.py`)
-- [ ] T-403: Implement File > Export PocketFlow Project → write full package under `exports/`
+- [x] T-402: Generate test scaffolding alongside each exported flow (`tests/test_<flow>.py`)
+- [x] T-403: Implement File > Export PocketFlow Project → write full package under `exports/`
   with `generated/`, `custom/` (if new), `tests/`, and `main.py`
-- [ ] T-404: Guard `custom/` — skip files that already exist; warn user, do not overwrite
-- [ ] T-405: Implement graph image export — render `QGraphicsScene` to SVG and PNG
-- [ ] T-406: Implement project report export — Markdown summary of nodes, edges, validation status
-- [ ] T-104: Wire File > Export PocketFlow Project menu action to M6 export logic
+- [x] T-404: Guard `custom/` — skip files that already exist; warn user, do not overwrite
+- [x] T-405: Implement graph image export — render `QGraphicsScene` to SVG and PNG
+- [x] T-406: Implement project report export — Markdown summary of nodes, edges, validation status
+- [x] T-104: Wire File > Export PocketFlow Project menu action to M6 export logic
 
 ---
 

@@ -1,10 +1,11 @@
 # PocketFlow Creator — Status
 
-## Current State: M5 Complete (v0.1.0, 2026-05-23)
+## Current State: M6 Complete (v0.1.0, 2026-05-24)
 
-Milestones M0–M5 are done. The app has a working graph canvas, full file I/O, wired menus,
-syntax-highlighting editors, live Markdown preview, and shared-store tooling. M6 (code
-generation and export) is next.
+Milestones M0–M6 are done. The app has a working graph canvas, full file I/O, wired menus,
+syntax-highlighting editors, live Markdown preview, shared-store tooling, Jinja2 template-based
+code generation, full export pipeline with `custom/` guard, graph image export (SVG/PNG), and
+project report export (Markdown). M7 (Run and Debug) is next.
 
 ---
 
@@ -51,6 +52,14 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 - Shared Store Designer: double-click "Shared Store" in explorer → `QTableWidget` dialog
   with Namespace/Key/Type/Default columns; edits serialize back to nested YAML
 
+### M6 — Code Generation and Export ✓
+- `PythonGenerator` replaced with Jinja2 template-based generator (`nodes.py.j2`, `flow.py.j2`)
+- `Exporter` writes `exports/<pkg>/` with `generated/`, `custom/`, `tests/`, `main.py`
+- `custom/` guard: skip existing files on re-export, report written vs skipped counts
+- File > Export PocketFlow Project wired — completion dialog shows written/skipped summary
+- Project > Export Graph Image → save-file dialog → renders scene to PNG or SVG
+- Project > Export Project Report → Markdown with node/edge tables and validation status
+
 ---
 
 ## What Is Implemented
@@ -69,14 +78,16 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 - Error codes PFCE1001–PFCE1003, PFCE2001–PFCE2003, PFCE2101
 
 ### Code Generation (`src/pocketflow_creator/generation/`)
-- `PythonGenerator` — generates `nodes.py` and `flow.py` from a `GraphModel`
-- PocketFlow `>>` and `- "action" >>` syntax
+- `PythonGenerator` — Jinja2 template-based; generates `nodes.py` and `flow.py` per graph
+- PocketFlow `>>` and `- "action" >>` syntax in `flow.py.j2`
+- `Exporter` — writes full package to `exports/<pkg>/`; `custom/` guard prevents overwrites
+- `generate_project_report()` — Markdown summary of nodes, edges, validation status
 
 ### Runtime (`src/pocketflow_creator/runtime/`)
 - `LLMProvider` protocol, `MockProvider`, `OllamaProvider` stub (raises `NotImplementedError`)
 
 ### GUI (`src/pocketflow_creator/app/`)
-- `main.py`: `MainWindow` — complete working GUI, all M3–M5 features wired
+- `main.py`: `MainWindow` — complete working GUI, all M3–M6 features wired
 - `canvas.py`: `NodeItem`, `EdgeItem`, `GraphScene`, `GraphView`, `PaletteWidget`
 - `editors.py`: `PythonHighlighter`, `YamlHighlighter`
 
@@ -103,7 +114,9 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 | `test_canvas.py` | 8 | Passing |
 | `test_editors.py` | 5 | Passing |
 | `test_shared_store_designer.py` | 6 | Passing |
-| **Total** | **32** | **All green** |
+| `test_exporter.py` | 7 | Passing |
+| `test_report.py` | 5 | Passing |
+| **Total** | **44** | **All green** |
 
 ---
 
@@ -117,15 +130,7 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 
 ## What Is Not Yet Implemented
 
-### M6 — Code Generation and Export (next)
-- Jinja2 template-based generator (replaces ad-hoc `PythonGenerator`)
-- Test scaffolding generation alongside each exported flow
-- File > Export PocketFlow Project → full package under `exports/`
-- `custom/` guard — never overwrite existing user code
-- Graph image export (SVG + PNG from `QGraphicsScene`)
-- Project report export (Markdown summary)
-
-### M7 — Run and Debug
+### M7 — Run and Debug (next)
 - `OllamaProvider.complete()` HTTP POST to Ollama `/api/generate`
 - Run Active Flow with `MockProvider` → Run Log tab
 - Shared Store tab live population per node step
@@ -156,6 +161,7 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 | PyYAML | >=6.0 | Project YAML files |
 | jsonschema | >=4.20 | Metadata and schema validation |
 | markdown | >=3.5 | Markdown → HTML for live preview |
+| jinja2 | >=3.1 | Code generation templates |
 | pytest | >=8.0 (dev) | Test runner |
 | ruff | >=0.5 (dev) | Linter and formatter |
 | mypy | >=1.8 (dev) | Type checker |
