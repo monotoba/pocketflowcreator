@@ -66,9 +66,10 @@ def ensure_code_file(graph_rel: str, project_root: Path) -> Path:
 
 
 _BASE_CLASS_MAP: dict[str, str] = {
-    "batch_node": "BatchNode",
-    "async_node": "AsyncNode",
-    "async_batch_node": "AsyncBatchNode",
+    "batch_node":                "BatchNode",
+    "async_node":                "AsyncNode",
+    "async_batch_node":          "AsyncBatchNode",
+    "async_parallel_batch_node": "AsyncParallelBatchNode",
 }
 
 

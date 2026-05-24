@@ -77,8 +77,14 @@ _PALETTE_ITEMS_EX: list[tuple[str, str, str]] = [
     ("File Reader Node",  "file_reader_node", "#1a6b3c"),
     ("File Writer Node",  "file_writer_node", "#1565c0"),
     ("Human Review Node", "human_review_node","#c0392b"),
-    ("Batch Node",        "batch_node",       "#34495e"),
-    ("Subflow Node",      "subflow_node",     "#7f8c8d"),
+    ("Batch Node",                "batch_node",                "#34495e"),
+    ("Async Node",               "async_node",               "#6a1b9a"),
+    ("Async Batch Node",         "async_batch_node",         "#00695c"),
+    ("Async Parallel Batch Node","async_parallel_batch_node","#1a237e"),
+    ("Agent Node",               "agent_node",               "#bf6900"),
+    ("RAG Node",                 "rag_node",                 "#006064"),
+    ("Judge Node",               "judge_node",               "#880e4f"),
+    ("Subflow Node",             "subflow_node",             "#7f8c8d"),
 ]
 
 _PALETTE_ITEMS: list[tuple[str, str]] = [
@@ -354,6 +360,135 @@ def _ico_subflow(p: QPainter, sz: float) -> None:
     p.drawLine(QPointF(sz * 0.60 - ah, cy + ah), QPointF(sz * 0.60, cy))
 
 
+def _ico_lightning(p: QPainter, sz: float) -> None:
+    """Lightning bolt — means 'async / non-blocking'."""
+    pts = QPolygonF([
+        QPointF(sz * 0.60, sz * 0.08),
+        QPointF(sz * 0.32, sz * 0.52),
+        QPointF(sz * 0.50, sz * 0.52),
+        QPointF(sz * 0.40, sz * 0.92),
+        QPointF(sz * 0.68, sz * 0.48),
+        QPointF(sz * 0.50, sz * 0.48),
+    ])
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    p.drawPolygon(pts)
+
+
+def _ico_async_batch(p: QPainter, sz: float) -> None:
+    """Stacked pages + lightning bolt — means 'async batch'."""
+    p.setPen(Qt.PenStyle.NoPen)
+    rw, rh = sz * 0.50, sz * 0.44
+    rx0, ry0 = sz * 0.08, sz * 0.22
+    off = sz * 0.09
+    for i, alpha in enumerate((110, 160, 255)):
+        p.setBrush(QBrush(QColor(255, 255, 255, alpha)))
+        p.drawRoundedRect(
+            QRectF(rx0 + (2 - i) * off, ry0 - (2 - i) * off, rw, rh),
+            sz * 0.05, sz * 0.05,
+        )
+    # Lightning bolt in the bottom-right quadrant
+    s = sz * 0.40
+    bx, by = sz * 0.54, sz * 0.52
+    bolt = QPolygonF([
+        QPointF(bx + s * 0.60, by),
+        QPointF(bx + s * 0.25, by + s * 0.48),
+        QPointF(bx + s * 0.48, by + s * 0.48),
+        QPointF(bx + s * 0.35, by + s * 1.00),
+        QPointF(bx + s * 0.75, by + s * 0.52),
+        QPointF(bx + s * 0.52, by + s * 0.52),
+    ])
+    p.setBrush(QBrush(QColor("white")))
+    p.drawPolygon(bolt)
+
+
+def _ico_parallel_arrows(p: QPainter, sz: float) -> None:
+    """Three parallel right-pointing arrows — means 'concurrent async batch'."""
+    w = max(2.0, sz * 0.10)
+    pen = QPen(
+        QColor("white"), w, Qt.PenStyle.SolidLine,
+        Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin,
+    )
+    p.setPen(pen)
+    ah = sz * 0.14
+    for cy in (sz * 0.28, sz * 0.50, sz * 0.72):
+        x1, x2 = sz * 0.12, sz * 0.82
+        p.drawLine(QPointF(x1, cy), QPointF(x2, cy))
+        p.drawLine(QPointF(x2 - ah, cy - ah * 0.65), QPointF(x2, cy))
+        p.drawLine(QPointF(x2 - ah, cy + ah * 0.65), QPointF(x2, cy))
+
+
+def _ico_agent(p: QPainter, sz: float) -> None:
+    """Robot face — means 'autonomous AI agent'."""
+    w = max(1.5, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    # Antenna
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawLine(QPointF(sz * 0.50, sz * 0.09), QPointF(sz * 0.50, sz * 0.24))
+    p.setBrush(QBrush(QColor("white")))
+    p.setPen(Qt.PenStyle.NoPen)
+    p.drawEllipse(QPointF(sz * 0.50, sz * 0.07), sz * 0.06, sz * 0.06)
+    # Face outline
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawRoundedRect(QRectF(sz * 0.14, sz * 0.24, sz * 0.72, sz * 0.62),
+                      sz * 0.12, sz * 0.12)
+    # Eyes
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    p.drawEllipse(QPointF(sz * 0.35, sz * 0.48), sz * 0.09, sz * 0.09)
+    p.drawEllipse(QPointF(sz * 0.65, sz * 0.48), sz * 0.09, sz * 0.09)
+    # Mouth
+    p.setPen(pen)
+    p.drawLine(QPointF(sz * 0.32, sz * 0.72), QPointF(sz * 0.68, sz * 0.72))
+
+
+def _ico_rag(p: QPainter, sz: float) -> None:
+    """Magnifying glass with text lines — means 'retrieve and generate'."""
+    w = max(2.0, sz * 0.11)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    cx, cy, r = sz * 0.40, sz * 0.38, sz * 0.26
+    # Magnifying glass circle
+    p.drawEllipse(QPointF(cx, cy), r, r)
+    # Handle
+    p.drawLine(QPointF(cx + r * 0.72, cy + r * 0.72), QPointF(sz * 0.88, sz * 0.88))
+    # Text lines inside the lens
+    lw = max(1.0, sz * 0.07)
+    thin = QPen(QColor("white"), lw, Qt.PenStyle.SolidLine,
+                Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(thin)
+    for i in range(3):
+        ly = cy - r * 0.32 + i * r * 0.34
+        p.drawLine(QPointF(cx - r * 0.54, ly), QPointF(cx + r * 0.54, ly))
+
+
+def _ico_scales(p: QPainter, sz: float) -> None:
+    """Balance scales — means 'evaluate / judge / score'."""
+    w = max(1.5, sz * 0.09)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    cx = sz * 0.50
+    # Central post
+    p.drawLine(QPointF(cx, sz * 0.14), QPointF(cx, sz * 0.84))
+    # Horizontal beam
+    p.drawLine(QPointF(sz * 0.14, sz * 0.26), QPointF(sz * 0.86, sz * 0.26))
+    # Chains
+    p.drawLine(QPointF(sz * 0.24, sz * 0.26), QPointF(sz * 0.24, sz * 0.58))
+    p.drawLine(QPointF(sz * 0.76, sz * 0.26), QPointF(sz * 0.76, sz * 0.58))
+    # Pans
+    p.drawLine(QPointF(sz * 0.10, sz * 0.58), QPointF(sz * 0.38, sz * 0.58))
+    p.drawLine(QPointF(sz * 0.62, sz * 0.58), QPointF(sz * 0.90, sz * 0.58))
+    # Base
+    p.drawLine(QPointF(sz * 0.34, sz * 0.84), QPointF(sz * 0.66, sz * 0.84))
+
+
 # Dispatch map: type_id → drawing function
 _ICON_DRAW: dict[str, Any] = {
     "start_node":       _ico_start,
@@ -366,9 +501,15 @@ _ICON_DRAW: dict[str, Any] = {
     "python_tool_node": _ico_terminal,
     "file_reader_node": None,  # handled specially (needs bg colour)
     "file_writer_node": None,  # handled specially (needs bg colour)
-    "human_review_node":_ico_person,
-    "batch_node":       _ico_stack,
-    "subflow_node":     _ico_subflow,
+    "human_review_node":         _ico_person,
+    "batch_node":                _ico_stack,
+    "async_node":                _ico_lightning,
+    "async_batch_node":          _ico_async_batch,
+    "async_parallel_batch_node": _ico_parallel_arrows,
+    "agent_node":                _ico_agent,
+    "rag_node":                  _ico_rag,
+    "judge_node":                _ico_scales,
+    "subflow_node":              _ico_subflow,
 }
 
 
