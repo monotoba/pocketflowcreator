@@ -1,11 +1,13 @@
 # PocketFlow Creator — Status
 
-## Current State: M6 Complete (v0.1.0, 2026-05-24)
+## Current State: M7 Complete (v0.1.0, 2026-05-24)
 
-Milestones M0–M6 are done. The app has a working graph canvas, full file I/O, wired menus,
+Milestones M0–M7 are done. The app has a working graph canvas, full file I/O, wired menus,
 syntax-highlighting editors, live Markdown preview, shared-store tooling, Jinja2 template-based
-code generation, full export pipeline with `custom/` guard, graph image export (SVG/PNG), and
-project report export (Markdown). M7 (Run and Debug) is next.
+code generation, full export pipeline with `custom/` guard, graph image export (SVG/PNG),
+project report export (Markdown), and a full run-and-debug pipeline (OllamaProvider HTTP,
+FlowRunner, run trace export, Run Log, Shared Store live view, Run Tests via pytest subprocess).
+M8 (Custom Node Type System) is next.
 
 ---
 
@@ -52,6 +54,15 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 - Shared Store Designer: double-click "Shared Store" in explorer → `QTableWidget` dialog
   with Namespace/Key/Type/Default columns; edits serialize back to nested YAML
 
+### M7 — Run and Debug ✓
+- `OllamaProvider.complete()` — HTTP POST to `{base_url}/api/generate` using stdlib `urllib.request`
+- `FlowRunner` — interprets `GraphModel` directly; walks nodes by edges; calls provider for LLM nodes
+- `RunTrace` / `RunStep` — per-step snapshot of shared store before/after; prompt and response fields
+- `FlowRunner.save_trace()` — writes `run_reports/<timestamp>.json`
+- Run > Run Active Flow — populates Run Log tab and Shared Store tab; saves trace file
+- Run > Run Tests — `pytest` subprocess; populates Test Results tab
+- Run menu extracted from generic loop; "Run Active Flow" and "Run Tests" fully wired
+
 ### M6 — Code Generation and Export ✓
 - `PythonGenerator` replaced with Jinja2 template-based generator (`nodes.py.j2`, `flow.py.j2`)
 - `Exporter` writes `exports/<pkg>/` with `generated/`, `custom/`, `tests/`, `main.py`
@@ -84,7 +95,9 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 - `generate_project_report()` — Markdown summary of nodes, edges, validation status
 
 ### Runtime (`src/pocketflow_creator/runtime/`)
-- `LLMProvider` protocol, `MockProvider`, `OllamaProvider` stub (raises `NotImplementedError`)
+- `LLMProvider` protocol, `MockProvider`, `OllamaProvider` (HTTP POST via `urllib.request`)
+- `FlowRunner` — interprets `GraphModel` directly; `RunTrace` + `RunStep` dataclasses
+- `save_trace()` — writes `run_reports/<timestamp>.json`
 
 ### GUI (`src/pocketflow_creator/app/`)
 - `main.py`: `MainWindow` — complete working GUI, all M3–M6 features wired
@@ -116,7 +129,9 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 | `test_shared_store_designer.py` | 6 | Passing |
 | `test_exporter.py` | 7 | Passing |
 | `test_report.py` | 5 | Passing |
-| **Total** | **44** | **All green** |
+| `test_ollama_provider.py` | 5 | Passing |
+| `test_runner.py` | 10 | Passing |
+| **Total** | **59** | **All green** |
 
 ---
 
@@ -130,13 +145,11 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 
 ## What Is Not Yet Implemented
 
-### M7 — Run and Debug (next)
-- `OllamaProvider.complete()` HTTP POST to Ollama `/api/generate`
-- Run Active Flow with `MockProvider` → Run Log tab
-- Shared Store tab live population per node step
-- Prompt Preview tab for selected LLM node
-- Step debugger with breakpoint markers
-- Run trace export to JSON
+### M8 — Custom Node Type System (next)
+- Node type wizard dialog
+- Custom type YAML validation against schema
+- Inheritance support in inspector
+- Custom node library manager
 
 ### M8 — Custom Node Type System
 - Node type wizard dialog

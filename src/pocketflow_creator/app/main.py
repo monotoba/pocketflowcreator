@@ -53,6 +53,8 @@ from pocketflow_creator.graph_io import GraphLoader, GraphSaver
 from pocketflow_creator.model.graph_model import EdgeModel, GraphModel, NodeModel
 from pocketflow_creator.model.project import ProjectModel
 from pocketflow_creator.project_io import ProjectLoader, ProjectSaver
+from pocketflow_creator.runtime.providers import MockProvider, OllamaProvider
+from pocketflow_creator.runtime.runner import FlowRunner
 from pocketflow_creator.validation.graph_validator import GraphValidator
 
 _MAX_RECENT = 5
@@ -154,14 +156,17 @@ class MainWindow(QMainWindow):
                 "Node",
                 ["New Custom Node Type...", "Generate Node Skeleton", "Validate Selected Node"],
             ),
-            (
-                "Run",
-                ["Run Project", "Run Active Flow", "Debug Active Flow", "Run Tests", "Stop"],
-            ),
         ]:
             m = self.menuBar().addMenu(menu_name)
             for action in actions:
                 m.addAction(action)
+
+        run_menu = self.menuBar().addMenu("Run")
+        run_menu.addAction("Run Active Flow", self._on_run_active_flow)
+        run_menu.addAction("Run Tests", self._on_run_tests)
+        run_menu.addSeparator()
+        for name in ["Run Project", "Debug Active Flow", "Stop"]:
+            run_menu.addAction(name)
 
         tools_menu = self.menuBar().addMenu("Tools")
         tools_menu.addAction("Provider Manager...", self._on_provider_manager)
@@ -550,6 +555,83 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Report saved: {path.name}")
         except Exception as exc:
             QMessageBox.critical(self, "Export Failed", str(exc))
+
+    # ----------------------------------------------- run menu handlers
+
+    def _on_run_active_flow(self) -> None:
+        if self._project is None or not self._graphs:
+            self.statusBar().showMessage("No graphs to run.")
+            return
+        graph = next(iter(self._graphs.values()))
+        rel = next(iter(self._graphs.keys()))
+
+        settings = QSettings("Monotoba", "PocketFlowCreator")
+        prov_type = str(settings.value("run/provider", "mock"))
+        if prov_type == "ollama":
+            provider: MockProvider | OllamaProvider = OllamaProvider(
+                base_url=str(settings.value("ollama/base_url", "http://localhost:11434")),
+                default_model=str(settings.value("ollama/default_model", "qwen2.5-coder:14b")),
+            )
+        else:
+            provider = MockProvider(
+                response=str(settings.value("mock/response", "mock response"))
+            )
+
+        runner = FlowRunner()
+        try:
+            trace = runner.run(graph, provider, project_name=self._project.name)
+        except Exception as exc:
+            QMessageBox.critical(self, "Run Failed", str(exc))
+            return
+
+        lines: list[str] = [f"Run: {graph.title}  ({len(trace.steps)} step(s))\n"]
+        for step in trace.steps:
+            lines.append(f"  [{step.node_id}] {step.node_title}  → {step.action}")
+            if step.response:
+                lines.append(f"      response: {step.response}")
+        self._bottom_editors["Run Log"].setPlainText("\n".join(lines))
+        self._switch_bottom_tab("Run Log")
+
+        shared_text = "\n".join(
+            f"{k}: {v}" for k, v in (trace.steps[-1].shared_after if trace.steps else {}).items()
+        )
+        self._bottom_editors["Shared Store"].setPlainText(shared_text or "{}")
+
+        if self._project.root:
+            try:
+                out = runner.save_trace(trace, self._project.root / "run_reports")
+                self.statusBar().showMessage(f"Run complete — trace saved: {out.name}")
+            except Exception:
+                self.statusBar().showMessage("Run complete.")
+        else:
+            self.statusBar().showMessage("Run complete.")
+
+        _ = rel  # keep for future per-graph selection
+
+    def _on_run_tests(self) -> None:
+        import subprocess
+        import sys
+
+        if self._project is None:
+            self.statusBar().showMessage("No project open.")
+            return
+        self._bottom_editors["Test Results"].setPlainText("Running tests…")
+        self._switch_bottom_tab("Test Results")
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-m", "pytest", "--tb=short", "-q"],
+                capture_output=True,
+                text=True,
+                cwd=str(self._project.root),
+                timeout=120,
+            )
+            output = (proc.stdout + proc.stderr).strip() or "(no output)"
+        except subprocess.TimeoutExpired:
+            output = "pytest timed out after 120 s."
+        except Exception as exc:
+            output = f"Could not run pytest: {exc}"
+        self._bottom_editors["Test Results"].setPlainText(output)
+        self.statusBar().showMessage("Tests finished.")
 
     def _on_about(self) -> None:
         QMessageBox.about(

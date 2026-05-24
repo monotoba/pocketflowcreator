@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -23,7 +26,16 @@ class OllamaProvider:
     default_model: str = "qwen2.5-coder:14b"
 
     def complete(self, prompt: str, *, model: str | None = None) -> str:
-        raise NotImplementedError(
-            "OllamaProvider is a design stub in this scaffold. "
-            "Implement HTTP integration before using real models."
+        url = f"{self.base_url.rstrip('/')}/api/generate"
+        payload = json.dumps(
+            {"model": model or self.default_model, "prompt": prompt, "stream": False}
+        ).encode()
+        req = urllib.request.Request(
+            url, data=payload, headers={"Content-Type": "application/json"}, method="POST"
         )
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                body = json.loads(resp.read())
+                return str(body.get("response", ""))
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"Ollama request failed: {exc}") from exc

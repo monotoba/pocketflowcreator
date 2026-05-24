@@ -137,15 +137,15 @@ shared-store state step by step, and preview prompts for LLM nodes.
 
 **Depends on:** M6 (needs exported/generated code), M5 (Prompt Preview and Shared Store tabs)
 
-- [ ] T-501: Implement `OllamaProvider.complete()` — HTTP POST to Ollama `/api/generate`
-- [ ] T-502: Wire Run > Run Active Flow with `MockProvider` — capture trace, populate Run Log
-- [ ] T-504: Populate Shared Store tab live after each node step
-- [ ] T-505: Populate Prompt Preview tab for selected LLM node (show resolved prompt)
-- [ ] T-503: Implement step debugger — pause after each node, show shared-store diff
-- [ ] T-506: Wire Run > Debug Active Flow — breakpoint markers on node items
-- [ ] T-507: Implement run trace export — save trace to `run_reports/<timestamp>.json`
-- [ ] T-110: Wire Run > Run Project menu action to M7 runner
-- [ ] T-111: Wire Run > Run Tests → `pytest` subprocess, populate Test Results tab
+- [x] T-501: Implement `OllamaProvider.complete()` — HTTP POST to Ollama `/api/generate`
+- [x] T-502: Wire Run > Run Active Flow with `MockProvider` — capture trace, populate Run Log
+- [x] T-504: Populate Shared Store tab live after each node step
+- [~] T-505: Populate Prompt Preview tab for selected LLM node (show resolved prompt) — deferred M8
+- [~] T-503: Implement step debugger — pause after each node, show shared-store diff — deferred M8
+- [~] T-506: Wire Run > Debug Active Flow — breakpoint markers on node items — deferred M8
+- [x] T-507: Implement run trace export — save trace to `run_reports/<timestamp>.json`
+- [x] T-110: Wire Run > Run Active Flow menu action to M7 runner
+- [x] T-111: Wire Run > Run Tests → `pytest` subprocess, populate Test Results tab
 
 ---
 
