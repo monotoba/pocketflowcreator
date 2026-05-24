@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 
 try:
-    from PySide6.QtCore import QLocale, QSettings, Qt, QTranslator, QUrl
+    from PySide6.QtCore import QLocale, QSettings, QSize, Qt, QTranslator, QUrl
     from PySide6.QtGui import (
         QBrush,
         QColor,
@@ -287,12 +287,30 @@ class MainWindow(QMainWindow):
         tb = QToolBar(self.tr("Node Types"), self)
         tb.setObjectName("nodeTypeToolBar")
         tb.setMovable(False)
+        tb.setIconSize(QSize(32, 32))
+        tb.setStyleSheet("""
+            QToolButton {
+                border: 2px solid transparent;
+                border-radius: 7px;
+                padding: 3px;
+                margin: 1px;
+            }
+            QToolButton:hover {
+                border: 2px solid rgba(255, 255, 255, 0.55);
+                background: rgba(255, 255, 255, 0.12);
+            }
+            QToolButton:pressed {
+                border: 2px solid rgba(255, 255, 255, 0.80);
+                background: rgba(255, 255, 255, 0.25);
+            }
+        """)
         self.addToolBar(tb)
 
         for display_name, type_id, _color in _PALETTE_ITEMS_EX:
             icon = make_node_icon(type_id, 32)
             btn = QToolButton()
             btn.setIcon(icon)
+            btn.setIconSize(QSize(32, 32))
             btn.setToolTip(display_name)
             btn.clicked.connect(
                 lambda checked=False, tid=type_id: self._drop_node_at_center(tid)

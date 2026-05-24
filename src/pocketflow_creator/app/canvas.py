@@ -315,11 +315,8 @@ _ICON_DRAW: dict[str, Any] = {
 }
 
 
-def make_node_icon(type_id: str, size: int = 32) -> QIcon:
-    """Return a QIcon for type_id, painted with purpose-built shapes."""
-    color_hex = NODE_TYPE_COLOR.get(type_id, "#555555")
-    bg = QColor(color_hex)
-
+def _paint_node_pixmap(type_id: str, size: int, bg: QColor) -> QPixmap:
+    """Paint one icon pixmap with the given background colour."""
     px = QPixmap(size, size)
     px.fill(QColor("transparent"))
     p = QPainter(px)
@@ -331,7 +328,7 @@ def make_node_icon(type_id: str, size: int = 32) -> QIcon:
     r = size * 0.22
     p.drawRoundedRect(1, 1, size - 2, size - 2, r, r)
 
-    # Draw the type-specific icon
+    # Type-specific shape
     draw_fn = _ICON_DRAW.get(type_id)
     if draw_fn is not None:
         draw_fn(p, float(size))
@@ -340,7 +337,6 @@ def make_node_icon(type_id: str, size: int = 32) -> QIcon:
     elif type_id == "file_reader_node":
         _ico_document(p, float(size), bg)
     else:
-        # Fallback: draw type_id initials as text
         font = QFont()
         font.setPixelSize(max(8, int(size * 0.38)))
         font.setBold(True)
@@ -350,7 +346,25 @@ def make_node_icon(type_id: str, size: int = 32) -> QIcon:
         p.drawText(QRectF(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, initials)
 
     p.end()
-    return QIcon(px)
+    return px
+
+
+def make_node_icon(type_id: str, size: int = 32) -> QIcon:
+    """Return a QIcon with Normal, Active (hover), and pressed pixmaps."""
+    base = QColor(NODE_TYPE_COLOR.get(type_id, "#555555"))
+
+    icon = QIcon()
+    # Normal — base colour
+    icon.addPixmap(_paint_node_pixmap(type_id, size, base), QIcon.Mode.Normal)
+    # Active / hover — noticeably lighter background
+    icon.addPixmap(
+        _paint_node_pixmap(type_id, size, base.lighter(150)), QIcon.Mode.Active
+    )
+    # Selected / pressed — brightest, used on click
+    icon.addPixmap(
+        _paint_node_pixmap(type_id, size, base.lighter(180)), QIcon.Mode.Selected
+    )
+    return icon
 
 
 class NodeItem(QGraphicsItem):
