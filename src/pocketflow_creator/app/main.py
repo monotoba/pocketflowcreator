@@ -1413,13 +1413,7 @@ class MainWindow(QMainWindow):
 
     def _on_markdown_editor_changed(self) -> None:
         text = self._bottom_editors["Markdown"].toPlainText()
-        try:
-            import markdown as _md
-
-            html = _md.markdown(text)
-        except ImportError:
-            html = f"<pre>{text}</pre>"
-        self._markdown_preview.setHtml(html)
+        self._markdown_preview.setMarkdown(text)
 
     # ----------------------------------------------- tools menu handlers
 
