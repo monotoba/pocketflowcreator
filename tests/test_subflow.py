@@ -56,3 +56,48 @@ def test_runner_passthrough_for_subflow_node():
     assert "sub1" in node_ids
     sub_step = next(s for s in steps if s.node_id == "sub1")
     assert sub_step.shared_after.get("sub1_subflow_ref") == "graphs/sub.pfcgraph.yaml"
+
+
+def _inner_graph() -> GraphModel:
+    """A simple two-node graph used as a subflow."""
+    return GraphModel(
+        id="inner",
+        title="Inner",
+        start_node="i1",
+        nodes=[
+            NodeModel(id="i1", type_id="start_node", title="Inner Start", actions=["default"]),
+            NodeModel(id="i2", type_id="stop_node", title="Inner Stop"),
+        ],
+        edges=[
+            EdgeModel(id="ie1", from_node="i1", action="default", to_node="i2"),
+        ],
+    )
+
+
+def test_runner_executes_subflow_inline():
+    """When known_graphs is provided, inner steps are yielded in place of the subflow node."""
+    ref = "graphs/sub.pfcgraph.yaml"
+    graph = _subflow_graph(ref=ref)
+    inner = _inner_graph()
+    runner = FlowRunner()
+    steps = list(runner.steps(graph, MockProvider(), known_graphs={ref: inner}))
+    node_ids = [s.node_id for s in steps]
+    # Inner graph nodes must appear
+    assert "i1" in node_ids
+    # Parent graph nodes around the subflow must still appear
+    assert "s1" in node_ids
+    assert "e1" in node_ids
+
+
+def test_runner_subflow_shared_store_propagates():
+    """Subgraph can write to shared store and parent graph sees the result."""
+    ref = "graphs/sub.pfcgraph.yaml"
+    graph = _subflow_graph(ref=ref)
+    inner = _inner_graph()
+    runner = FlowRunner()
+    steps = list(runner.steps(graph, MockProvider(), shared={"seed": 1}, known_graphs={ref: inner}))
+    # Every step should have seen 'seed' in shared_before
+    assert all(s.shared_before.get("seed") == 1 for s in steps)
+    # The subflow boundary marker is written after the inner steps
+    last_parent_step = next(s for s in steps if s.node_id == "e1")
+    assert last_parent_step.shared_before.get("sub1_subflow_ref") == ref

@@ -92,8 +92,13 @@ class FlowRunner:
         provider: LLMProvider,
         *,
         shared: dict[str, object] | None = None,
+        known_graphs: dict[str, GraphModel] | None = None,
     ) -> Generator[RunStep, None, None]:
-        """Yield one RunStep per executed node. Non-blocking; consumer controls pacing."""
+        """Yield one RunStep per executed node. Non-blocking; consumer controls pacing.
+
+        known_graphs maps subflow_ref strings to pre-loaded GraphModel objects.
+        When provided, subflow_node steps are replaced by their inner graph's steps.
+        """
         if not graph.start_node:
             return
 
@@ -111,10 +116,26 @@ class FlowRunner:
             shared_before = copy.deepcopy(shared_store)
             prompt = ""
             response = ""
+
             if node.type_id == "subflow_node":
-                # TODO: recursive subflow execution (T-B05 MVP passthrough)
                 ref = str(node.properties.get("subflow_ref", ""))
-                shared_store[f"{node.id}_subflow_ref"] = ref
+                subgraph = (known_graphs or {}).get(ref)
+                if subgraph is not None:
+                    # Execute the subgraph inline; collect into a list so we can read the
+                    # final shared_after for state merge before continuing in the parent.
+                    inner_steps = list(  # noqa: UP028
+                        self.steps(
+                            subgraph, provider, shared=shared_store, known_graphs=known_graphs
+                        )
+                    )
+                    for inner_step in inner_steps:  # noqa: UP028
+                        yield inner_step
+                    if inner_steps:
+                        shared_store.update(inner_steps[-1].shared_after)
+                    shared_store[f"{node.id}_subflow_ref"] = ref
+                else:
+                    # Passthrough: subgraph not available; record ref and continue.
+                    shared_store[f"{node.id}_subflow_ref"] = ref
             elif "llm" in node.type_id.lower():
                 prompt = f"[{node.title}] {node.type_id}"
                 response = provider.complete(prompt)
@@ -144,13 +165,14 @@ class FlowRunner:
         *,
         project_name: str = "",
         shared: dict[str, object] | None = None,
+        known_graphs: dict[str, GraphModel] | None = None,
     ) -> RunTrace:
         started_at = datetime.now(tz=timezone.utc).isoformat()
         return RunTrace(
             started_at=started_at,
             project_name=project_name,
             graph_title=graph.title,
-            steps=list(self.steps(graph, provider, shared=shared)),
+            steps=list(self.steps(graph, provider, shared=shared, known_graphs=known_graphs)),
         )
 
     def run_debug(
@@ -163,6 +185,7 @@ class FlowRunner:
         on_step: object = None,
         project_name: str = "",
         shared: dict[str, object] | None = None,
+        known_graphs: dict[str, GraphModel] | None = None,
     ) -> RunTrace:
         """Run the graph in debug mode; pauses at breakpoints via controller.
 
@@ -173,7 +196,7 @@ class FlowRunner:
         started_at = datetime.now(tz=timezone.utc).isoformat()
         collected: list[RunStep] = []
 
-        for step in self.steps(graph, provider, shared=shared):
+        for step in self.steps(graph, provider, shared=shared, known_graphs=known_graphs):
             if controller.is_stopped:
                 break
             collected.append(step)
