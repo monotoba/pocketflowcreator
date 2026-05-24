@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 
 try:
-    from PySide6.QtCore import QSettings, Qt, QUrl
+    from PySide6.QtCore import QLocale, QSettings, Qt, QTranslator, QUrl
     from PySide6.QtGui import (
         QBrush,
         QColor,
@@ -18,6 +18,7 @@ try:
     from PySide6.QtWidgets import (
         QApplication,
         QButtonGroup,
+        QComboBox,
         QDialog,
         QDialogButtonBox,
         QDockWidget,
@@ -130,7 +131,7 @@ class MainWindow(QMainWindow):
         self._inspector: QTreeWidget
         self._graph_view: GraphView
         self._graph_scene = GraphScene()
-        self.setWindowTitle("PocketFlow Creator")
+        self.setWindowTitle(self.tr("PocketFlow Creator"))
         self.resize(1400, 900)
         self._build_menu_bar()
         self._build_central_area()
@@ -152,107 +153,126 @@ class MainWindow(QMainWindow):
         self._recent = self._load_recent()
         self._update_recent_menu()
         self._apply_theme()
-        self.statusBar().showMessage("Ready")
+        self.statusBar().showMessage(self.tr("Ready"))
 
     # ------------------------------------------------------------------ menus
 
     def _build_menu_bar(self) -> None:
-        file_menu = self.menuBar().addMenu("File")
-        act = file_menu.addAction("New Project...", self._on_new_project)
+        file_menu = self.menuBar().addMenu(self.tr("File"))
+        act = file_menu.addAction(self.tr("New Project..."), self._on_new_project)
         act.setShortcut(QKeySequence.StandardKey.New)
-        file_menu.addAction("New From Template...", self._on_new_from_template)
-        act = file_menu.addAction("Open Project...", self._on_open_project)
+        file_menu.addAction(self.tr("New From Template..."), self._on_new_from_template)
+        act = file_menu.addAction(self.tr("Open Project..."), self._on_open_project)
         act.setShortcut(QKeySequence.StandardKey.Open)
         file_menu.addSeparator()
-        self._recent_menu = file_menu.addMenu("Recent Projects")
+        self._recent_menu = file_menu.addMenu(self.tr("Recent Projects"))
         file_menu.addSeparator()
-        act = file_menu.addAction("Save", self._on_save)
+        act = file_menu.addAction(self.tr("Save"), self._on_save)
         act.setShortcut(QKeySequence.StandardKey.Save)
-        act = file_menu.addAction("Save All", self._on_save_all)
+        act = file_menu.addAction(self.tr("Save All"), self._on_save_all)
         act.setShortcut(QKeySequence("Ctrl+Shift+S"))
         file_menu.addSeparator()
-        act = file_menu.addAction("Export PocketFlow Project...", self._on_export_project)
+        act = file_menu.addAction(
+            self.tr("Export PocketFlow Project..."), self._on_export_project
+        )
         act.setShortcut(QKeySequence("Ctrl+E"))
-        file_menu.addAction("Project Settings...", self._on_project_settings)
+        file_menu.addAction(self.tr("Project Settings..."), self._on_project_settings)
         file_menu.addSeparator()
-        act = file_menu.addAction("Exit", self.close)
+        act = file_menu.addAction(self.tr("Exit"), self.close)
         act.setShortcut(QKeySequence.StandardKey.Quit)
 
-        edit_menu = self.menuBar().addMenu("Edit")
-        undo_act = edit_menu.addAction("Undo", self._undo_stack.undo)
+        edit_menu = self.menuBar().addMenu(self.tr("Edit"))
+        undo_act = edit_menu.addAction(self.tr("Undo"), self._undo_stack.undo)
         undo_act.setShortcut(QKeySequence.StandardKey.Undo)
-        redo_act = edit_menu.addAction("Redo", self._undo_stack.redo)
+        redo_act = edit_menu.addAction(self.tr("Redo"), self._undo_stack.redo)
         redo_act.setShortcut(QKeySequence.StandardKey.Redo)
         edit_menu.addSeparator()
-        cut_act = edit_menu.addAction("Cut")
+        cut_act = edit_menu.addAction(self.tr("Cut"))
         cut_act.setShortcut(QKeySequence.StandardKey.Cut)
-        copy_act = edit_menu.addAction("Copy")
+        copy_act = edit_menu.addAction(self.tr("Copy"))
         copy_act.setShortcut(QKeySequence.StandardKey.Copy)
-        paste_act = edit_menu.addAction("Paste")
+        paste_act = edit_menu.addAction(self.tr("Paste"))
         paste_act.setShortcut(QKeySequence.StandardKey.Paste)
-        edit_menu.addAction("Duplicate")
-        del_act = edit_menu.addAction("Delete")
+        edit_menu.addAction(self.tr("Duplicate"))
+        del_act = edit_menu.addAction(self.tr("Delete"))
         del_act.setShortcut(QKeySequence.StandardKey.Delete)
-        find_act = edit_menu.addAction("Find...")
+        find_act = edit_menu.addAction(self.tr("Find..."))
         find_act.setShortcut(QKeySequence.StandardKey.Find)
 
-        view_menu = self.menuBar().addMenu("View")
-        for name in ["Project Explorer", "Component Palette", "Object Inspector"]:
+        view_menu = self.menuBar().addMenu(self.tr("View"))
+        for name in [
+            self.tr("Project Explorer"),
+            self.tr("Component Palette"),
+            self.tr("Object Inspector"),
+        ]:
             view_menu.addAction(name)
-        act = view_menu.addAction("Zoom to Fit", self._on_zoom_to_fit)
+        act = view_menu.addAction(self.tr("Zoom to Fit"), self._on_zoom_to_fit)
         act.setShortcut(QKeySequence("Ctrl+0"))
-        act = view_menu.addAction("Auto Layout", self._on_auto_layout)
+        act = view_menu.addAction(self.tr("Auto Layout"), self._on_auto_layout)
         act.setShortcut(QKeySequence("Ctrl+Shift+L"))
 
-        project_menu = self.menuBar().addMenu("Project")
-        act = project_menu.addAction("Validate Project", self._on_validate_project)
+        project_menu = self.menuBar().addMenu(self.tr("Project"))
+        act = project_menu.addAction(self.tr("Validate Project"), self._on_validate_project)
         act.setShortcut(QKeySequence("Ctrl+Shift+V"))
-        act = project_menu.addAction("Generate Code", self._on_generate_code)
+        act = project_menu.addAction(self.tr("Generate Code"), self._on_generate_code)
         act.setShortcut(QKeySequence("Ctrl+G"))
-        project_menu.addAction("Open Project Folder", self._on_open_project_folder)
-        project_menu.addAction("Export Graph Image...", self._on_export_graph_image)
-        project_menu.addAction("Export Project Report...", self._on_export_project_report)
-        project_menu.addAction("Provider Profiles...")
+        project_menu.addAction(self.tr("Open Project Folder"), self._on_open_project_folder)
+        project_menu.addAction(self.tr("Export Graph Image..."), self._on_export_graph_image)
+        project_menu.addAction(
+            self.tr("Export Project Report..."), self._on_export_project_report
+        )
+        project_menu.addAction(self.tr("Provider Profiles..."))
 
-        flow_menu = self.menuBar().addMenu("Flow")
-        for name in ["New Flow...", "New Subflow...", "Set Start Node", "Validate Active Flow"]:
+        flow_menu = self.menuBar().addMenu(self.tr("Flow"))
+        for name in [
+            self.tr("New Flow..."),
+            self.tr("New Subflow..."),
+            self.tr("Set Start Node"),
+            self.tr("Validate Active Flow"),
+        ]:
             flow_menu.addAction(name)
 
-        node_menu = self.menuBar().addMenu("Node")
-        node_menu.addAction("New Custom Node Type...", self._on_new_custom_node_type)
-        node_menu.addAction("Generate Node Skeleton", self._on_generate_node_skeleton)
-        act = node_menu.addAction("Toggle Breakpoint", self._on_toggle_breakpoint)
+        node_menu = self.menuBar().addMenu(self.tr("Node"))
+        node_menu.addAction(self.tr("New Custom Node Type..."), self._on_new_custom_node_type)
+        node_menu.addAction(self.tr("Generate Node Skeleton"), self._on_generate_node_skeleton)
+        act = node_menu.addAction(self.tr("Toggle Breakpoint"), self._on_toggle_breakpoint)
         act.setShortcut(QKeySequence("F9"))
-        node_menu.addAction("Validate Selected Node")
+        node_menu.addAction(self.tr("Validate Selected Node"))
 
-        run_menu = self.menuBar().addMenu("Run")
-        act = run_menu.addAction("Run Active Flow", self._on_run_active_flow)
+        run_menu = self.menuBar().addMenu(self.tr("Run"))
+        act = run_menu.addAction(self.tr("Run Active Flow"), self._on_run_active_flow)
         act.setShortcut(QKeySequence("F5"))
-        act = run_menu.addAction("Debug Active Flow", self._on_debug_active_flow)
+        act = run_menu.addAction(self.tr("Debug Active Flow"), self._on_debug_active_flow)
         act.setShortcut(QKeySequence("Shift+F5"))
-        act = run_menu.addAction("Run Tests", self._on_run_tests)
+        act = run_menu.addAction(self.tr("Run Tests"), self._on_run_tests)
         act.setShortcut(QKeySequence("Ctrl+T"))
         run_menu.addSeparator()
-        self._stop_action = run_menu.addAction("Stop", self._on_stop_debug)
+        self._stop_action = run_menu.addAction(self.tr("Stop"), self._on_stop_debug)
         self._stop_action.setEnabled(False)
-        self._resume_action = run_menu.addAction("Resume", self._on_resume_debug)
+        self._resume_action = run_menu.addAction(self.tr("Resume"), self._on_resume_debug)
         self._resume_action.setEnabled(False)
 
-        tools_menu = self.menuBar().addMenu("Tools")
-        tools_menu.addAction("Provider Manager...", self._on_provider_manager)
-        tools_menu.addAction("Tool Registry...", self._on_tool_registry)
-        tools_menu.addAction("Shared Store Inspector...", self._on_shared_store_inspector)
-        tools_menu.addAction("Node Type Library...", self._on_node_type_library)
-        tools_menu.addAction("Options...", self._on_options)
+        tools_menu = self.menuBar().addMenu(self.tr("Tools"))
+        tools_menu.addAction(self.tr("Provider Manager..."), self._on_provider_manager)
+        tools_menu.addAction(self.tr("Tool Registry..."), self._on_tool_registry)
+        tools_menu.addAction(
+            self.tr("Shared Store Inspector..."), self._on_shared_store_inspector
+        )
+        tools_menu.addAction(self.tr("Node Type Library..."), self._on_node_type_library)
+        tools_menu.addAction(self.tr("Options..."), self._on_options)
 
-        window_menu = self.menuBar().addMenu("Window")
-        for name in ["Reset Layout", "Next Tab", "Previous Tab"]:
+        window_menu = self.menuBar().addMenu(self.tr("Window"))
+        for name in [
+            self.tr("Reset Layout"),
+            self.tr("Next Tab"),
+            self.tr("Previous Tab"),
+        ]:
             window_menu.addAction(name)
 
-        help_menu = self.menuBar().addMenu("Help")
-        help_menu.addAction("PocketFlow Creator Help")
-        help_menu.addAction("PocketFlow Quick Reference")
-        help_menu.addAction("About PocketFlow Creator", self._on_about)
+        help_menu = self.menuBar().addMenu(self.tr("Help"))
+        help_menu.addAction(self.tr("PocketFlow Creator Help"))
+        help_menu.addAction(self.tr("PocketFlow Quick Reference"))
+        help_menu.addAction(self.tr("About PocketFlow Creator"), self._on_about)
 
     # --------------------------------------------------------------- layout
 
@@ -267,56 +287,56 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._build_bottom_dock())
 
     def _build_project_explorer(self) -> QDockWidget:
-        dock = QDockWidget("Project Explorer", self)
+        dock = QDockWidget(self.tr("Project Explorer"), self)
         self._explorer_tree = QTreeWidget()
         self._explorer_tree.setHeaderHidden(True)
         dock.setWidget(self._explorer_tree)
         return dock
 
     def _build_component_palette(self) -> QDockWidget:
-        dock = QDockWidget("Component Palette", self)
+        dock = QDockWidget(self.tr("Component Palette"), self)
         dock.setWidget(PaletteWidget())
         return dock
 
     def _build_object_inspector(self) -> QDockWidget:
-        dock = QDockWidget("Object Inspector", self)
+        dock = QDockWidget(self.tr("Object Inspector"), self)
         self._inspector = QTreeWidget()
-        self._inspector.setHeaderLabels(["Property", "Value"])
+        self._inspector.setHeaderLabels([self.tr("Property"), self.tr("Value")])
         self._inspector.setAlternatingRowColors(True)
         self._inspector.header().setStretchLastSection(True)
         dock.setWidget(self._inspector)
         return dock
 
     def _build_bottom_dock(self) -> QDockWidget:
-        dock = QDockWidget("Output", self)
+        dock = QDockWidget(self.tr("Output"), self)
         self._bottom_tab_widget = QTabWidget()
         plain_tabs = [
-            ("Problems", "No validation has been run."),
-            ("Run Log", "No active run."),
+            ("Problems", self.tr("No validation has been run.")),
+            ("Run Log", self.tr("No active run.")),
             ("Shared Store", "{}"),
-            ("Prompt Preview", "Select an LLM node to preview its prompt."),
-            ("Generated Code", "Generated code appears here."),
-            ("Python", "Open a Python file to edit custom code."),
-            ("YAML", "Open metadata to edit YAML."),
-            ("Test Results", "Tests have not been run."),
+            ("Prompt Preview", self.tr("Select an LLM node to preview its prompt.")),
+            ("Generated Code", self.tr("Generated code appears here.")),
+            ("Python", self.tr("Open a Python file to edit custom code.")),
+            ("YAML", self.tr("Open metadata to edit YAML.")),
+            ("Test Results", self.tr("Tests have not been run.")),
         ]
         for name, text in plain_tabs:
             editor = QPlainTextEdit()
             editor.setPlainText(text)
-            self._bottom_tab_widget.addTab(editor, name)
+            self._bottom_tab_widget.addTab(editor, self.tr(name))
             self._bottom_editors[name] = editor
             self._bottom_tab_paths[name] = None
 
         # Markdown tab: editor on left, live HTML preview on right
         md_splitter = QSplitter(Qt.Orientation.Horizontal)
         md_editor = QPlainTextEdit()
-        md_editor.setPlainText("Open a prompt file to edit Markdown.")
+        md_editor.setPlainText(self.tr("Open a prompt file to edit Markdown."))
         self._markdown_preview = QTextBrowser()
-        self._markdown_preview.setPlainText("Preview appears here.")
+        self._markdown_preview.setPlainText(self.tr("Preview appears here."))
         md_splitter.addWidget(md_editor)
         md_splitter.addWidget(self._markdown_preview)
         md_splitter.setSizes([1, 1])
-        self._bottom_tab_widget.addTab(md_splitter, "Markdown")
+        self._bottom_tab_widget.addTab(md_splitter, self.tr("Markdown"))
         self._bottom_editors["Markdown"] = md_editor
         self._bottom_tab_paths["Markdown"] = None
 
@@ -1209,19 +1229,31 @@ class MainWindow(QMainWindow):
             self._graph_view.setStyleSheet("")
         self._graph_view.viewport().update()
 
+    # Ordered (locale_code, display_name) pairs for the language selector.
+    _LANGUAGES: list[tuple[str, str]] = [
+        ("system", "System default"),
+        ("en", "English"),
+        ("es", "Español"),
+        ("fr", "Français"),
+        ("de", "Deutsch"),
+        ("zh", "中文"),
+        ("ja", "日本語"),
+    ]
+
     def _on_options(self) -> None:
         settings = QSettings("Monotoba", "PocketFlowCreator")
         dlg = QDialog(self)
-        dlg.setWindowTitle("Options")
+        dlg.setWindowTitle(self.tr("Options"))
         layout = QVBoxLayout(dlg)
 
-        appearance_group = QGroupBox("Appearance")
+        # ── Appearance ──────────────────────────────────────────────────────
+        appearance_group = QGroupBox(self.tr("Appearance"))
         group_layout = QVBoxLayout(appearance_group)
 
         btn_group = QButtonGroup(dlg)
-        radio_system = QRadioButton("System (follow OS setting)")
-        radio_light = QRadioButton("Light")
-        radio_dark = QRadioButton("Dark")
+        radio_system = QRadioButton(self.tr("System (follow OS setting)"))
+        radio_light = QRadioButton(self.tr("Light"))
+        radio_dark = QRadioButton(self.tr("Dark"))
         for rb in (radio_system, radio_light, radio_dark):
             btn_group.addButton(rb)
             group_layout.addWidget(rb)
@@ -1234,6 +1266,23 @@ class MainWindow(QMainWindow):
             radio_system.setChecked(True)
 
         layout.addWidget(appearance_group)
+
+        # ── Language ─────────────────────────────────────────────────────────
+        lang_group = QGroupBox(self.tr("Language"))
+        lang_layout = QVBoxLayout(lang_group)
+        lang_label = QLabel(self.tr("Restart the application to apply a language change."))
+        lang_label.setWordWrap(True)
+        lang_combo = QComboBox()
+        current_locale = str(settings.value("ui/locale", "system"))
+        current_index = 0
+        for i, (code, display) in enumerate(self._LANGUAGES):
+            lang_combo.addItem(display, code)
+            if code == current_locale:
+                current_index = i
+        lang_combo.setCurrentIndex(current_index)
+        lang_layout.addWidget(lang_label)
+        lang_layout.addWidget(lang_combo)
+        layout.addWidget(lang_group)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -1253,8 +1302,9 @@ class MainWindow(QMainWindow):
             self._theme_mode = "system"
 
         settings.setValue("ui/theme", self._theme_mode)
+        settings.setValue("ui/locale", lang_combo.currentData())
         self._apply_theme()
-        self.statusBar().showMessage("Options saved.")
+        self.statusBar().showMessage(self.tr("Options saved."))
 
     def _on_zoom_to_fit(self) -> None:
         self._graph_view.zoom_to_fit()
@@ -1588,6 +1638,18 @@ def run(argv: Sequence[str] | None = None) -> int:
     if QApplication is None:
         raise RuntimeError("PySide6 is not available. Install project dependencies first.")
     app = QApplication(list(argv or []))
+    app.setApplicationName("PocketFlow Creator")
+    app.setOrganizationName("Monotoba")
+
+    # Install locale-specific translator before building the main window
+    _settings = QSettings("Monotoba", "PocketFlowCreator")
+    locale_code = str(_settings.value("ui/locale", "system"))
+    _trans_dir = str(Path(__file__).parent.parent / "translations")
+    _locale = QLocale.system() if locale_code == "system" else QLocale(locale_code)
+    _translator = QTranslator(app)
+    if _translator.load(_locale, "pocketflow_creator", "_", _trans_dir):
+        app.installTranslator(_translator)
+
     window = MainWindow()
     window.show()
     return app.exec()
