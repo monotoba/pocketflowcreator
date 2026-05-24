@@ -48,6 +48,7 @@ except Exception:  # pragma: no cover - permits import in non-GUI test environme
 
 from pocketflow_creator.generation.exporter import Exporter
 from pocketflow_creator.generation.python_generator import PythonGenerator
+from pocketflow_creator.generation.report import generate_project_report
 from pocketflow_creator.graph_io import GraphLoader, GraphSaver
 from pocketflow_creator.model.graph_model import EdgeModel, GraphModel, NodeModel
 from pocketflow_creator.model.project import ProjectModel
@@ -140,6 +141,8 @@ class MainWindow(QMainWindow):
         project_menu.addAction("Validate Project", self._on_validate_project)
         project_menu.addAction("Generate Code", self._on_generate_code)
         project_menu.addAction("Open Project Folder", self._on_open_project_folder)
+        project_menu.addAction("Export Graph Image...", self._on_export_graph_image)
+        project_menu.addAction("Export Project Report...", self._on_export_project_report)
         project_menu.addAction("Provider Profiles...")
 
         for menu_name, actions in [
@@ -492,6 +495,61 @@ class MainWindow(QMainWindow):
             msg += f"\n{skipped} file(s) skipped (custom/ guard — existing user code preserved)."
         QMessageBox.information(self, "Export PocketFlow Project", msg)
         self.statusBar().showMessage(f"Exported to exports/{self._project.package_name}/")
+
+    def _on_export_graph_image(self) -> None:
+        if not self._graphs:
+            self.statusBar().showMessage("No graphs to export.")
+            return
+        path_str, _ = QFileDialog.getSaveFileName(
+            self, "Export Graph Image", "", "PNG Image (*.png);;SVG Image (*.svg)"
+        )
+        if not path_str:
+            return
+        path = Path(path_str)
+        try:
+            from PySide6.QtCore import QRectF
+            from PySide6.QtGui import QImage, QPainter
+
+            rect: QRectF = self._graph_scene.itemsBoundingRect()
+            if rect.isEmpty():
+                rect = QRectF(0, 0, 800, 600)
+            if path.suffix.lower() == ".svg":
+                from PySide6.QtSvg import QSvgGenerator
+
+                gen = QSvgGenerator()
+                gen.setFileName(str(path))
+                gen.setSize(rect.size().toSize())
+                gen.setViewBox(rect)
+                painter = QPainter(gen)
+                self._graph_scene.render(painter, source=rect)
+                painter.end()
+            else:
+                img = QImage(rect.size().toSize(), QImage.Format.Format_ARGB32)
+                img.fill(0xFF1A1A1A)
+                painter = QPainter(img)
+                self._graph_scene.render(painter, source=rect)
+                painter.end()
+                img.save(str(path))
+            self.statusBar().showMessage(f"Graph image saved: {path.name}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Export Failed", str(exc))
+
+    def _on_export_project_report(self) -> None:
+        if self._project is None:
+            self.statusBar().showMessage("No project open.")
+            return
+        report = generate_project_report(self._project, self._graphs)
+        path_str, _ = QFileDialog.getSaveFileName(
+            self, "Export Project Report", str(self._project.root), "Markdown (*.md)"
+        )
+        if not path_str:
+            return
+        path = Path(path_str)
+        try:
+            path.write_text(report, encoding="utf-8")
+            self.statusBar().showMessage(f"Report saved: {path.name}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Export Failed", str(exc))
 
     def _on_about(self) -> None:
         QMessageBox.about(
