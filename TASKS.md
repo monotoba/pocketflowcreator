@@ -100,14 +100,14 @@ inside the app. Provider profiles and tool registry are manageable via dialogs.
 
 **Depends on:** M3 (editors open from Project Explorer)
 
-- [ ] T-301: Integrate Python syntax-highlighting editor for custom node code
+- [x] T-301: Integrate Python syntax-highlighting editor for custom node code
   (`QSyntaxHighlighter` subclass or third-party widget such as QScintilla)
-- [ ] T-302: Integrate Markdown editor with live preview for prompt files
-- [ ] T-303: Integrate YAML editor with schema-driven validation feedback
-- [ ] T-304: Add shared-store designer panel — key/type/default table, editable
-- [ ] T-305: Wire Tools > Provider Manager → dialog for Ollama / mock provider profiles
-- [ ] T-306: Wire Tools > Tool Registry → dialog listing registered Python tool functions
-- [ ] T-307: Wire Tools > Shared Store Inspector → live key/value view (populated during run)
+- [x] T-302: Integrate Markdown editor with live preview for prompt files
+- [x] T-303: Integrate YAML editor with schema-driven validation feedback
+- [x] T-304: Add shared-store designer panel — key/type/default table, editable
+- [x] T-305: Wire Tools > Provider Manager → dialog for Ollama / mock provider profiles
+- [x] T-306: Wire Tools > Tool Registry → dialog listing registered Python tool functions
+- [x] T-307: Wire Tools > Shared Store Inspector → live key/value view (populated during run)
 
 ---
 
