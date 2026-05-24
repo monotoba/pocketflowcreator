@@ -1,8 +1,10 @@
 # PocketFlow Creator — Status
 
-## Current State: M7–M9 Complete (v0.1.0, 2026-05-24)
+## Current State: M10 Complete — Tutorials (v0.1.1, 2026-05-24)
 
-Milestones M0–M9 are done. The app has a working graph canvas, full file I/O, wired menus,
+Milestones M0–M10 are done. M10 adds comprehensive tutorials covering all 40+ PocketFlow
+cookbook patterns and all Creator-specific IDE features. M0–M9 delivered: the app has a
+working graph canvas, full file I/O, wired menus,
 syntax-highlighting editors, live Markdown preview, shared-store tooling, Jinja2 template-based
 code generation, full export pipeline with `custom/` guard, graph image export (SVG/PNG),
 project report export (Markdown), a full run-and-debug pipeline (OllamaProvider HTTP,
@@ -26,6 +28,15 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 - `ProjectLoader` / `ProjectSaver` — YAML round-trip for `.pfcproj.yaml`
 - `GraphLoader` / `GraphSaver` — YAML round-trip for `.pfcgraph.yaml`
 - Round-trip test for load → save → reload equality
+
+### M10 — Tutorials and Documentation ✓
+- `docs/TUTORIALS.md` — 25 tutorials + 4 exercises covering:
+  - Part 1: IDE Tour, First Flow, Inspector Editing, Code Editor (RAD), Custom Node Wizard, Templates
+  - Part 2: Hello World, Chat, Structured Output, Workflow, Routing, Agent, RAG, Batch,
+    HITL, Judge, Multi-Agent, Streaming, Memory (maps to all major PocketFlow cookbook patterns)
+  - Part 3: Validation, Debug/Breakpoints, Subflow, Export, Shared Store Designer, Packaging
+  - Part 4: Exercises — News Summariser, Coding Agent, Multi-Provider Router, Full IDE Workout
+- PocketFlow repo researched: 40+ examples catalogued across beginner/intermediate/advanced
 
 ### M3 — GUI Shell Wired ✓
 - File > New/Open/Save/Save All/Project Settings all dispatch to real handlers

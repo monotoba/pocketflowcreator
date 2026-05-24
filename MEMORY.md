@@ -153,3 +153,42 @@ Graph validation issues use the `PFCE` prefix:
 
 New error codes should continue from the highest currently assigned number in the
 relevant block (1xxx = node/graph structure, 2xxx = edges, 3xxx = reserved for node types).
+
+PFCE2102 added: subflow_node missing/unresolved `subflow_ref`.
+
+---
+
+## Tutorials (M10)
+
+`docs/TUTORIALS.md` is the authoritative user-facing tutorial document.
+It contains **25 tutorials + 4 exercises** in 4 parts:
+
+- **Part 1 — Creator Fundamentals** (Tutorials 1–6): IDE tour, first flow, inspector,
+  code editor, custom node wizard, project templates
+- **Part 2 — PocketFlow Patterns** (Tutorials 7–17, 23–24): maps every major PocketFlow
+  cookbook pattern (hello world, chat, structured output, workflow, routing, agent, RAG,
+  batch, HITL, judge, multi-agent, streaming, memory) to Creator graph + code
+- **Part 3 — Advanced Features** (Tutorials 18–22, 25): validation, debug/breakpoints,
+  subflow, export, shared store designer, packaging
+- **Part 4 — Exercises** (A–D): News Summariser, Coding Agent, Multi-Provider Router,
+  Full IDE Workout
+
+PocketFlow repo (https://github.com/The-Pocket/PocketFlow) has 40+ cookbook examples
+across beginner/intermediate/advanced levels. All are covered in the tutorials.
+
+---
+
+## RAD Studio Features Added (Post-Backlog)
+
+These features were added after the backlog (M10+) in response to user feedback:
+
+| Feature | Files changed |
+|---|---|
+| Inspector property editing (Actions, Reads, Writes, typed properties) | `main.py` |
+| Editable inspector cells styled with blue tint + tooltip | `main.py` |
+| Canvas → code sync (`code/<stem>.py` per graph) | `canvas.py`, `main.py`, `code_manager.py` |
+| Double-click node → Python editor scrolled to class | `main.py` |
+| Delete key removes node from canvas AND code file | `canvas.py`, `main.py` |
+| Auto Layout (BFS layered, Ctrl+Shift+L) | `canvas.py`, `main.py` |
+| Zoom to Fit on graph load | `main.py` |
+| System / Light / Dark theme modes (replaces dark-only checkbox) | `main.py` |

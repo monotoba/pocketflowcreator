@@ -176,6 +176,26 @@ test count at 50+, app ready for broader review.
 
 ---
 
+## M10 — Tutorials and Documentation  ✓ Complete
+
+**Deliverable:** Comprehensive tutorial document covering all PocketFlow cookbook patterns
+and all Creator-specific features. Users can self-onboard without external help.
+
+**Depends on:** M9 (all features implemented)
+
+- [x] T-D01: Research PocketFlow repo — catalog all tutorials and examples (40+ patterns)
+- [x] T-D02: Part 1 — Creator Fundamentals (6 tutorials: IDE tour, first flow, inspector,
+             code editor, custom node wizard, templates)
+- [x] T-D03: Part 2 — PocketFlow Patterns (11 tutorials: hello world, chat, structured output,
+             workflow, routing, agent, RAG, batch, HITL, judge, multi-agent, streaming, memory)
+- [x] T-D04: Part 3 — Advanced Creator Features (8 tutorials: validation, debug, subflow,
+             export, shared store designer, streaming, memory, packaging)
+- [x] T-D05: Part 4 — Creator System Exercises (4 exercises: news summariser, coding agent,
+             multi-provider router, full IDE workout)
+- [x] T-D06: Update TASKS.md, STATUS.md, MEMORY.md with tutorial milestone
+
+---
+
 ## Backlog / Deferred
 
 Tasks identified but not yet scheduled into a milestone:
