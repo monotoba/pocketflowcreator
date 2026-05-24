@@ -160,6 +160,11 @@ class NodeItem(QGraphicsItem):
     def input_port_scene_pos(self) -> QPointF:
         return self.mapToScene(QPointF(0, _HEIGHT / 2))
 
+    def mouseDoubleClickEvent(self, event: Any) -> None:
+        scene = self.scene()
+        if isinstance(scene, GraphScene):
+            scene.node_item_double_clicked.emit(self)
+
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             scene = self.scene()
@@ -225,6 +230,9 @@ class GraphScene(QGraphicsScene):
     node_item_selected = Signal(object)
     edge_item_selected = Signal(object)
     selection_cleared = Signal()
+    node_item_double_clicked = Signal(object)  # emits NodeItem
+    node_created = Signal(object)              # emits NodeItem
+    node_deleted = Signal(str)                 # emits node_id
 
     def __init__(self, parent: Any = None) -> None:
         super().__init__(parent)
@@ -276,6 +284,7 @@ class GraphScene(QGraphicsScene):
         item = NodeItem(node)
         self.addItem(item)
         self._node_items[node.id] = item
+        self.node_created.emit(item)
         return item
 
     def update_edges(self) -> None:
@@ -285,6 +294,74 @@ class GraphScene(QGraphicsScene):
     def apply_validation(self, error_ids: set[str]) -> None:
         for node_id, item in self._node_items.items():
             item.set_has_error(node_id in error_ids)
+
+    def keyPressEvent(self, event: Any) -> None:
+        if event.key() == Qt.Key.Key_Delete:  # type: ignore[attr-defined]
+            for item in list(self.selectedItems()):
+                if isinstance(item, NodeItem):
+                    node_id = item.node.id
+                    for ei in [e for e in self._edge_items if e._src is item or e._tgt is item]:
+                        self.removeItem(ei)
+                        self._edge_items.remove(ei)
+                    self.removeItem(item)
+                    self._node_items.pop(node_id, None)
+                    self.node_deleted.emit(node_id)
+        else:
+            super().keyPressEvent(event)
+
+    def auto_layout(self) -> None:
+        """Hierarchical BFS layout: layers left-to-right, nodes top-to-bottom within layer."""
+        if not self._node_items:
+            return
+        H_GAP = 60
+        V_GAP = 30
+        all_ids = set(self._node_items.keys())
+        has_incoming: set[str] = {ei._tgt.node.id for ei in self._edge_items}
+        roots = all_ids - has_incoming or all_ids
+
+        root = next(
+            (nid for nid in roots if self._node_items[nid].node.type_id == "start_node"),
+            next(iter(roots)),
+        )
+
+        adjacency: dict[str, list[str]] = {nid: [] for nid in all_ids}
+        for ei in self._edge_items:
+            adjacency[ei._src.node.id].append(ei._tgt.node.id)
+
+        layer: dict[str, int] = {root: 0}
+        queue = [root]
+        visited = {root}
+        while queue:
+            cur = queue.pop(0)
+            for nb in adjacency[cur]:
+                if nb not in visited:
+                    visited.add(nb)
+                    layer[nb] = layer[cur] + 1
+                    queue.append(nb)
+
+        max_layer = max(layer.values()) if layer else 0
+        for nid in all_ids:
+            if nid not in layer:
+                max_layer += 1
+                layer[nid] = max_layer
+
+        layers: dict[int, list[str]] = {}
+        for nid, lyr in layer.items():
+            layers.setdefault(lyr, []).append(nid)
+
+        for lyr_idx in sorted(layers.keys()):
+            nodes_in_layer = layers[lyr_idx]
+            total_h = len(nodes_in_layer) * (_HEIGHT + V_GAP) - V_GAP
+            y_start = -total_h / 2
+            x_pos = 60 + lyr_idx * (_WIDTH + H_GAP)
+            for i, nid in enumerate(nodes_in_layer):
+                item = self._node_items[nid]
+                y_pos = y_start + i * (_HEIGHT + V_GAP)
+                item.setPos(x_pos, y_pos)
+                item.node.position["x"] = x_pos
+                item.node.position["y"] = y_pos
+
+        self.update_edges()
 
     def _on_selection_changed(self) -> None:
         selected = self.selectedItems()

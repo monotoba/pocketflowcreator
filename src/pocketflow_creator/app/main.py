@@ -95,6 +95,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._project: ProjectModel | None = None
         self._graphs: dict[str, GraphModel] = {}
+        self._active_graph_rel: str | None = None
         self._bottom_editors: dict[str, QPlainTextEdit] = {}
         self._bottom_tab_paths: dict[str, Path | None] = {}
         self._active_highlighters: dict[str, object] = {}
@@ -126,6 +127,9 @@ class MainWindow(QMainWindow):
         self._graph_scene.node_item_selected.connect(self._on_node_item_selected)
         self._graph_scene.edge_item_selected.connect(self._on_edge_item_selected)
         self._graph_scene.selection_cleared.connect(self._on_selection_cleared)
+        self._graph_scene.node_item_double_clicked.connect(self._on_node_double_clicked)
+        self._graph_scene.node_created.connect(self._on_node_created)
+        self._graph_scene.node_deleted.connect(self._on_node_deleted)
         self._inspector.itemChanged.connect(self._on_inspector_item_changed)
         self._explorer_tree.itemDoubleClicked.connect(
             self._on_explorer_item_double_clicked
@@ -186,6 +190,8 @@ class MainWindow(QMainWindow):
             view_menu.addAction(name)
         act = view_menu.addAction("Zoom to Fit", self._on_zoom_to_fit)
         act.setShortcut(QKeySequence("Ctrl+0"))
+        act = view_menu.addAction("Auto Layout", self._on_auto_layout)
+        act.setShortcut(QKeySequence("Ctrl+Shift+L"))
 
         project_menu = self.menuBar().addMenu("Project")
         act = project_menu.addAction("Validate Project", self._on_validate_project)
@@ -508,7 +514,9 @@ class MainWindow(QMainWindow):
                             self, "Load Warning", f"Could not load {rel}:\n{exc}"
                         )
             if self._graphs:
-                self._graph_scene.load_graph(next(iter(self._graphs.values())))
+                self._active_graph_rel = next(iter(self._graphs.keys()))
+                self._graph_scene.load_graph(self._graphs[self._active_graph_rel])
+                self._graph_view.zoom_to_fit()
             self._refresh_explorer()
             self._add_recent(path)
             self.statusBar().showMessage(f"Opened: {self._project.name}")
@@ -1103,6 +1111,55 @@ class MainWindow(QMainWindow):
             type_section.setExpanded(True)
 
         self._inspector.blockSignals(False)
+
+    # ----------------------------------------- canvas signal handlers
+
+    def _on_node_double_clicked(self, item: object) -> None:
+        from pocketflow_creator.app import code_manager
+        from pocketflow_creator.app.canvas import NodeItem
+
+        if not isinstance(item, NodeItem):
+            return
+        if self._project is None or self._active_graph_rel is None:
+            self.statusBar().showMessage("No project open.")
+            return
+        code_path = code_manager.ensure_code_file(self._active_graph_rel, self._project.root)
+        line_no = code_manager.add_node(code_path, item.node)
+        self._open_file_in_editor(code_path)
+        editor = self._bottom_editors["Python"]
+        doc = editor.document()
+        block = doc.findBlockByLineNumber(max(0, line_no - 1))
+        cursor = editor.textCursor()
+        cursor.setPosition(block.position())
+        editor.setTextCursor(cursor)
+        editor.ensureCursorVisible()
+        self.statusBar().showMessage(f"Code: {code_path.name}  line {line_no}")
+
+    def _on_node_created(self, item: object) -> None:
+        from pocketflow_creator.app import code_manager
+        from pocketflow_creator.app.canvas import NodeItem
+
+        if not isinstance(item, NodeItem):
+            return
+        if self._project is None or self._active_graph_rel is None:
+            return
+        code_path = code_manager.ensure_code_file(self._active_graph_rel, self._project.root)
+        code_manager.add_node(code_path, item.node)
+
+    def _on_node_deleted(self, node_id: object) -> None:
+        from pocketflow_creator.app import code_manager
+
+        if not isinstance(node_id, str):
+            return
+        if self._project is None or self._active_graph_rel is None:
+            return
+        code_path = code_manager.get_code_file(self._active_graph_rel, self._project.root)
+        if code_path.exists():
+            code_manager.remove_node(code_path, node_id)
+
+    def _on_auto_layout(self) -> None:
+        self._graph_scene.auto_layout()
+        self._graph_view.zoom_to_fit()
 
     def _apply_theme(self) -> None:
         self._graph_scene.set_dark(self._dark_mode)
