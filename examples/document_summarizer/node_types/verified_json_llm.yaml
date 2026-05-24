@@ -1,0 +1,28 @@
+schema_version: 0.1
+node_type_id: verified_json_llm
+display_name: Verified JSON LLM Node
+category: LLM
+base_class: llm_prompt_node
+python_class: VerifiedJsonLLMNode
+module: document_summarizer.custom.verified_json_llm
+description: Calls an LLM, parses JSON, validates it against a schema, and routes by result.
+properties:
+  model:
+    type: string
+    default: qwen2.5-coder:14b
+    required: true
+  output_schema:
+    type: yaml
+    required: true
+actions:
+  - success
+  - invalid_json
+  - schema_error
+  - error
+reads:
+  - prompt.input
+writes:
+  - result.json
+  - result.errors
+allow_python_hooks: true
+allow_prompt_files: true

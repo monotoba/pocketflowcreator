@@ -1,0 +1,21 @@
+document:
+  path:
+    type: string
+  text:
+    type: string
+  summary:
+    type: string
+  approved:
+    type: boolean
+project:
+  audience:
+    type: string
+    default: hobbyist engineers
+  summary_style:
+    type: string
+    default: concise
+run:
+  errors:
+    type: list
+  current_step:
+    type: integer

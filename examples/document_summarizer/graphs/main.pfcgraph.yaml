@@ -1,0 +1,81 @@
+schema_version: 0.1
+id: main
+title: MainFlow
+flow_type: sync
+start_node: node_start
+nodes:
+  - id: node_start
+    type_id: start_node
+    title: Start
+    position: {x: 80, y: 80}
+    actions: [default]
+  - id: node_load_document
+    type_id: file_reader_node
+    title: Load Document
+    position: {x: 280, y: 80}
+    writes: [document.text]
+    actions: [success, file_not_found, error]
+  - id: node_summarize
+    type_id: llm_prompt_node
+    title: Summarize Document
+    position: {x: 520, y: 80}
+    reads: [document.text, project.audience]
+    writes: [document.summary]
+    actions: [success, needs_revision, error]
+    properties:
+      provider: ollama_local
+      model: qwen2.5-coder:14b
+      prompt_file: prompts/summarize.md
+      temperature: 0.2
+  - id: node_review
+    type_id: human_review_node
+    title: Human Review
+    position: {x: 780, y: 80}
+    reads: [document.summary]
+    writes: [document.approved]
+    actions: [approved, needs_revision, rejected]
+  - id: node_save
+    type_id: file_writer_node
+    title: Save Summary
+    position: {x: 1040, y: 80}
+    reads: [document.summary]
+    actions: [success, error]
+  - id: node_error
+    type_id: error_handler_node
+    title: Error Handler
+    position: {x: 780, y: 280}
+    reads: [run.errors]
+    actions: [stop]
+edges:
+  - id: edge_start_load
+    from_node: node_start
+    action: default
+    to_node: node_load_document
+  - id: edge_load_summarize
+    from_node: node_load_document
+    action: success
+    to_node: node_summarize
+  - id: edge_load_error
+    from_node: node_load_document
+    action: error
+    to_node: node_error
+  - id: edge_summarize_review
+    from_node: node_summarize
+    action: success
+    to_node: node_review
+  - id: edge_summarize_error
+    from_node: node_summarize
+    action: error
+    to_node: node_error
+  - id: edge_review_save
+    from_node: node_review
+    action: approved
+    to_node: node_save
+  - id: edge_review_revise
+    from_node: node_review
+    action: needs_revision
+    to_node: node_summarize
+  - id: edge_review_error
+    from_node: node_review
+    action: rejected
+    to_node: node_error

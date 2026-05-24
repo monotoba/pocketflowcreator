@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="520" viewBox="0 0 1000 520">
+  <rect width="1000" height="520" fill="#ffffff"/>
+  <style>
+    .box { fill:#f8f8f8; stroke:#333; stroke-width:1.5; rx:10; }
+    .title { font: bold 18px sans-serif; fill:#111; }
+    .text { font: 14px sans-serif; fill:#111; }
+    .arrow { stroke:#333; stroke-width:2; marker-end:url(#arrow); fill:none; }
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#333" />
+    </marker>
+  </defs>
+  <text x="40" y="40" class="title">PocketFlow Creator Architecture</text>
+  <rect x="60" y="80" width="220" height="80" class="box"/>
+  <text x="85" y="115" class="title">GUI Layer</text>
+  <text x="85" y="140" class="text">PySide6 windows, graph, editors</text>
+  <rect x="390" y="80" width="220" height="80" class="box"/>
+  <text x="415" y="115" class="title">Design Model</text>
+  <text x="415" y="140" class="text">Project, graph, nodes, types</text>
+  <rect x="720" y="80" width="220" height="80" class="box"/>
+  <text x="745" y="115" class="title">Project Files</text>
+  <text x="745" y="140" class="text">YAML, Markdown, Python</text>
+  <rect x="225" y="240" width="220" height="80" class="box"/>
+  <text x="250" y="275" class="title">Validation</text>
+  <text x="250" y="300" class="text">Graph, metadata, safety</text>
+  <rect x="555" y="240" width="220" height="80" class="box"/>
+  <text x="580" y="275" class="title">Generation</text>
+  <text x="580" y="300" class="text">PocketFlow Python output</text>
+  <rect x="390" y="390" width="220" height="80" class="box"/>
+  <text x="415" y="425" class="title">Runtime/Debug</text>
+  <text x="415" y="450" class="text">Runner, trace, providers</text>
+  <path d="M280 120 L390 120" class="arrow"/>
+  <path d="M610 120 L720 120" class="arrow"/>
+  <path d="M500 160 L360 240" class="arrow"/>
+  <path d="M500 160 L640 240" class="arrow"/>
+  <path d="M665 320 L540 390" class="arrow"/>
+  <path d="M335 320 L460 390" class="arrow"/>
+</svg>

@@ -1,0 +1,13 @@
+schema_version: 0.1
+name: DocumentSummarizer
+package_name: document_summarizer
+default_provider: ollama_local
+default_model: qwen2.5-coder:14b
+graphs:
+  - graphs/main.pfcgraph.yaml
+prompts:
+  - prompts/summarize.md
+  - prompts/revise.md
+node_types:
+  - node_types/verified_json_llm.yaml
+shared_store_schema: schemas/shared_store.schema.yaml
