@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
+import yaml
+
 try:
     from PySide6.QtCore import QSettings, Qt, QUrl
     from PySide6.QtGui import QDesktopServices, QUndoStack
@@ -13,15 +15,20 @@ try:
         QDockWidget,
         QFileDialog,
         QFormLayout,
+        QGroupBox,
         QInputDialog,
+        QLabel,
         QLineEdit,
         QMainWindow,
         QMenu,
         QMessageBox,
         QPlainTextEdit,
+        QSplitter,
         QTabWidget,
+        QTextBrowser,
         QTreeWidget,
         QTreeWidgetItem,
+        QVBoxLayout,
     )
 
     from pocketflow_creator.app.canvas import (
@@ -31,6 +38,7 @@ try:
         NodeItem,
         PaletteWidget,
     )
+    from pocketflow_creator.app.editors import PythonHighlighter, YamlHighlighter
 except Exception:  # pragma: no cover - permits import in non-GUI test environments
     QApplication = None  # type: ignore[assignment,misc]
 
@@ -43,6 +51,9 @@ from pocketflow_creator.validation.graph_validator import GraphValidator
 
 _MAX_RECENT = 5
 _VERSION = "0.1.0"
+_EDITOR_TABS: frozenset[str] = frozenset({"Python", "Markdown", "YAML"})
+_ROLE_PATH = Qt.ItemDataRole.UserRole  # type: ignore[attr-defined]
+_ROLE_KIND = Qt.ItemDataRole(Qt.ItemDataRole.UserRole.value + 1)  # type: ignore[attr-defined]
 
 
 class MainWindow(QMainWindow):
@@ -53,14 +64,17 @@ class MainWindow(QMainWindow):
         self._project: ProjectModel | None = None
         self._graphs: dict[str, GraphModel] = {}
         self._bottom_editors: dict[str, QPlainTextEdit] = {}
+        self._bottom_tab_paths: dict[str, Path | None] = {}
+        self._active_highlighters: dict[str, object] = {}
         self._undo_stack = QUndoStack(self)
         self._recent: list[Path] = []
         self._current_node: NodeModel | None = None
         self._current_node_item: NodeItem | None = None
         self._current_edge: EdgeModel | None = None
-        # Declared here; assigned by their respective _build_* methods below:
+        # Assigned by their respective _build_* methods:
         self._explorer_tree: QTreeWidget
         self._bottom_tab_widget: QTabWidget
+        self._markdown_preview: QTextBrowser
         self._recent_menu: QMenu
         self._inspector: QTreeWidget
         self._graph_view: GraphView
@@ -74,6 +88,13 @@ class MainWindow(QMainWindow):
         self._graph_scene.edge_item_selected.connect(self._on_edge_item_selected)
         self._graph_scene.selection_cleared.connect(self._on_selection_cleared)
         self._inspector.itemChanged.connect(self._on_inspector_item_changed)
+        self._explorer_tree.itemDoubleClicked.connect(
+            self._on_explorer_item_double_clicked
+        )
+        self._bottom_editors["YAML"].textChanged.connect(self._on_yaml_editor_changed)
+        self._bottom_editors["Markdown"].textChanged.connect(
+            self._on_markdown_editor_changed
+        )
         self._recent = self._load_recent()
         self._update_recent_menu()
         self.statusBar().showMessage("Ready")
@@ -116,21 +137,33 @@ class MainWindow(QMainWindow):
         project_menu.addAction("Open Project Folder", self._on_open_project_folder)
         project_menu.addAction("Provider Profiles...")
 
-        for menu_name, actions in {
-            "Flow": ["New Flow...", "New Subflow...", "Set Start Node", "Validate Active Flow"],
-            "Node": [
-                "New Custom Node Type...", "Generate Node Skeleton", "Validate Selected Node",
-            ],
-            "Run": ["Run Project", "Run Active Flow", "Debug Active Flow", "Run Tests", "Stop"],
-            "Tools": [
-                "Provider Manager...", "Tool Registry...",
-                "Shared Store Inspector...", "Options...",
-            ],
-            "Window": ["Reset Layout", "Next Tab", "Previous Tab"],
-        }.items():
+        for menu_name, actions in [
+            (
+                "Flow",
+                ["New Flow...", "New Subflow...", "Set Start Node", "Validate Active Flow"],
+            ),
+            (
+                "Node",
+                ["New Custom Node Type...", "Generate Node Skeleton", "Validate Selected Node"],
+            ),
+            (
+                "Run",
+                ["Run Project", "Run Active Flow", "Debug Active Flow", "Run Tests", "Stop"],
+            ),
+        ]:
             m = self.menuBar().addMenu(menu_name)
             for action in actions:
                 m.addAction(action)
+
+        tools_menu = self.menuBar().addMenu("Tools")
+        tools_menu.addAction("Provider Manager...", self._on_provider_manager)
+        tools_menu.addAction("Tool Registry...", self._on_tool_registry)
+        tools_menu.addAction("Shared Store Inspector...", self._on_shared_store_inspector)
+        tools_menu.addAction("Options...")
+
+        window_menu = self.menuBar().addMenu("Window")
+        for name in ["Reset Layout", "Next Tab", "Previous Tab"]:
+            window_menu.addAction(name)
 
         help_menu = self.menuBar().addMenu("Help")
         help_menu.addAction("PocketFlow Creator Help")
@@ -174,21 +207,36 @@ class MainWindow(QMainWindow):
     def _build_bottom_dock(self) -> QDockWidget:
         dock = QDockWidget("Output", self)
         self._bottom_tab_widget = QTabWidget()
-        for name, text in [
+        plain_tabs = [
             ("Problems", "No validation has been run."),
             ("Run Log", "No active run."),
             ("Shared Store", "{}"),
             ("Prompt Preview", "Select an LLM node to preview its prompt."),
             ("Generated Code", "Generated code appears here."),
             ("Python", "Open a Python file to edit custom code."),
-            ("Markdown", "Open a prompt file to edit Markdown."),
             ("YAML", "Open metadata to edit YAML."),
             ("Test Results", "Tests have not been run."),
-        ]:
+        ]
+        for name, text in plain_tabs:
             editor = QPlainTextEdit()
             editor.setPlainText(text)
             self._bottom_tab_widget.addTab(editor, name)
             self._bottom_editors[name] = editor
+            self._bottom_tab_paths[name] = None
+
+        # Markdown tab: editor on left, live HTML preview on right
+        md_splitter = QSplitter(Qt.Orientation.Horizontal)
+        md_editor = QPlainTextEdit()
+        md_editor.setPlainText("Open a prompt file to edit Markdown.")
+        self._markdown_preview = QTextBrowser()
+        self._markdown_preview.setPlainText("Preview appears here.")
+        md_splitter.addWidget(md_editor)
+        md_splitter.addWidget(self._markdown_preview)
+        md_splitter.setSizes([1, 1])
+        self._bottom_tab_widget.addTab(md_splitter, "Markdown")
+        self._bottom_editors["Markdown"] = md_editor
+        self._bottom_tab_paths["Markdown"] = None
+
         dock.setWidget(self._bottom_tab_widget)
         return dock
 
@@ -202,8 +250,11 @@ class MainWindow(QMainWindow):
 
         def _cat(label: str, items: list[str]) -> QTreeWidgetItem:
             node = QTreeWidgetItem([label])
-            for item in items:
-                node.addChild(QTreeWidgetItem([Path(item).name]))
+            for rel in items:
+                child = QTreeWidgetItem([Path(rel).name])
+                child.setData(0, _ROLE_PATH, self._project.root / rel)  # type: ignore[union-attr]
+                child.setData(0, _ROLE_KIND, "file")
+                node.addChild(child)
             return node
 
         root_item.addChild(_cat("Graphs", self._project.graphs))
@@ -211,7 +262,11 @@ class MainWindow(QMainWindow):
         root_item.addChild(_cat("Node Types", self._project.node_types))
         root_item.addChild(QTreeWidgetItem(["Tools"]))
         if self._project.shared_store_schema:
-            root_item.addChild(QTreeWidgetItem(["Shared Store"]))
+            ss_item = QTreeWidgetItem(["Shared Store"])
+            ss_path = self._project.root / self._project.shared_store_schema
+            ss_item.setData(0, _ROLE_PATH, ss_path)
+            ss_item.setData(0, _ROLE_KIND, "shared_store_schema")
+            root_item.addChild(ss_item)
         root_item.addChild(QTreeWidgetItem(["Source"]))
         root_item.addChild(QTreeWidgetItem(["Tests"]))
         root_item.addChild(QTreeWidgetItem(["Exports"]))
@@ -314,9 +369,16 @@ class MainWindow(QMainWindow):
             return
         try:
             ProjectSaver().save(self._project)
-            self.statusBar().showMessage("Saved.")
         except Exception as exc:
             QMessageBox.critical(self, "Save Failed", str(exc))
+            return
+        current = self._bottom_tab_widget.tabText(self._bottom_tab_widget.currentIndex())
+        if current in _EDITOR_TABS:
+            editor = self._bottom_editors[current]
+            if editor.hasFocus() and self._bottom_tab_paths.get(current) is not None:
+                self._save_editor_file(current)
+                return
+        self.statusBar().showMessage("Saved.")
 
     def _on_save_all(self) -> None:
         if self._project is None:
@@ -327,6 +389,9 @@ class MainWindow(QMainWindow):
             saver = GraphSaver()
             for rel, graph in self._graphs.items():
                 saver.save(graph, self._project.root / rel)
+            for tab_name in _EDITOR_TABS:
+                if self._bottom_tab_paths.get(tab_name) is not None:
+                    self._save_editor_file(tab_name)
             self.statusBar().showMessage("All files saved.")
         except Exception as exc:
             QMessageBox.critical(self, "Save Failed", str(exc))
@@ -473,6 +538,139 @@ class MainWindow(QMainWindow):
 
     def _on_zoom_to_fit(self) -> None:
         self._graph_view.zoom_to_fit()
+
+    # ----------------------------------------- explorer double-click handlers
+
+    def _on_explorer_item_double_clicked(self, item: QTreeWidgetItem, col: int) -> None:
+        kind = item.data(0, _ROLE_KIND)
+        path = item.data(0, _ROLE_PATH)
+        if not isinstance(path, Path):
+            return
+        if kind == "shared_store_schema":
+            self._open_shared_store_designer(path)
+        elif kind == "file" and path.exists():
+            self._open_file_in_editor(path)
+
+    def _open_file_in_editor(self, path: Path) -> None:
+        suffix = path.suffix.lower()
+        if suffix == ".py":
+            tab_name = "Python"
+        elif suffix in (".md", ".markdown"):
+            tab_name = "Markdown"
+        elif suffix in (".yaml", ".yml"):
+            tab_name = "YAML"
+        else:
+            return
+        try:
+            content = path.read_text(encoding="utf-8")
+        except Exception as exc:
+            QMessageBox.warning(self, "Open Failed", str(exc))
+            return
+        editor = self._bottom_editors[tab_name]
+        editor.setPlainText(content)
+        self._bottom_tab_paths[tab_name] = path
+        self._apply_highlighter(tab_name, editor)
+        self._switch_bottom_tab(tab_name)
+        self.statusBar().showMessage(f"Opened: {path.name}")
+
+    def _apply_highlighter(self, tab_name: str, editor: QPlainTextEdit) -> None:
+        old = self._active_highlighters.get(tab_name)
+        if old is not None and hasattr(old, "setDocument"):
+            old.setDocument(None)  # type: ignore[attr-defined]
+        if tab_name == "Python":
+            self._active_highlighters[tab_name] = PythonHighlighter(editor.document())
+        elif tab_name == "YAML":
+            self._active_highlighters[tab_name] = YamlHighlighter(editor.document())
+        else:
+            self._active_highlighters.pop(tab_name, None)
+
+    def _save_editor_file(self, tab_name: str) -> None:
+        path = self._bottom_tab_paths.get(tab_name)
+        if path is None:
+            return
+        try:
+            path.write_text(self._bottom_editors[tab_name].toPlainText(), encoding="utf-8")
+            self.statusBar().showMessage(f"Saved: {path.name}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Save Failed", str(exc))
+
+    def _on_yaml_editor_changed(self) -> None:
+        text = self._bottom_editors["YAML"].toPlainText()
+        try:
+            yaml.safe_load(text)
+            self.statusBar().showMessage("YAML: valid")
+        except yaml.YAMLError as exc:
+            first_line = str(exc).split("\n")[0]
+            self.statusBar().showMessage(f"YAML: {first_line}")
+
+    def _on_markdown_editor_changed(self) -> None:
+        text = self._bottom_editors["Markdown"].toPlainText()
+        try:
+            import markdown as _md
+
+            html = _md.markdown(text)
+        except ImportError:
+            html = f"<pre>{text}</pre>"
+        self._markdown_preview.setHtml(html)
+
+    # ----------------------------------------------- tools menu handlers
+
+    def _on_provider_manager(self) -> None:
+        settings = QSettings("Monotoba", "PocketFlowCreator")
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Provider Manager")
+        layout = QVBoxLayout(dlg)
+
+        ollama_group = QGroupBox("Ollama Provider")
+        ollama_form = QFormLayout(ollama_group)
+        ollama_url = QLineEdit(str(settings.value("ollama/base_url", "http://localhost:11434")))
+        ollama_model = QLineEdit(str(settings.value("ollama/default_model", "qwen2.5-coder:14b")))
+        ollama_form.addRow("Base URL:", ollama_url)
+        ollama_form.addRow("Default model:", ollama_model)
+        layout.addWidget(ollama_group)
+
+        mock_group = QGroupBox("Mock Provider")
+        mock_form = QFormLayout(mock_group)
+        mock_response = QLineEdit(str(settings.value("mock/response", "mock response")))
+        mock_form.addRow("Fixed response:", mock_response)
+        layout.addWidget(mock_group)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        settings.setValue("ollama/base_url", ollama_url.text().strip())
+        settings.setValue("ollama/default_model", ollama_model.text().strip())
+        settings.setValue("mock/response", mock_response.text())
+        self.statusBar().showMessage("Provider settings saved.")
+
+    def _on_tool_registry(self) -> None:
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Tool Registry")
+        layout = QVBoxLayout(dlg)
+        layout.addWidget(
+            QLabel(
+                "No tools registered.\n\n"
+                "Tools are Python functions decorated with @tool\n"
+                "and discovered from the project's tools/ directory."
+            )
+        )
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        buttons.accepted.connect(dlg.accept)
+        layout.addWidget(buttons)
+        dlg.exec()
+
+    def _on_shared_store_inspector(self) -> None:
+        self._switch_bottom_tab("Shared Store")
+        self.statusBar().showMessage("Shared Store Inspector — populated during run.")
+
+    def _open_shared_store_designer(self, path: Path) -> None:
+        self._open_file_in_editor(path)
 
 
 def run(argv: Sequence[str] | None = None) -> int:
