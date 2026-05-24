@@ -970,13 +970,61 @@ class MainWindow(QMainWindow):
         self._current_edge = None
         self._inspector.clear()
 
+    @staticmethod
+    def _coerce_property(value: str, declared_type: str) -> object:
+        if declared_type in ("integer", "int"):
+            try:
+                return int(value)
+            except ValueError:
+                return value
+        if declared_type in ("number", "float"):
+            try:
+                return float(value)
+            except ValueError:
+                return value
+        if declared_type == "boolean":
+            return value.lower() in ("true", "1", "yes")
+        return value
+
+    def _live_validate(self) -> None:
+        if not self._graphs:
+            return
+        graph = next(iter(self._graphs.values()))
+        from pocketflow_creator.validation.graph_validator import GraphValidator
+
+        issues = GraphValidator().validate(graph)
+        error_ids = {i.object_id for i in issues if i.severity == "error"}
+        self._graph_scene.apply_validation(error_ids)
+
     def _on_inspector_item_changed(self, item: QTreeWidgetItem, col: int) -> None:
-        if col != 1 or item.text(0) != "Title":
+        if col != 1:
             return
         if self._current_node is None or self._current_node_item is None:
             return
-        self._current_node.title = item.text(1)
-        self._current_node_item.update()
+        node = self._current_node
+        label = item.text(0)
+        value = item.text(1)
+        parent = item.parent()
+
+        if parent is None:
+            if label == "Title":
+                node.title = value
+                self._current_node_item.update()
+            elif label == "Actions":
+                node.actions = [a.strip() for a in value.split(",") if a.strip()]
+            elif label == "Reads":
+                node.reads = [r.strip() for r in value.split(",") if r.strip()]
+            elif label == "Writes":
+                node.writes = [w.strip() for w in value.split(",") if w.strip()]
+        else:
+            parent_text = parent.text(0)
+            if parent_text == "[Subflow]" and label == "subflow_ref":
+                node.properties["subflow_ref"] = value
+            elif parent_text.startswith("[") and parent_text.endswith("]"):
+                declared_type = str(item.data(1, Qt.ItemDataRole.UserRole) or "string")
+                node.properties[label] = self._coerce_property(value, declared_type)
+
+        self._live_validate()
 
     def _load_node_type_registry(self) -> dict[str, NodeTypeDefinition]:
         registry: dict[str, NodeTypeDefinition] = {}
@@ -1006,9 +1054,9 @@ class MainWindow(QMainWindow):
             ("Title", node.title, True),
             ("Position X", str(node.position.get("x", 0.0)), False),
             ("Position Y", str(node.position.get("y", 0.0)), False),
-            ("Actions", ", ".join(node.actions), False),
-            ("Reads", ", ".join(node.reads), False),
-            ("Writes", ", ".join(node.writes), False),
+            ("Actions", ", ".join(node.actions), True),
+            ("Reads", ", ".join(node.reads), True),
+            ("Writes", ", ".join(node.writes), True),
         ]
         for label, value, editable in rows:
             row = QTreeWidgetItem([label, value])
@@ -1042,8 +1090,12 @@ class MainWindow(QMainWindow):
             for prop_name, prop_meta in defn.properties.items():
                 default = str(prop_meta.get("default", "")) if isinstance(prop_meta, dict) else ""
                 inst_val = str(node.properties.get(prop_name, default))
+                prop_type = (
+                    prop_meta.get("type", "string") if isinstance(prop_meta, dict) else "string"
+                )
                 prop_row = QTreeWidgetItem([prop_name, inst_val])
                 prop_row.setFlags(prop_row.flags() | Qt.ItemFlag.ItemIsEditable)
+                prop_row.setData(1, Qt.ItemDataRole.UserRole, prop_type)
                 type_section.addChild(prop_row)
             if defn.base_class and defn.base_class != node.type_id:
                 type_section.addChild(QTreeWidgetItem(["base_class", defn.base_class]))
