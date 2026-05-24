@@ -564,4 +564,345 @@ class CondenseToLongTerm(Node):
 
 ---
 
+## Tutorial 26: Async Processing with AsyncNode
+
+**PocketFlow example:** `pocketflow-async`
+**What you'll learn:** Run a single non-blocking operation using `AsyncNode` and `async def exec`.
+
+### Graph
+
+```
+[Start] → [FetchData (AsyncNode)] → [Process] → [Stop]
+```
+
+### Steps
+
+1. New project: `tut_async_node`
+2. Drag **Async Node** from the palette; title it `Fetch Data`
+3. In Inspector note that **Base Class** is set to `AsyncNode`
+4. Double-click **Fetch Data** in the code editor:
+
+```python
+import asyncio
+import aiohttp
+
+class FetchData(AsyncNode):
+    async def prep_async(self, shared):
+        return shared.get("url", "https://httpbin.org/get")
+
+    async def exec_async(self, prep_res):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(prep_res) as resp:
+                return await resp.json()
+
+    async def post_async(self, shared, prep_res, exec_res):
+        shared["response"] = exec_res
+        return "default"
+```
+
+5. Wire Start → Fetch Data (`default`) → Stop
+6. Run > Run Active Flow; check **Shared Store** tab for `response`
+
+**Tip:** `AsyncNode` methods are `prep_async`, `exec_async`, and `post_async`. The runner
+awaits each in turn inside an `asyncio.run()` context. Use this whenever the work is I/O-bound
+(HTTP, database, file system) and you want it to yield the event loop rather than block.
+
+---
+
+## Tutorial 27: Async Batch Processing with AsyncBatchNode
+
+**PocketFlow example:** `pocketflow-async-batch`
+**What you'll learn:** Process a list of items asynchronously, one awaitable call per item.
+
+### Graph
+
+```
+[Start] → [FetchAll (AsyncBatchNode)] → [Aggregate] → [Stop]
+```
+
+### Steps
+
+1. New project: `tut_async_batch`
+2. Drag **Async Batch** from the palette; title it `Fetch All`
+3. Double-click **Fetch All**:
+
+```python
+import aiohttp
+
+class FetchAll(AsyncBatchNode):
+    async def prep_async(self, shared):
+        return shared.get("urls", [])  # returns list; exec_async called once per item
+
+    async def exec_async(self, url):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                return await resp.text()
+
+    async def post_async(self, shared, prep_res, exec_res):
+        shared["pages"] = exec_res  # exec_res is a list of per-item results
+        return "default"
+```
+
+4. Double-click **Aggregate**:
+
+```python
+class Aggregate(Node):
+    def prep(self, shared):
+        return shared.get("pages", [])
+
+    def exec(self, prep_res):
+        return [p[:200] for p in prep_res]  # first 200 chars of each page
+
+    def post(self, shared, prep_res, exec_res):
+        shared["summaries"] = exec_res
+        return "default"
+```
+
+5. Set `shared["urls"]` in Start or use Shared Store Designer to define the key
+6. Run > Run Active Flow; inspect `pages` and `summaries` in the Shared Store tab
+
+**Tip:** `AsyncBatchNode.prep_async` returns an iterable; the framework awaits
+`exec_async(item)` for each element sequentially. Use `AsyncParallelBatchNode` when
+you need concurrent execution.
+
+---
+
+## Tutorial 28: Concurrent Async Batch with AsyncParallelBatchNode
+
+**PocketFlow example:** `pocketflow-parallel-batch`
+**What you'll learn:** Fire multiple async tasks concurrently, collect all results.
+
+### Graph
+
+```
+[Start] → [ParallelFetch (AsyncParallelBatchNode)] → [Summarise] → [Stop]
+```
+
+### Steps
+
+1. New project: `tut_parallel_batch`
+2. Drag **Async Parallel Batch** from the palette; title it `Parallel Fetch`
+3. In Inspector set `max_concurrency: 5` to cap simultaneous requests
+4. Double-click **Parallel Fetch**:
+
+```python
+import asyncio
+import aiohttp
+
+class ParallelFetch(AsyncParallelBatchNode):
+    async def prep_async(self, shared):
+        return shared.get("urls", [])
+
+    async def exec_async(self, url):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as r:
+                return {"url": url, "status": r.status, "body": await r.text()}
+
+    async def post_async(self, shared, prep_res, exec_res):
+        shared["results"] = exec_res  # all items fetched concurrently
+        return "default"
+```
+
+5. Wire and run; observe that all fetches complete before `Summarise` begins
+
+**Tip:** `AsyncParallelBatchNode` uses `asyncio.gather` under the hood. All `exec_async`
+calls are launched together and results are collected in the original order. Set
+`max_concurrency` in Inspector to avoid overwhelming external services.
+
+---
+
+## Tutorial 29: Using the Agent Node
+
+**PocketFlow example:** `pocketflow-agent`
+**What you'll learn:** Use the dedicated **Agent Node** to build a tool-calling loop
+without manually wiring a Router Node.
+
+### Graph
+
+```
+[Start] → [Agent (AgentNode)] ──tool_call──→ [ExecuteTool] → [Agent]
+                               └─answer────→ [Stop]
+```
+
+### Steps
+
+1. New project: `tut_agent_node`
+2. Drag **Agent Node** from the palette; title it `Agent`
+3. In Inspector set:
+   - `tools`: `["search", "calculate"]`
+   - `max_iterations`: `10`
+4. Double-click **Agent**:
+
+```python
+TOOLS = {"search": search_web, "calculate": run_calculator}
+
+class Agent(Node):
+    def prep(self, shared):
+        history = shared.get("tool_history", [])
+        question = shared.get("question", "")
+        return question, history
+
+    def exec(self, prep_res):
+        question, history = prep_res
+        ctx = "\n".join(f"- {h}" for h in history)
+        prompt = (
+            f"Question: {question}\n"
+            f"Previous steps:\n{ctx or 'none'}\n"
+            "Choose an action: search, calculate, or answer."
+        )
+        return call_llm(prompt).strip().lower()
+
+    def post(self, shared, prep_res, exec_res):
+        shared.setdefault("tool_history", []).append(f"chose: {exec_res}")
+        iterations = shared.get("agent_iterations", 0) + 1
+        shared["agent_iterations"] = iterations
+        if iterations >= 10:
+            return "answer"
+        return exec_res if exec_res in ("search", "calculate") else "answer"
+```
+
+5. Add `Execute Tool` node; wire its `default` back to `Agent`
+6. Run > Debug Active Flow; set a breakpoint on `Agent` to watch each decision
+
+**Tip:** The Agent Node pattern encapsulates the decide-act loop. Keep decision logic
+in `exec` and side effects (tool calls) in separate nodes. The shared store accumulates
+tool results across iterations.
+
+---
+
+## Tutorial 30: Using the RAG Node
+
+**PocketFlow example:** `pocketflow-rag`
+**What you'll learn:** Use the dedicated **RAG Node** to handle retrieval + generation
+as a single configured node.
+
+### Graph
+
+```
+[Start] → [Embed Query (RAG Node)] → [Retrieve] → [Generate] → [Stop]
+```
+
+### Steps
+
+1. New project: `tut_rag_node`
+2. Drag **RAG Node** from the palette; title it `Embed Query`
+3. In Inspector set:
+   - `top_k`: `5`
+   - `index_key`: `embeddings`
+4. Double-click **Embed Query**:
+
+```python
+class EmbedQuery(Node):
+    def prep(self, shared):
+        return shared.get("question", "")
+
+    def exec(self, prep_res):
+        return embed(prep_res)  # returns a vector
+
+    def post(self, shared, prep_res, exec_res):
+        shared["query_vector"] = exec_res
+        return "default"
+```
+
+5. Double-click **Retrieve**:
+
+```python
+class Retrieve(Node):
+    TOP_K = 5
+
+    def prep(self, shared):
+        return shared["query_vector"], shared.get("embeddings", []), shared.get("chunks", [])
+
+    def exec(self, prep_res):
+        q_vec, emb_list, chunks = prep_res
+        scores = [dot(q_vec, e) for e in emb_list]
+        top = sorted(zip(scores, chunks), reverse=True)[:self.TOP_K]
+        return [chunk for _, chunk in top]
+
+    def post(self, shared, prep_res, exec_res):
+        shared["context"] = exec_res
+        return "default"
+```
+
+6. Implement **Generate** as an LLM Prompt Node that reads `context` and `question`
+7. Use Tools > Shared Store Inspector to define keys: `question`, `embeddings`, `chunks`, `context`
+
+**Tip:** The RAG Node separates the embedding step cleanly from retrieval. In production,
+replace `embed()` with a real embedding model and store vectors in a vector database.
+
+---
+
+## Tutorial 31: Using the Judge Node
+
+**PocketFlow example:** `pocketflow-judge`
+**What you'll learn:** Use the dedicated **Judge Node** to evaluate and iteratively refine
+LLM output until it meets a quality bar.
+
+### Graph
+
+```
+[Start] → [Generate] → [Judge (Judge Node)] ──pass──→ [Stop]
+              ^                              └─fail──→ [Refine] → [Generate]
+```
+
+### Steps
+
+1. New project: `tut_judge_node`
+2. Drag **Judge Node** from the palette; title it `Judge`
+3. In Inspector set:
+   - `max_iterations`: `3`
+   - `criteria`: `"Is the output complete, accurate, and well-written?"`
+4. Double-click **Judge**:
+
+```python
+class Judge(Node):
+    MAX_ITERATIONS = 3
+
+    def prep(self, shared):
+        return shared.get("output", ""), shared.get("judge_iteration", 0)
+
+    def exec(self, prep_res):
+        output, iteration = prep_res
+        if iteration >= self.MAX_ITERATIONS:
+            return "pass"
+        criteria = "Is the output complete, accurate, and well-written?"
+        prompt = (
+            f"Evaluate this output against the criteria.\n"
+            f"Criteria: {criteria}\n"
+            f"Output:\n{output}\n\n"
+            "Respond with PASS or FAIL and a one-sentence reason."
+        )
+        verdict = call_llm(prompt)
+        return "pass" if verdict.strip().upper().startswith("PASS") else "fail"
+
+    def post(self, shared, prep_res, exec_res):
+        shared["judge_iteration"] = shared.get("judge_iteration", 0) + 1
+        return exec_res
+```
+
+5. Double-click **Refine**:
+
+```python
+class Refine(Node):
+    def prep(self, shared):
+        return shared.get("output", ""), shared.get("feedback", "Improve quality.")
+
+    def exec(self, prep_res):
+        output, feedback = prep_res
+        return call_llm(f"Revise this output.\nFeedback: {feedback}\nOutput:\n{output}")
+
+    def post(self, shared, prep_res, exec_res):
+        shared["output"] = exec_res
+        return "default"
+```
+
+6. Run > Debug Active Flow; set a breakpoint on **Judge** to inspect each evaluation round
+7. After `max_iterations` the Judge always returns `pass` to prevent infinite loops
+
+**Tip:** The `judge_iteration` counter in the shared store is the safety net. Always
+increment it in `post` and add a guard in `exec` so the flow terminates even if the LLM
+repeatedly returns FAIL.
+
+---
+
 [→ Continue to Part 3 — Advanced Features](part3_advanced.md)

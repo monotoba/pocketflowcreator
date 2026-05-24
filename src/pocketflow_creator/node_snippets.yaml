@@ -35,3 +35,46 @@ snippets:
     properties:
       prompt_file: prompts/main.md
       output_schema: "schemas/output.schema.yaml"
+
+  - display_name: "Async Node"
+    type_id: async_node
+    title: Async Step
+    actions: [default]
+    properties: {}
+
+  - display_name: "Async Batch"
+    type_id: async_batch_node
+    title: Async Batch
+    actions: [default]
+    properties: {}
+
+  - display_name: "Async Parallel Batch"
+    type_id: async_parallel_batch_node
+    title: Parallel Batch
+    actions: [default]
+    properties:
+      max_concurrency: 5
+
+  - display_name: "Agent Node"
+    type_id: agent_node
+    title: Agent
+    actions: [tool_call, answer]
+    properties:
+      tools: "[]"
+      max_iterations: 10
+
+  - display_name: "RAG Node"
+    type_id: rag_node
+    title: RAG Step
+    actions: [default]
+    properties:
+      top_k: 5
+      index_key: embeddings
+
+  - display_name: "Judge Node"
+    type_id: judge_node
+    title: Evaluate
+    actions: [pass, fail]
+    properties:
+      max_iterations: 3
+      criteria: "Is the output high quality and complete?"
