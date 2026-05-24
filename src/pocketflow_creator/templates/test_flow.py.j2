@@ -1,0 +1,11 @@
+from __future__ import annotations
+
+# Test scaffold for the {{ stem }} flow.
+# This file is created once and will NOT be overwritten on re-export.
+
+
+def test_{{ stem }}_flow_builds():
+    from generated.{{ stem }}_flow import build_flow
+
+    flow = build_flow()
+    assert flow is not None

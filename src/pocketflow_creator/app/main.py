@@ -46,6 +46,7 @@ try:
 except Exception:  # pragma: no cover - permits import in non-GUI test environments
     QApplication = None  # type: ignore[assignment,misc]
 
+from pocketflow_creator.generation.exporter import Exporter
 from pocketflow_creator.generation.python_generator import PythonGenerator
 from pocketflow_creator.graph_io import GraphLoader, GraphSaver
 from pocketflow_creator.model.graph_model import EdgeModel, GraphModel, NodeModel
@@ -116,7 +117,7 @@ class MainWindow(QMainWindow):
         file_menu.addAction("Save", self._on_save)
         file_menu.addAction("Save All", self._on_save_all)
         file_menu.addSeparator()
-        file_menu.addAction("Export PocketFlow Project...")
+        file_menu.addAction("Export PocketFlow Project...", self._on_export_project)
         file_menu.addAction("Project Settings...", self._on_project_settings)
         file_menu.addSeparator()
         file_menu.addAction("Exit", self.close)
@@ -471,6 +472,26 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("No project open.")
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(self._project.root)))
+
+    def _on_export_project(self) -> None:
+        if self._project is None:
+            self.statusBar().showMessage("No project open.")
+            return
+        if not self._graphs:
+            self.statusBar().showMessage("No graphs to export.")
+            return
+        try:
+            result = Exporter().export(self._project, self._graphs)
+        except Exception as exc:
+            QMessageBox.critical(self, "Export Failed", str(exc))
+            return
+        skipped = len(result.skipped)
+        written = len(result.written)
+        msg = f"Export complete: {written} file(s) written."
+        if skipped:
+            msg += f"\n{skipped} file(s) skipped (custom/ guard — existing user code preserved)."
+        QMessageBox.information(self, "Export PocketFlow Project", msg)
+        self.statusBar().showMessage(f"Exported to exports/{self._project.package_name}/")
 
     def _on_about(self) -> None:
         QMessageBox.about(

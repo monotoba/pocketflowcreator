@@ -1,0 +1,22 @@
+from __future__ import annotations
+
+# Entry point for {{ project.name }}.
+# This file is created once and will NOT be overwritten on re-export.
+{% for stem in stems %}
+from generated.{{ stem }}_flow import build_flow as {{ stem }}_build_flow
+{% endfor %}
+
+
+def main() -> None:
+{% if stems %}
+    flow = {{ stems[0] }}_build_flow()
+    shared: dict = {}
+    # flow.run(shared)  # uncomment once pocketflow is installed
+    print("Flow built successfully:", flow)
+{% else %}
+    print("No flows exported yet.")
+{% endif %}
+
+
+if __name__ == "__main__":
+    main()
