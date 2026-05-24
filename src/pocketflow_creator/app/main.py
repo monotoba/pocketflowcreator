@@ -9,6 +9,8 @@ import yaml
 try:
     from PySide6.QtCore import QSettings, Qt, QUrl
     from PySide6.QtGui import (
+        QBrush,
+        QColor,
         QDesktopServices,
         QKeySequence,
         QUndoStack,
@@ -1053,6 +1055,16 @@ class MainWindow(QMainWindow):
                 pass
         return registry
 
+    def _style_editable(self, item: QTreeWidgetItem, col: int = 1) -> None:
+        """Apply a visual cue so users can see which inspector cells are editable."""
+        if self._dark_mode:
+            item.setBackground(col, QBrush(QColor("#1e3d5c")))
+            item.setForeground(col, QBrush(QColor("#9ecfff")))
+        else:
+            item.setBackground(col, QBrush(QColor("#eef4ff")))
+            item.setForeground(col, QBrush(QColor("#003080")))
+        item.setToolTip(col, "Click to edit")
+
     def _populate_inspector_for_node(self, node: NodeModel) -> None:
         self._inspector.blockSignals(True)
         self._inspector.clear()
@@ -1070,6 +1082,7 @@ class MainWindow(QMainWindow):
             row = QTreeWidgetItem([label, value])
             if editable:
                 row.setFlags(row.flags() | Qt.ItemFlag.ItemIsEditable)
+                self._style_editable(row)
             self._inspector.addTopLevelItem(row)
 
         # T-B05: subflow_ref selector for subflow nodes
@@ -1080,6 +1093,7 @@ class MainWindow(QMainWindow):
                 ["subflow_ref", str(node.properties.get("subflow_ref", ""))]
             )
             ref_row.setFlags(ref_row.flags() | Qt.ItemFlag.ItemIsEditable)
+            self._style_editable(ref_row)
             subflow_section.addChild(ref_row)
             if self._project:
                 for graph_path in self._project.graphs:
@@ -1104,6 +1118,7 @@ class MainWindow(QMainWindow):
                 prop_row = QTreeWidgetItem([prop_name, inst_val])
                 prop_row.setFlags(prop_row.flags() | Qt.ItemFlag.ItemIsEditable)
                 prop_row.setData(1, Qt.ItemDataRole.UserRole, prop_type)
+                self._style_editable(prop_row)
                 type_section.addChild(prop_row)
             if defn.base_class and defn.base_class != node.type_id:
                 type_section.addChild(QTreeWidgetItem(["base_class", defn.base_class]))
