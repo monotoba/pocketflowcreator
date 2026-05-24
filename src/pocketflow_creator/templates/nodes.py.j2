@@ -1,0 +1,22 @@
+from __future__ import annotations
+
+try:
+    from pocketflow import Node
+except Exception:
+    class Node:  # fallback for generated-code inspection
+        def __init__(self, *args, **kwargs): pass
+{% for node in nodes %}
+
+class {{ node.class_name }}(Node):
+    """Generated node for {{ node.title }}."""
+
+    def prep(self, shared):
+        return {key: shared.get(key) for key in {{ node.reads | repr }}}
+
+    def exec(self, prep_res):
+        return prep_res
+
+    def post(self, shared, prep_res, exec_res):
+        # TODO: map outputs to shared keys: {{ node.writes | repr }}
+        return {{ node.action | repr }}
+{% endfor %}

@@ -1,0 +1,30 @@
+from __future__ import annotations
+
+try:
+    from pocketflow import Flow
+except Exception:
+    class Flow:
+        def __init__(self, start=None): self.start = start
+{% if class_names %}
+from .nodes import {{ class_names | join(', ') }}
+{% endif %}
+
+
+def build_flow():
+{% if not nodes %}
+    return Flow(start=None)
+{% else %}
+{% for node in nodes %}
+    {{ node.var_name }} = {{ node.class_name }}()
+{% endfor %}
+
+{% for edge in edges %}
+{% if edge.action == "default" %}
+    {{ edge.from_var }} >> {{ edge.to_var }}
+{% else %}
+    {{ edge.from_var }} - {{ edge.action | repr }} >> {{ edge.to_var }}
+{% endif %}
+{% endfor %}
+
+    return Flow(start={{ start_var }})
+{% endif %}

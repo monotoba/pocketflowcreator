@@ -1,89 +1,69 @@
 from __future__ import annotations
 
+from jinja2 import Environment, PackageLoader, StrictUndefined
+
 from pocketflow_creator.model.graph_model import GraphModel, NodeModel
 
 
 class PythonGenerator:
-    """Starter readable-code generator.
+    """Jinja2 template-based code generator."""
 
-    This generator intentionally emits simple code. Future versions should use
-    templates and separate generated code from custom code.
-    """
+    def __init__(self) -> None:
+        loader = PackageLoader("pocketflow_creator", "templates")
+        self._env = Environment(
+            loader=loader,
+            undefined=StrictUndefined,
+            keep_trailing_newline=True,
+        )
+        self._env.filters["repr"] = repr
 
     def generate_nodes_py(self, graph: GraphModel) -> str:
-        lines = [
-            "from __future__ import annotations",
-            "",
-            "try:",
-            "    from pocketflow import Node",
-            "except Exception:",
-            "    class Node:  # fallback for generated-code inspection",
-            "        def __init__(self, *args, **kwargs): pass",
-            "",
-        ]
-        for node in graph.nodes:
-            lines.extend(self._generate_node_class(node))
-        return "\n".join(lines) + "\n"
+        tmpl = self._env.get_template("nodes.py.j2")
+        nodes = [self._node_ctx(n) for n in graph.nodes]
+        return tmpl.render(nodes=nodes)
 
     def generate_flow_py(self, graph: GraphModel) -> str:
-        class_names = [self._class_name(node) for node in graph.nodes]
-        lines = [
-            "from __future__ import annotations",
-            "",
-            "try:",
-            "    from pocketflow import Flow",
-            "except Exception:",
-            "    class Flow:",
-            "        def __init__(self, start=None): self.start = start",
-            "",
-            f"from .nodes import {', '.join(class_names)}" if class_names else "",
-            "",
-            "",
-            "def build_flow():",
-        ]
-        if not graph.nodes:
-            lines.append("    return Flow(start=None)")
-            return "\n".join(lines) + "\n"
+        tmpl = self._env.get_template("flow.py.j2")
+        nodes = [self._node_ctx(n) for n in graph.nodes]
+        class_names = [self._class_name(n) for n in graph.nodes]
 
-        for node in graph.nodes:
-            lines.append(f"    {self._var_name(node)} = {self._class_name(node)}()")
-        lines.append("")
+        edges = []
         for edge in graph.edges:
-            source = graph.find_node(edge.from_node)
-            target = graph.find_node(edge.to_node)
-            if source and target:
-                if edge.action == "default":
-                    lines.append(f"    {self._var_name(source)} >> {self._var_name(target)}")
-                else:
-                    src, tgt = self._var_name(source), self._var_name(target)
-                    lines.append(f"    {src} - {edge.action!r} >> {tgt}")
-        start = graph.find_node(graph.start_node or "") or graph.nodes[0]
-        lines.extend(["", f"    return Flow(start={self._var_name(start)})"])
-        return "\n".join(lines) + "\n"
+            src = graph.find_node(edge.from_node)
+            tgt = graph.find_node(edge.to_node)
+            if src and tgt:
+                edges.append({
+                    "from_var": self._var_name(src),
+                    "to_var": self._var_name(tgt),
+                    "action": edge.action,
+                })
 
-    def _generate_node_class(self, node: NodeModel) -> list[str]:
-        class_name = self._class_name(node)
+        start_node = graph.find_node(graph.start_node or "") or (
+            graph.nodes[0] if graph.nodes else None
+        )
+        start_var = self._var_name(start_node) if start_node else "None"
+
+        return tmpl.render(
+            nodes=nodes,
+            class_names=class_names,
+            edges=edges,
+            start_var=start_var,
+        )
+
+    def _node_ctx(self, node: NodeModel) -> dict:
         action = node.actions[0] if node.actions else "default"
-        return [
-            "",
-            "",
-            f"class {class_name}(Node):",
-            f"    \"\"\"Generated node for {node.title}.\"\"\"",
-            "",
-            "    def prep(self, shared):",
-            f"        return {{key: shared.get(key) for key in {node.reads!r}}}",
-            "",
-            "    def exec(self, prep_res):",
-            "        return prep_res",
-            "",
-            "    def post(self, shared, prep_res, exec_res):",
-            f"        # TODO: map outputs to shared keys: {node.writes!r}",
-            f"        return {action!r}",
-        ]
+        return {
+            "class_name": self._class_name(node),
+            "var_name": self._var_name(node),
+            "title": node.title,
+            "reads": node.reads,
+            "writes": node.writes,
+            "action": action,
+        }
 
     def _class_name(self, node: NodeModel) -> str:
-        raw = ''.join(part.capitalize() for part in node.id.replace('-', '_').split('_') if part)
+        raw = "".join(part.capitalize() for part in node.id.replace("-", "_").split("_") if part)
         return f"{raw or 'Unnamed'}Node"
 
     def _var_name(self, node: NodeModel) -> str:
-        return node.id.replace('-', '_')
+        return node.id.replace("-", "_")
