@@ -656,6 +656,7 @@ class NodeItem(QGraphicsItem):
         scene = self.scene()
         if isinstance(scene, GraphScene):
             scene.node_item_double_clicked.emit(self)
+        event.accept()
 
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
@@ -787,17 +788,33 @@ class GraphScene(QGraphicsScene):
         for node_id, item in self._node_items.items():
             item.set_has_error(node_id in error_ids)
 
+    def delete_selected(self) -> None:
+        """Remove all selected NodeItems (and their edges) from the scene."""
+        for item in list(self.selectedItems()):
+            if isinstance(item, NodeItem):
+                node_id = item.node.id
+                for ei in [e for e in self._edge_items if e._src is item or e._tgt is item]:
+                    self.removeItem(ei)
+                    self._edge_items.remove(ei)
+                self.removeItem(item)
+                self._node_items.pop(node_id, None)
+                self.node_deleted.emit(node_id)
+
+    def delete_node_by_id(self, node_id: str) -> None:
+        """Remove a specific node from the scene by its ID."""
+        item = self._node_items.get(node_id)
+        if item is None:
+            return
+        for ei in [e for e in self._edge_items if e._src is item or e._tgt is item]:
+            self.removeItem(ei)
+            self._edge_items.remove(ei)
+        self.removeItem(item)
+        self._node_items.pop(node_id, None)
+        self.node_deleted.emit(node_id)
+
     def keyPressEvent(self, event: Any) -> None:
         if event.key() == Qt.Key.Key_Delete:  # type: ignore[attr-defined]
-            for item in list(self.selectedItems()):
-                if isinstance(item, NodeItem):
-                    node_id = item.node.id
-                    for ei in [e for e in self._edge_items if e._src is item or e._tgt is item]:
-                        self.removeItem(ei)
-                        self._edge_items.remove(ei)
-                    self.removeItem(item)
-                    self._node_items.pop(node_id, None)
-                    self.node_deleted.emit(node_id)
+            self.delete_selected()
         else:
             super().keyPressEvent(event)
 
@@ -893,6 +910,7 @@ class GraphView(QGraphicsView):
             event.accept()
         else:
             super().mousePressEvent(event)
+            self.setFocus()  # ensure Delete key reaches the scene
 
     def mouseMoveEvent(self, event: Any) -> None:
         if self._pan_active:

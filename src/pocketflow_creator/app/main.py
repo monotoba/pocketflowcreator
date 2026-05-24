@@ -200,7 +200,7 @@ class MainWindow(QMainWindow):
         paste_act = edit_menu.addAction(self.tr("Paste"))
         paste_act.setShortcut(QKeySequence.StandardKey.Paste)
         edit_menu.addAction(self.tr("Duplicate"))
-        del_act = edit_menu.addAction(self.tr("Delete"))
+        del_act = edit_menu.addAction(self.tr("Delete"), self._on_delete_selected)
         del_act.setShortcut(QKeySequence.StandardKey.Delete)
         find_act = edit_menu.addAction(self.tr("Find..."))
         find_act.setShortcut(QKeySequence.StandardKey.Find)
@@ -1284,6 +1284,9 @@ class MainWindow(QMainWindow):
         bc = nt.base_class if nt else ""
         code_manager.add_node(code_path, item.node, base_class=bc)
 
+    def _on_delete_selected(self) -> None:
+        self._graph_scene.delete_selected()
+
     def _on_node_deleted(self, node_id: object) -> None:
         from pocketflow_creator.app import code_manager
 
@@ -1458,6 +1461,32 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Saved: {path.name}")
         except Exception as exc:
             QMessageBox.critical(self, "Save Failed", str(exc))
+            return
+        if tab_name == "Python":
+            self._sync_graph_from_code(path)
+
+    def _sync_graph_from_code(self, code_path: Path) -> None:
+        """Remove canvas nodes whose NODE_START marker no longer exists in the code file."""
+        import re  # stdlib first
+
+        from pocketflow_creator.app import code_manager
+
+        if self._project is None or self._active_graph_rel is None:
+            return
+        expected = code_manager.get_code_file(self._active_graph_rel, self._project.root)
+        if code_path.resolve() != expected.resolve():
+            return  # saved file is not the active graph's code file
+        try:
+            text = code_path.read_text(encoding="utf-8")
+        except OSError:
+            return
+        present = set(re.findall(r"# --- NODE_START: (\S+) ---", text))
+        for node_id in list(self._graph_scene._node_items):
+            if node_id not in present:
+                self._graph_scene.delete_node_by_id(node_id)
+                removed = self._graphs.get(self._active_graph_rel)
+                if removed is not None:
+                    removed.nodes = [n for n in removed.nodes if n.id != node_id]
 
     def _on_yaml_editor_changed(self) -> None:
         text = self._bottom_editors["YAML"].toPlainText()
