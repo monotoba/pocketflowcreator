@@ -1,6 +1,6 @@
 # PocketFlow Creator — Status
 
-## Current State: M7 Complete (v0.1.0, 2026-05-24)
+## Current State: M7 + M9 Complete (v0.1.0, 2026-05-24)
 
 Milestones M0–M7 are done. The app has a working graph canvas, full file I/O, wired menus,
 syntax-highlighting editors, live Markdown preview, shared-store tooling, Jinja2 template-based
@@ -131,7 +131,8 @@ Zero ruff errors, zero mypy errors. Quality floor locked.
 | `test_report.py` | 5 | Passing |
 | `test_ollama_provider.py` | 5 | Passing |
 | `test_runner.py` | 10 | Passing |
-| **Total** | **59** | **All green** |
+| `test_generation_completeness.py` | 4 | Passing |
+| **Total** | **63** | **All green** |
 
 ---
 
