@@ -7,9 +7,14 @@ import yaml
 
 try:
     from PySide6.QtCore import QSettings, Qt, QUrl
-    from PySide6.QtGui import QDesktopServices, QUndoStack
+    from PySide6.QtGui import (
+        QDesktopServices,
+        QKeySequence,
+        QUndoStack,
+    )
     from PySide6.QtWidgets import (
         QApplication,
+        QCheckBox,
         QDialog,
         QDialogButtonBox,
         QDockWidget,
@@ -98,6 +103,8 @@ class MainWindow(QMainWindow):
         self._debug_controller: StepController | None = None
         self._debug_thread: object = None  # QThread when active
         self._breakpoints: set[str] = set()
+        _settings = QSettings("Monotoba", "PocketFlowCreator")
+        self._dark_mode: bool = bool(_settings.value("ui/dark_mode", True))
         self._stop_action: object  # QAction — assigned in _build_menu_bar
         self._resume_action: object  # QAction — assigned in _build_menu_bar
         # Assigned by their respective _build_* methods:
@@ -126,43 +133,62 @@ class MainWindow(QMainWindow):
         )
         self._recent = self._load_recent()
         self._update_recent_menu()
+        self._apply_theme()
         self.statusBar().showMessage("Ready")
 
     # ------------------------------------------------------------------ menus
 
     def _build_menu_bar(self) -> None:
         file_menu = self.menuBar().addMenu("File")
-        file_menu.addAction("New Project...", self._on_new_project)
+        act = file_menu.addAction("New Project...", self._on_new_project)
+        act.setShortcut(QKeySequence.StandardKey.New)
         file_menu.addAction("New From Template...")
-        file_menu.addAction("Open Project...", self._on_open_project)
+        act = file_menu.addAction("Open Project...", self._on_open_project)
+        act.setShortcut(QKeySequence.StandardKey.Open)
         file_menu.addSeparator()
         self._recent_menu = file_menu.addMenu("Recent Projects")
         file_menu.addSeparator()
-        file_menu.addAction("Save", self._on_save)
-        file_menu.addAction("Save All", self._on_save_all)
+        act = file_menu.addAction("Save", self._on_save)
+        act.setShortcut(QKeySequence.StandardKey.Save)
+        act = file_menu.addAction("Save All", self._on_save_all)
+        act.setShortcut(QKeySequence("Ctrl+Shift+S"))
         file_menu.addSeparator()
-        file_menu.addAction("Export PocketFlow Project...", self._on_export_project)
+        act = file_menu.addAction("Export PocketFlow Project...", self._on_export_project)
+        act.setShortcut(QKeySequence("Ctrl+E"))
         file_menu.addAction("Project Settings...", self._on_project_settings)
         file_menu.addSeparator()
-        file_menu.addAction("Exit", self.close)
+        act = file_menu.addAction("Exit", self.close)
+        act.setShortcut(QKeySequence.StandardKey.Quit)
 
         edit_menu = self.menuBar().addMenu("Edit")
         undo_act = edit_menu.addAction("Undo", self._undo_stack.undo)
-        undo_act.setShortcut("Ctrl+Z")
+        undo_act.setShortcut(QKeySequence.StandardKey.Undo)
         redo_act = edit_menu.addAction("Redo", self._undo_stack.redo)
-        redo_act.setShortcut("Ctrl+Y")
+        redo_act.setShortcut(QKeySequence.StandardKey.Redo)
         edit_menu.addSeparator()
-        for name in ["Cut", "Copy", "Paste", "Duplicate", "Delete", "Find..."]:
-            edit_menu.addAction(name)
+        cut_act = edit_menu.addAction("Cut")
+        cut_act.setShortcut(QKeySequence.StandardKey.Cut)
+        copy_act = edit_menu.addAction("Copy")
+        copy_act.setShortcut(QKeySequence.StandardKey.Copy)
+        paste_act = edit_menu.addAction("Paste")
+        paste_act.setShortcut(QKeySequence.StandardKey.Paste)
+        edit_menu.addAction("Duplicate")
+        del_act = edit_menu.addAction("Delete")
+        del_act.setShortcut(QKeySequence.StandardKey.Delete)
+        find_act = edit_menu.addAction("Find...")
+        find_act.setShortcut(QKeySequence.StandardKey.Find)
 
         view_menu = self.menuBar().addMenu("View")
         for name in ["Project Explorer", "Component Palette", "Object Inspector"]:
             view_menu.addAction(name)
-        view_menu.addAction("Zoom to Fit", self._on_zoom_to_fit)
+        act = view_menu.addAction("Zoom to Fit", self._on_zoom_to_fit)
+        act.setShortcut(QKeySequence("Ctrl+0"))
 
         project_menu = self.menuBar().addMenu("Project")
-        project_menu.addAction("Validate Project", self._on_validate_project)
-        project_menu.addAction("Generate Code", self._on_generate_code)
+        act = project_menu.addAction("Validate Project", self._on_validate_project)
+        act.setShortcut(QKeySequence("Ctrl+Shift+V"))
+        act = project_menu.addAction("Generate Code", self._on_generate_code)
+        act.setShortcut(QKeySequence("Ctrl+G"))
         project_menu.addAction("Open Project Folder", self._on_open_project_folder)
         project_menu.addAction("Export Graph Image...", self._on_export_graph_image)
         project_menu.addAction("Export Project Report...", self._on_export_project_report)
@@ -175,13 +201,17 @@ class MainWindow(QMainWindow):
         node_menu = self.menuBar().addMenu("Node")
         node_menu.addAction("New Custom Node Type...", self._on_new_custom_node_type)
         node_menu.addAction("Generate Node Skeleton", self._on_generate_node_skeleton)
-        node_menu.addAction("Toggle Breakpoint", self._on_toggle_breakpoint)
+        act = node_menu.addAction("Toggle Breakpoint", self._on_toggle_breakpoint)
+        act.setShortcut(QKeySequence("F9"))
         node_menu.addAction("Validate Selected Node")
 
         run_menu = self.menuBar().addMenu("Run")
-        run_menu.addAction("Run Active Flow", self._on_run_active_flow)
-        run_menu.addAction("Debug Active Flow", self._on_debug_active_flow)
-        run_menu.addAction("Run Tests", self._on_run_tests)
+        act = run_menu.addAction("Run Active Flow", self._on_run_active_flow)
+        act.setShortcut(QKeySequence("F5"))
+        act = run_menu.addAction("Debug Active Flow", self._on_debug_active_flow)
+        act.setShortcut(QKeySequence("Shift+F5"))
+        act = run_menu.addAction("Run Tests", self._on_run_tests)
+        act.setShortcut(QKeySequence("Ctrl+T"))
         run_menu.addSeparator()
         self._stop_action = run_menu.addAction("Stop", self._on_stop_debug)
         self._stop_action.setEnabled(False)
@@ -193,7 +223,7 @@ class MainWindow(QMainWindow):
         tools_menu.addAction("Tool Registry...", self._on_tool_registry)
         tools_menu.addAction("Shared Store Inspector...", self._on_shared_store_inspector)
         tools_menu.addAction("Node Type Library...", self._on_node_type_library)
-        tools_menu.addAction("Options...")
+        tools_menu.addAction("Options...", self._on_options)
 
         window_menu = self.menuBar().addMenu("Window")
         for name in ["Reset Layout", "Next Tab", "Previous Tab"]:
@@ -208,7 +238,6 @@ class MainWindow(QMainWindow):
 
     def _build_central_area(self) -> None:
         self._graph_view = GraphView(self._graph_scene)
-        self._graph_view.setStyleSheet("background: #1a1a1a;")
         self.setCentralWidget(self._graph_view)
 
     def _build_docks(self) -> None:
@@ -916,6 +945,41 @@ class MainWindow(QMainWindow):
             type_section.setExpanded(True)
 
         self._inspector.blockSignals(False)
+
+    def _apply_theme(self) -> None:
+        self._graph_scene.set_dark(self._dark_mode)
+        if self._dark_mode:
+            self._graph_view.setStyleSheet("background: #1a1a1a;")
+        else:
+            self._graph_view.setStyleSheet("")
+        self._graph_view.viewport().update()
+
+    def _on_options(self) -> None:
+        settings = QSettings("Monotoba", "PocketFlowCreator")
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Options")
+        layout = QVBoxLayout(dlg)
+
+        appearance_group = QGroupBox("Appearance")
+        group_layout = QVBoxLayout(appearance_group)
+        dark_check = QCheckBox("Dark mode")
+        dark_check.setChecked(self._dark_mode)
+        group_layout.addWidget(dark_check)
+        layout.addWidget(appearance_group)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._dark_mode = dark_check.isChecked()
+        settings.setValue("ui/dark_mode", self._dark_mode)
+        self._apply_theme()
+        self.statusBar().showMessage("Options saved.")
 
     def _on_zoom_to_fit(self) -> None:
         self._graph_view.zoom_to_fit()

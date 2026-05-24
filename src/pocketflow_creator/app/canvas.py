@@ -91,18 +91,22 @@ class NodeItem(QGraphicsItem):
         option: QStyleOptionGraphicsItem,
         widget: QWidget | None = None,
     ) -> None:
+        scene = self.scene()
+        dark = scene._dark if hasattr(scene, "_dark") else True  # type: ignore[union-attr]
+        colors = _DARK_COLORS if dark else _LIGHT_COLORS
+
         body = QRectF(0, 0, _WIDTH, _HEIGHT)
         path = QPainterPath()
         path.addRoundedRect(body, 8, 8)
 
-        painter.fillPath(path, QBrush(QColor("#2a2a2a")))
+        painter.fillPath(path, QBrush(QColor(colors["node_bg"])))
 
         if self._has_error:
-            border_pen = QPen(QColor("#e05555"), 2)
+            border_pen = QPen(QColor(colors["border_error"]), 2)
         elif self.isSelected():
-            border_pen = QPen(QColor("#4a9eff"), 2)
+            border_pen = QPen(QColor(colors["border_select"]), 2)
         else:
-            border_pen = QPen(QColor("#555555"), 1)
+            border_pen = QPen(QColor(colors["border_normal"]), 1)
         painter.setPen(border_pen)
         painter.drawPath(path)
 
@@ -110,7 +114,7 @@ class NodeItem(QGraphicsItem):
         title_font = QFont(base_font)
         title_font.setBold(True)
         painter.setFont(title_font)
-        painter.setPen(QPen(QColor("#ffffff")))
+        painter.setPen(QPen(QColor(colors["title"])))
         painter.drawText(
             QRectF(12, 8, _WIDTH - 24, 22), Qt.AlignmentFlag.AlignVCenter, self._node.title
         )
@@ -118,19 +122,19 @@ class NodeItem(QGraphicsItem):
         badge_font = QFont(base_font)
         badge_font.setPointSize(max(base_font.pointSize() - 1, 7))
         painter.setFont(badge_font)
-        painter.setPen(QPen(QColor("#aaaaaa")))
+        painter.setPen(QPen(QColor(colors["badge"])))
         painter.drawText(
             QRectF(12, 30, _WIDTH - 24, 18), Qt.AlignmentFlag.AlignVCenter, self._node.type_id
         )
 
-        painter.setPen(QPen(QColor("#888888"), 1))
-        painter.setBrush(QBrush(QColor("#555555")))
+        painter.setPen(QPen(QColor(colors["port_outline"]), 1))
+        painter.setBrush(QBrush(QColor(colors["port_fill"])))
         painter.drawEllipse(QPointF(0, _HEIGHT / 2), _PORT_R, _PORT_R)
         painter.drawEllipse(QPointF(_WIDTH, _HEIGHT / 2), _PORT_R, _PORT_R)
 
         if self._has_breakpoint:
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QBrush(QColor("#e05555")))
+            painter.setBrush(QBrush(QColor(colors["breakpoint"])))
             painter.drawEllipse(QPointF(_WIDTH - 10, 10), 5, 5)
 
     def port_scene_pos(self) -> QPointF:
@@ -173,6 +177,33 @@ class EdgeItem(QGraphicsLineItem):
         self.setLine(src_pos.x(), src_pos.y(), tgt_pos.x(), tgt_pos.y())
 
 
+_DARK_COLORS = {
+    "node_bg": "#2a2a2a",
+    "border_error": "#e05555",
+    "border_select": "#4a9eff",
+    "border_normal": "#555555",
+    "title": "#ffffff",
+    "badge": "#aaaaaa",
+    "port_outline": "#888888",
+    "port_fill": "#555555",
+    "breakpoint": "#e05555",
+    "edge": "#888888",
+}
+
+_LIGHT_COLORS = {
+    "node_bg": "#f5f5f5",
+    "border_error": "#cc3333",
+    "border_select": "#0077cc",
+    "border_normal": "#999999",
+    "title": "#111111",
+    "badge": "#555555",
+    "port_outline": "#555555",
+    "port_fill": "#888888",
+    "breakpoint": "#cc3333",
+    "edge": "#555555",
+}
+
+
 class GraphScene(QGraphicsScene):
     node_item_selected = Signal(object)
     edge_item_selected = Signal(object)
@@ -182,7 +213,15 @@ class GraphScene(QGraphicsScene):
         super().__init__(parent)
         self._node_items: dict[str, NodeItem] = {}
         self._edge_items: list[EdgeItem] = []
+        self._dark = True
         self.selectionChanged.connect(self._on_selection_changed)
+
+    def set_dark(self, dark: bool) -> None:
+        self._dark = dark
+        edge_color = _DARK_COLORS["edge"] if dark else _LIGHT_COLORS["edge"]
+        for ei in self._edge_items:
+            ei.setPen(QPen(QColor(edge_color), 1.5))
+        self.update()
 
     def load_graph(self, graph: GraphModel) -> None:
         self.clear()
