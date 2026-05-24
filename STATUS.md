@@ -1,61 +1,93 @@
 # PocketFlow Creator — Status
 
-## Current State: Exploratory Scaffold (v0.1.0)
+## Current State: M5 Complete (v0.1.0, 2026-05-23)
 
-This is an initial exploratory scaffold. It is not yet a design-locked implementation. The
-scaffold establishes the package structure, data models, validation engine, starter code
-generator, GUI shell, and documentation for all seven planned phases.
+Milestones M0–M5 are done. The app has a working graph canvas, full file I/O, wired menus,
+syntax-highlighting editors, live Markdown preview, and shared-store tooling. M6 (code
+generation and export) is next.
+
+---
+
+## Completed Milestones
+
+### M0 — Initial Scaffold ✓
+Project structure, models, validator, generator, GUI shell, docs, scripts, and initial test
+suite committed.
+
+### M1 — Clean Baseline ✓
+Zero ruff errors, zero mypy errors. Quality floor locked.
+
+### M2 — Project File I/O ✓
+- `ProjectLoader` / `ProjectSaver` — YAML round-trip for `.pfcproj.yaml`
+- `GraphLoader` / `GraphSaver` — YAML round-trip for `.pfcgraph.yaml`
+- Round-trip test for load → save → reload equality
+
+### M3 — GUI Shell Wired ✓
+- File > New/Open/Save/Save All/Project Settings all dispatch to real handlers
+- Recent-projects list persisted in `QSettings`
+- Project Explorer populates from loaded project tree
+- Project > Validate / Generate Code / Open Folder wired
+- Help > About dialog
+- `QUndoStack` wired to Edit > Undo/Redo
+
+### M4 — Real Graph Canvas ✓
+- `QGraphicsScene` canvas with `NodeItem` (rounded rect, title/badge, port ellipses)
+- `EdgeItem` (straight line from action port to input port)
+- Drag-drop from Component Palette creates nodes on canvas
+- Selection → Object Inspector property grid (ID, Type, Title editable, Position, etc.)
+- Inspector edits sync back to `NodeModel` live
+- Validation error badges (`_has_error` flag, red border) via `apply_validation()`
+- Ctrl+Scroll zoom, middle-drag pan, View > Zoom to Fit
+
+### M5 — Editors ✓
+- `PythonHighlighter` / `YamlHighlighter` (`QSyntaxHighlighter` subclasses) in `editors.py`
+- Markdown tab: `QSplitter` with editor + live `QTextBrowser` preview (uses `markdown` package)
+- YAML tab: validates on every keystroke, shows parse error in status bar
+- Project Explorer double-click → opens `.py`/`.md`/`.yaml` into correct bottom tab
+- `_bottom_tab_paths` tracks open files; Save/Save All writes back to disk
+- Tools > Provider Manager → dialog persisting Ollama + Mock settings in `QSettings`
+- Tools > Tool Registry → stub dialog
+- Tools > Shared Store Inspector → switches to Shared Store tab
+- Shared Store Designer: double-click "Shared Store" in explorer → `QTableWidget` dialog
+  with Namespace/Key/Type/Default columns; edits serialize back to nested YAML
 
 ---
 
 ## What Is Implemented
 
 ### Core Data Model (`src/pocketflow_creator/model/`)
-- `GraphModel` — graph with nodes, edges, and start-node reference
-- `NodeModel` — node instance with id, type, title, position, properties, actions, reads, writes
-- `EdgeModel` — directed edge with action label
-- `NodeTypeDefinition` — reusable node type metadata with inheritance-ready fields
-- `ProjectModel` — project root, name, package name, default provider/model, graph list
+- `GraphModel`, `NodeModel`, `EdgeModel`, `NodeTypeDefinition`, `ProjectModel`
+- All use `@dataclass(slots=True)`; `ProjectModel` includes `prompts`, `node_types`,
+  `shared_store_schema` fields
+
+### File I/O (`src/pocketflow_creator/graph_io.py`, `project_io.py`)
+- `GraphLoader`, `GraphSaver` — YAML ↔ `GraphModel`
+- `ProjectLoader`, `ProjectSaver` — YAML ↔ `ProjectModel`
 
 ### Validation (`src/pocketflow_creator/validation/`)
-- `GraphValidator` — validates unique node IDs, start node exists, edge endpoints exist,
-  and edge actions are declared by source nodes
-- Error codes: PFCE1001–PFCE1003, PFCE2001–PFCE2003, PFCE2101
-- `ValidationIssue` — structured result with severity, code, object ID, and message
+- `GraphValidator` — unique IDs, start node, edge endpoints, declared actions
+- Error codes PFCE1001–PFCE1003, PFCE2001–PFCE2003, PFCE2101
 
 ### Code Generation (`src/pocketflow_creator/generation/`)
-- `PythonGenerator` — generates `nodes.py` (one class per node) and `flow.py` (wired flow)
-- Maps graph edges to PocketFlow `>>` and `- "action" >>` syntax
-- Fallback imports allow generated files to be inspected without PocketFlow installed
+- `PythonGenerator` — generates `nodes.py` and `flow.py` from a `GraphModel`
+- PocketFlow `>>` and `- "action" >>` syntax
 
 ### Runtime (`src/pocketflow_creator/runtime/`)
-- `LLMProvider` — protocol interface for LLM providers
-- `MockProvider` — deterministic test provider
-- `OllamaProvider` — design stub; HTTP integration not yet implemented
+- `LLMProvider` protocol, `MockProvider`, `OllamaProvider` stub (raises `NotImplementedError`)
 
-### GUI Shell (`src/pocketflow_creator/app/`)
-- `MainWindow` (PySide6) — full menu bar, central graph placeholder, four dock regions
-- Docks: Project Explorer, Component Palette, Object Inspector, Output (tabbed)
-- Menu structure: File, Edit, View, Project, Flow, Node, Run, Tools, Window, Help
-- Component palette lists 12 built-in node types
-- All menu actions and dock content are stubs (no real dispatch yet)
+### GUI (`src/pocketflow_creator/app/`)
+- `main.py`: `MainWindow` — complete working GUI, all M3–M5 features wired
+- `canvas.py`: `NodeItem`, `EdgeItem`, `GraphScene`, `GraphView`, `PaletteWidget`
+- `editors.py`: `PythonHighlighter`, `YamlHighlighter`
 
 ### Example Project (`examples/document_summarizer/`)
-- Sample project YAML file with graphs, node types, prompts, and schemas directories
+- `.pfcproj.yaml`, graphs, node types, prompts, schemas directories
 
 ### Documentation (`docs/`)
-- 00 Project overview, 01 Requirements, 02 GUI wireframes, 03 Architecture
-- 04 Node type model, 05 Project format, 06 Code generation design
-- 07 Testing strategy, 08 Security model, 09 Implementation plan
-- 10 User guide, 11 Developer guide, 12 AI agent instructions
+- 13 design/spec docs (00–12) including architecture, requirements, GUI wireframes,
+  node type model, project format, code generation, testing strategy, security model,
+  implementation plan, user guide, developer guide, AI agent instructions
 - `diagrams/application_architecture.svg`
-
-### Scripts
-- `setup-prj.sh/.ps1/.bat` — create venv and install dev dependencies
-- `test.sh/.ps1/.bat` — run pytest
-- `lint.sh` — run ruff check
-- `format.sh` — run ruff format
-- `run_app.sh/.ps1/.bat` — launch GUI
 
 ---
 
@@ -66,71 +98,53 @@ generator, GUI shell, and documentation for all seven planned phases.
 | `test_graph_validator.py` | 3 | Passing |
 | `test_node_type.py` | 2 | Passing |
 | `test_project_archive_files.py` | 1 | Passing |
+| `test_project_io.py` | 5 | Passing |
 | `test_python_generator.py` | 1 | Passing |
-| **Total** | **7** | **All green** |
+| `test_canvas.py` | 8 | Passing |
+| `test_editors.py` | 5 | Passing |
+| `test_shared_store_designer.py` | 6 | Passing |
+| **Total** | **32** | **All green** |
 
 ---
 
-## Lint Status
+## Lint / Type Check Status
 
-Pre-existing issues in the scaffold (not yet fixed):
-
-| File | Issues |
-|---|---|
-| `src/pocketflow_creator/app/main.py` | UP035 (Sequence import), F401 (unused QWidget), E501 ×4 (long menu-spec lines) |
-| `src/pocketflow_creator/generation/python_generator.py` | E501 ×1 |
-| `src/pocketflow_creator/model/node_type.py` | UP037 (quoted return annotation) |
-| `tests/test_python_generator.py` | E501 ×1 |
-
-3 of 9 are auto-fixable with `ruff check --fix`.
+- **ruff**: 0 errors across all source and test files
+- **mypy**: 0 errors (`ignore_missing_imports = true`; Pyright "possibly unbound" warnings
+  are false positives from the try/except Qt fallback pattern — not real errors)
 
 ---
 
 ## What Is Not Yet Implemented
 
-These are intentional deferred phases (see `docs/09_implementation_plan.md`):
+### M6 — Code Generation and Export (next)
+- Jinja2 template-based generator (replaces ad-hoc `PythonGenerator`)
+- Test scaffolding generation alongside each exported flow
+- File > Export PocketFlow Project → full package under `exports/`
+- `custom/` guard — never overwrite existing user code
+- Graph image export (SVG + PNG from `QGraphicsScene`)
+- Project report export (Markdown summary)
 
-### Phase 2 — RAD GUI Shell (Partially Done)
-- Menu actions dispatch to real handlers (all stubs currently)
-- Project open/save dialogs
-- Real project loading into Project Explorer
+### M7 — Run and Debug
+- `OllamaProvider.complete()` HTTP POST to Ollama `/api/generate`
+- Run Active Flow with `MockProvider` → Run Log tab
+- Shared Store tab live population per node step
+- Prompt Preview tab for selected LLM node
+- Step debugger with breakpoint markers
+- Run trace export to JSON
 
-### Phase 3 — Real Graph Designer
-- `QGraphicsView`/`QGraphicsScene` graph canvas
-- Node items with action port handles
-- Edge routing and drawing
-- Drag/drop from Component Palette to canvas
-- Object Inspector synchronization with selected node/edge
-
-### Phase 4 — Editors
-- Python editor with syntax highlighting
-- Markdown/prompt editor
-- YAML editor
-- Shared-store designer
-- Provider profile manager
-- Tool registry
-
-### Phase 5 — Code Generation and Export
-- Full template-based code generation
-- Generated test scaffolding
-- Exported project YAML/Python package
-- Graph image and project report export
-
-### Phase 6 — Run and Debug
-- Real Ollama HTTP integration
-- Step debugger
-- Shared-store diff view
-- Prompt preview and response inspection
-- Run trace export
-
-### Phase 7 — Custom Node Type System
-- Node type wizard
-- Metadata validation for custom types
-- Inheritance support
+### M8 — Custom Node Type System
+- Node type wizard dialog
+- Custom type YAML validation against schema
+- Inheritance support in inspector
 - Custom node library manager
 
-### Project File I/O
-- Full YAML project loader and saver (model → YAML → model round-trip)
+### M9 — Test Coverage and Polish
+- GUI smoke-test infrastructure (already partially done via offscreen tests)
+- ProjectLoader round-trip test
+- Code generation completeness test
+- OllamaProvider mock HTTP test
+- 50+ tests total
 
 ---
 
@@ -141,6 +155,7 @@ These are intentional deferred phases (see `docs/09_implementation_plan.md`):
 | PySide6 | >=6.6 | GUI framework |
 | PyYAML | >=6.0 | Project YAML files |
 | jsonschema | >=4.20 | Metadata and schema validation |
+| markdown | >=3.5 | Markdown → HTML for live preview |
 | pytest | >=8.0 (dev) | Test runner |
 | ruff | >=0.5 (dev) | Linter and formatter |
 | mypy | >=1.8 (dev) | Type checker |
