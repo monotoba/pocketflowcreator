@@ -6,15 +6,17 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from PySide6.QtCore import QMimeData, QPointF, QRectF, Qt, Signal
+    from PySide6.QtCore import QMimeData, QPointF, QRectF, QSize, Qt, Signal
     from PySide6.QtGui import (
         QBrush,
         QColor,
         QDrag,
         QFont,
+        QIcon,
         QPainter,
         QPainterPath,
         QPen,
+        QPixmap,
     )
     from PySide6.QtWidgets import (
         QAbstractItemView,
@@ -59,20 +61,59 @@ _WIDTH = 160
 _HEIGHT = 60
 _PORT_R = 5
 
-_PALETTE_ITEMS: list[tuple[str, str]] = [
-    ("Start Node", "start_node"),
-    ("Stop Node", "stop_node"),
-    ("Basic Node", "basic_node"),
-    ("Router Node", "router_node"),
-    ("LLM Prompt Node", "llm_prompt_node"),
-    ("JSON LLM Node", "json_llm_node"),
-    ("Classifier Node", "classifier_node"),
-    ("Python Tool Node", "python_tool_node"),
-    ("File Reader Node", "file_reader_node"),
-    ("Human Review Node", "human_review_node"),
-    ("Batch Node", "batch_node"),
-    ("Subflow Node", "subflow_node"),
+# ── Node type visual metadata ──────────────────────────────────────────────
+# (display_name, type_id, bg_color_hex, symbol)
+# symbol is drawn as white text centred in the icon square
+_PALETTE_ITEMS_EX: list[tuple[str, str, str, str]] = [
+    ("Start Node",       "start_node",       "#27ae60", "▶"),
+    ("Stop Node",        "stop_node",         "#e74c3c", "■"),
+    ("Basic Node",       "basic_node",        "#2980b9", "N"),
+    ("Router Node",      "router_node",       "#e67e22", "⬡"),
+    ("LLM Prompt Node",  "llm_prompt_node",   "#8e44ad", "✦"),
+    ("JSON LLM Node",    "json_llm_node",     "#16a085", "{}"),
+    ("Classifier Node",  "classifier_node",   "#d35400", "⑂"),
+    ("Python Tool Node", "python_tool_node",  "#2c3e50", "Py"),
+    ("File Reader Node", "file_reader_node",  "#1a6b3c", "📄"),
+    ("Human Review Node","human_review_node", "#c0392b", "👤"),
+    ("Batch Node",       "batch_node",        "#34495e", "⊞"),
+    ("Subflow Node",     "subflow_node",      "#7f8c8d", "⊂"),
 ]
+
+_PALETTE_ITEMS: list[tuple[str, str]] = [
+    (name, tid) for name, tid, _, _ in _PALETTE_ITEMS_EX
+]
+
+# Map type_id → bg hex used by NodeItem paint and icon generator
+NODE_TYPE_COLOR: dict[str, str] = {tid: color for _, tid, color, _ in _PALETTE_ITEMS_EX}
+
+
+def make_node_icon(type_id: str, size: int = 32) -> QIcon:
+    """Return a QIcon for the given node type_id, painted programmatically."""
+    color_hex = NODE_TYPE_COLOR.get(type_id, "#555555")
+    symbol = next((s for _, tid, _, s in _PALETTE_ITEMS_EX if tid == type_id), "?")
+
+    px = QPixmap(size, size)
+    px.fill(QColor("transparent"))
+    p = QPainter(px)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+    # rounded-rect background
+    bg = QColor(color_hex)
+    p.setBrush(QBrush(bg))
+    p.setPen(QPen(bg.darker(130), 1))
+    radius = size * 0.22
+    p.drawRoundedRect(1, 1, size - 2, size - 2, radius, radius)
+
+    # white symbol centred
+    p.setPen(QPen(QColor("white")))
+    font = QFont()
+    font.setPixelSize(max(8, int(size * 0.42)))
+    font.setBold(True)
+    p.setFont(font)
+    p.drawText(QRectF(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, symbol)
+
+    p.end()
+    return QIcon(px)
 
 
 class NodeItem(QGraphicsItem):
@@ -478,8 +519,9 @@ class PaletteWidget(QListWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setDragDropMode(QAbstractItemView.DragDropMode.DragOnly)
+        self.setIconSize(QSize(28, 28))
         for display_name, type_id in _PALETTE_ITEMS:
-            item = QListWidgetItem(display_name)
+            item = QListWidgetItem(make_node_icon(type_id, 28), display_name)
             item.setData(Qt.ItemDataRole.UserRole, type_id)
             self.addItem(item)
 

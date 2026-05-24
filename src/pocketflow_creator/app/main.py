@@ -42,17 +42,21 @@ try:
         QTableWidgetItem,
         QTabWidget,
         QTextBrowser,
+        QToolBar,
+        QToolButton,
         QTreeWidget,
         QTreeWidgetItem,
         QVBoxLayout,
     )
 
     from pocketflow_creator.app.canvas import (
+        _PALETTE_ITEMS_EX,
         EdgeItem,
         GraphScene,
         GraphView,
         NodeItem,
         PaletteWidget,
+        make_node_icon,
     )
     from pocketflow_creator.app.editors import PythonHighlighter, YamlHighlighter
 except Exception:  # pragma: no cover - permits import in non-GUI test environments
@@ -135,6 +139,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.tr("PocketFlow Creator"))
         self.resize(1400, 900)
         self._build_menu_bar()
+        self._build_node_toolbar()
         self._build_central_area()
         self._build_docks()
         self._graph_scene.node_item_selected.connect(self._on_node_item_selected)
@@ -277,6 +282,31 @@ class MainWindow(QMainWindow):
         help_menu.addAction(self.tr("About PocketFlow Creator"), self._on_about)
 
     # --------------------------------------------------------------- layout
+
+    def _build_node_toolbar(self) -> None:
+        tb = QToolBar(self.tr("Node Types"), self)
+        tb.setObjectName("nodeTypeToolBar")
+        tb.setMovable(False)
+        self.addToolBar(tb)
+
+        for display_name, type_id, _color, _sym in _PALETTE_ITEMS_EX:
+            icon = make_node_icon(type_id, 32)
+            btn = QToolButton()
+            btn.setIcon(icon)
+            btn.setToolTip(display_name)
+            btn.clicked.connect(
+                lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
+            )
+            tb.addWidget(btn)
+
+    def _drop_node_at_center(self, type_id: str) -> None:
+        """Add a node of type_id at the visible centre of the graph view."""
+        if not hasattr(self, "_graph_view"):
+            return
+        center = self._graph_view.mapToScene(
+            self._graph_view.viewport().rect().center()
+        )
+        self._graph_scene.create_node_at(type_id, center)
 
     def _build_central_area(self) -> None:
         self._graph_view = GraphView(self._graph_scene)
