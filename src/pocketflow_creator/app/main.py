@@ -1310,6 +1310,68 @@ class MainWindow(QMainWindow):
         add_btn.clicked.connect(_add_row)
         remove_btn.clicked.connect(_remove_row)
 
+        _VALID_TYPES = frozenset(
+            {"string", "integer", "number", "boolean", "array", "object", "null"}
+        )
+
+        validation_label = QLabel("")
+        validation_label.setWordWrap(True)
+        main_layout.addWidget(validation_label)
+
+        def _collect_schema() -> dict[str, dict[str, dict[str, object]]]:
+            result: dict[str, dict[str, dict[str, object]]] = {}
+            for r in range(table.rowCount()):
+                ns_item = table.item(r, 0)
+                key_item = table.item(r, 1)
+                type_item = table.item(r, 2)
+                default_item = table.item(r, 3)
+                ns = ns_item.text().strip() if ns_item else ""
+                key = key_item.text().strip() if key_item else ""
+                type_str = type_item.text().strip() if type_item else ""
+                default_str = default_item.text().strip() if default_item else ""
+                if not ns or not key or not type_str:
+                    continue
+                if ns not in result:
+                    result[ns] = {}
+                entry: dict[str, object] = {"type": type_str}
+                if default_str:
+                    entry["default"] = default_str
+                result[ns][key] = entry
+            return result
+
+        def _validate_schema() -> list[str]:
+            errors: list[str] = []
+            for r in range(table.rowCount()):
+                ns_item = table.item(r, 0)
+                key_item = table.item(r, 1)
+                type_item = table.item(r, 2)
+                ns = ns_item.text().strip() if ns_item else ""
+                key = key_item.text().strip() if key_item else ""
+                type_str = type_item.text().strip() if type_item else ""
+                if not ns and not key and not type_str:
+                    continue
+                if not ns:
+                    errors.append(f"Row {r + 1}: Namespace is required.")
+                if not key:
+                    errors.append(f"Row {r + 1}: Key is required.")
+                if type_str and type_str not in _VALID_TYPES:
+                    errors.append(
+                        f"Row {r + 1}: '{type_str}' is not a valid JSON Schema type. "
+                        f"Valid types: {', '.join(sorted(_VALID_TYPES))}"
+                    )
+            return errors
+
+        def _on_validate() -> None:
+            errs = _validate_schema()
+            if errs:
+                validation_label.setText("Validation errors:\n" + "\n".join(errs))
+            else:
+                validation_label.setText("Schema is valid.")
+
+        validate_btn = QPushButton("Validate")
+        validate_btn.clicked.connect(_on_validate)
+        btn_row.addWidget(validate_btn)
+
         dialog_btns = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
@@ -1320,25 +1382,12 @@ class MainWindow(QMainWindow):
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
 
-        schema: dict[str, dict[str, dict[str, object]]] = {}
-        for r in range(table.rowCount()):
-            ns_item = table.item(r, 0)
-            key_item = table.item(r, 1)
-            type_item = table.item(r, 2)
-            default_item = table.item(r, 3)
-            ns = ns_item.text().strip() if ns_item else ""
-            key = key_item.text().strip() if key_item else ""
-            type_str = type_item.text().strip() if type_item else ""
-            default_str = default_item.text().strip() if default_item else ""
-            if not ns or not key or not type_str:
-                continue
-            if ns not in schema:
-                schema[ns] = {}
-            entry: dict[str, object] = {"type": type_str}
-            if default_str:
-                entry["default"] = default_str
-            schema[ns][key] = entry
+        errs = _validate_schema()
+        if errs:
+            QMessageBox.warning(self, "Validation Errors", "\n".join(errs))
+            return
 
+        schema = _collect_schema()
         try:
             path.write_text(
                 yaml.dump(schema, default_flow_style=False, allow_unicode=True),
