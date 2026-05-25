@@ -9,7 +9,7 @@ The Component Palette lists all node types available for dragging onto the canva
 | **Start Node** | Flow entry point. Every graph must have exactly one start node. |
 | **Stop Node** | Flow exit point. No outgoing edges. |
 | **Basic Node** | General-purpose node. Subclass it to implement any logic. |
-| **LLM Prompt Node** | Calls an LLM using a prompt file. Set `prompt_file` in Inspector. |
+| **LLM Prompt Node** | Calls an LLM. Set `prompt_type` to `string` (inline text) or `path` (file), then set `prompt_file` accordingly. |
 | **Router Node** | Branches the flow based on the action returned by `post()`. |
 | **Batch Node** | Processes a list of items — `exec()` is called once per item. |
 | **Human Review Node** | Pauses for human input/approval; actions: `approved, rejected`. |

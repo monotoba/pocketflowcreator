@@ -14,8 +14,20 @@ The Object Inspector (right panel) displays and edits properties of the selected
 | **Reads** | **Yes** | Shared-store keys this node reads — documentation only, not enforced |
 | **Writes** | **Yes** | Shared-store keys this node writes — documentation only, not enforced |
 
-**Custom type properties** (e.g., `prompt_file`, `subflow_ref`) appear below the standard fields
-when a custom node type is loaded.
+**Custom type properties** appear below the standard fields when a node type is selected.
+Properties with a fixed set of allowed values (e.g., `prompt_type`) are shown as a
+**drop-down selector**; all other properties use a text field.
+
+## LLM Node Prompt Properties
+
+| Property | Values | Description |
+|---|---|---|
+| `prompt_type` | `string` / `path` | How `prompt_file` is interpreted |
+| `prompt_file` | any text | Literal prompt text (when `prompt_type = string`) or relative file path (when `prompt_type = path`) |
+
+Setting `prompt_type = string` lets you type the prompt directly into the Inspector without
+creating a separate file. Setting `prompt_type = path` reads the prompt from a Markdown
+file at runtime — useful for long, reusable, or version-controlled prompts.
 
 ## How to Edit a Field
 

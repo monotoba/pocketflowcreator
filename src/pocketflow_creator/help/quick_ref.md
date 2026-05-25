@@ -44,19 +44,29 @@ state back into the parent flow before continuing.
 ### LLM Prompt Node
 **Base class:** `Node`
 
-The standard node for making a single call to a language model. Set `prompt_file` to a
-Markdown file containing the prompt template (supports `{key}` interpolation from the
-shared store). `exec()` calls the configured provider; `post()` writes the response to
-the shared store and returns `"default"`.
+The standard node for making a single call to a language model.
+
+| Property | Default | Description |
+|---|---|---|
+| `prompt_type` | `string` | `string` — treat `prompt_file` as literal text; `path` — read from a file |
+| `prompt_file` | _(empty)_ | The prompt text or file path, depending on `prompt_type` |
+| `model` | _(project default)_ | Override the model for this node only |
+| `temperature` | `0.7` | Sampling temperature 0–1 |
+| `max_tokens` | `1024` | Max tokens in the response |
+| `output_key` | `output` | Shared store key where the response is written |
+
+Choose `prompt_type = string` to type the prompt directly into the Inspector.
+Choose `prompt_type = path` to load a Markdown file at runtime — useful for long or
+version-controlled prompts. The `Prompt Preview` tab shows the resolved prompt either way.
 
 ### JSON LLM Node
 **Base class:** `Node`
 
-Like LLM Prompt Node but instructs the model to respond with structured JSON matching
-a schema. Set `output_schema` to a YAML Schema file. The node validates the response
-against the schema and retries if validation fails. Use this for data extraction,
-classification with typed output, and any workflow that feeds LLM output into downstream
-Python code.
+Like LLM Prompt Node but instructs the model to respond with structured JSON. Supports
+the same `prompt_type` / `prompt_file` duality — use `string` for short inline instructions
+or `path` for a Markdown schema-description file. The parsed JSON object is written to
+the shared store under `output_key`. Use this for data extraction, classification with
+typed output, and any workflow that feeds LLM output into downstream Python code.
 
 ### Classifier Node
 **Base class:** `Node`
@@ -187,8 +197,8 @@ quality gates, or any step that requires a human decision before the flow contin
 | Basic Node | `Node` | General-purpose single step |
 | Router Node | `Node` | Conditional branching |
 | Subflow Node | `Node` | Embedded sub-graph |
-| LLM Prompt Node | `Node` | LLM call with prompt file |
-| JSON LLM Node | `Node` | LLM call with structured output |
+| LLM Prompt Node | `Node` | LLM call — inline string or file prompt |
+| JSON LLM Node | `Node` | LLM call — structured JSON output, inline string or file prompt |
 | Classifier Node | `Node` | LLM-based label classification |
 | Agent Node | `Node` | Autonomous tool-calling loop |
 | RAG Node | `Node` | Embedding and retrieval step |

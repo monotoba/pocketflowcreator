@@ -60,6 +60,7 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
                 "prompt_type": {
                     "type": "string",
                     "default": "string",
+                    "choices": ["string", "path"],
                     "description": "'string' = literal prompt text, 'path' = relative path to a Markdown file",
                 },
                 "prompt_file": {
@@ -110,6 +111,7 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
                 "prompt_type": {
                     "type": "string",
                     "default": "string",
+                    "choices": ["string", "path"],
                     "description": "'string' = literal prompt text, 'path' = relative file path",
                 },
                 "prompt_file": {

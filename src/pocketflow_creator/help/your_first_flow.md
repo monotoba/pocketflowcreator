@@ -52,7 +52,8 @@ It is automatically set as the flow's start node.
 2. Drag it to the right of the Start Node
 3. In the **Object Inspector** (right panel), set:
    - **Title:** `Ask LLM`
-   - **Prompt File:** `prompts/hello.md` *(type the path; the file will be created)*
+   - **Prompt Type:** `path` *(select from the drop-down)*
+   - **Prompt File:** `prompts/hello.md` *(relative path to the prompt file)*
 
 ---
 
@@ -79,6 +80,8 @@ Your canvas should now look like:
 
 ## Step 7 — Write the Prompt
 
+Since you set `prompt_type = path`, the node reads the prompt from a file at runtime.
+
 1. In the Project Explorer, double-click `prompts/hello.md`
 2. The **Markdown** editor tab opens
 3. Type:
@@ -92,6 +95,10 @@ What is PocketFlow?
 ```
 
 4. Press **Ctrl+S** to save
+
+> **Alternative:** Set `prompt_type = string` and type the prompt text directly into the
+> **Prompt File** field in the Inspector. This skips the file entirely — useful for short,
+> one-off prompts that do not need version control.
 
 ---
 
@@ -135,7 +142,7 @@ python main.py
 | File | Purpose |
 |---|---|
 | `graphs/main.pfcgraph.yaml` | Graph structure — nodes, edges, properties |
-| `prompts/hello.md` | LLM prompt (Markdown, never overwritten on re-export) |
+| `prompts/hello.md` | LLM prompt file — used when `prompt_type = path` (never overwritten on re-export) |
 | `exports/HelloWorld/generated/nodes.py` | Generated node class stubs |
 | `exports/HelloWorld/generated/flow.py` | Generated PocketFlow wiring code |
 | `exports/HelloWorld/custom/` | Your hand-edited node implementations |

@@ -663,6 +663,14 @@ class NodeItem(QGraphicsItem):
             ])
             painter.drawPolygon(triangle)
 
+        if self._node.type_id == "stop_node":
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(QColor("#dd4444")))
+            sq = 10
+            painter.drawRect(
+                int(_WIDTH - 8 - sq), int(_HEIGHT / 2 - sq / 2), sq, sq
+            )
+
     def port_scene_pos(self) -> QPointF:
         return self.mapToScene(QPointF(_WIDTH, _HEIGHT / 2))
 

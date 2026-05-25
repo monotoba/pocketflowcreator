@@ -78,7 +78,7 @@ most menu items are greyed out until a project is opened or created.
 2. Drag a **Start Node** from the Component Palette onto the canvas
 3. Drag an **LLM Node** and connect its input port to the Start Node's `default` action port
 4. Drag a **Stop Node** and connect the LLM Node's `default` action port to it
-5. Select the LLM Node and fill in **Title** and **Prompt File** in the Object Inspector
+5. Select the LLM Node and fill in **Title**, **Prompt Type** (`string` for inline text or `path` for a file), and **Prompt File** in the Object Inspector
 6. **Project > Validate Project** — fix any red badges
 7. **Run > Run Active Flow** — watch the Run Log tab
 

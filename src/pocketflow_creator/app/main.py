@@ -72,7 +72,7 @@ from pocketflow_creator.model.node_type import NodeTypeDefinition
 from pocketflow_creator.model.project import ProjectModel
 from pocketflow_creator.project_io import ProjectLoader, ProjectSaver
 from pocketflow_creator.runtime.providers import MockProvider, OllamaProvider
-from pocketflow_creator.runtime.runner import FlowRunner, RunStep, StepController
+from pocketflow_creator.runtime.runner import FlowRunner, RunStep, RunTrace, StepController
 from pocketflow_creator.validation.graph_validator import GraphValidator
 
 _MAX_RECENT = 5
@@ -1458,21 +1458,42 @@ class MainWindow(QMainWindow):
         if defn is not None:
             type_section = QTreeWidgetItem([f"[{defn.display_name}]", ""])
             type_section.setFlags(type_section.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+            # Track rows that need an embedded combo after the section is in the tree.
+            combo_rows: list[tuple[QTreeWidgetItem, list[str], str, str]] = []
             for prop_name, prop_meta in defn.properties.items():
-                default = str(prop_meta.get("default", "")) if isinstance(prop_meta, dict) else ""
+                meta = prop_meta if isinstance(prop_meta, dict) else {}
+                default = str(meta.get("default", ""))
                 inst_val = str(node.properties.get(prop_name, default))
-                prop_type = (
-                    prop_meta.get("type", "string") if isinstance(prop_meta, dict) else "string"
-                )
-                prop_row = QTreeWidgetItem([prop_name, inst_val])
-                prop_row.setFlags(prop_row.flags() | Qt.ItemFlag.ItemIsEditable)
+                prop_type = str(meta.get("type", "string"))
+                choices: list[str] = [str(c) for c in meta.get("choices", [])]  # type: ignore[union-attr]
+                prop_row = QTreeWidgetItem([prop_name, "" if choices else inst_val])
                 prop_row.setData(1, Qt.ItemDataRole.UserRole, prop_type)
-                self._style_editable(prop_row)
+                if choices:
+                    combo_rows.append((prop_row, choices, inst_val, prop_name))
+                else:
+                    prop_row.setFlags(prop_row.flags() | Qt.ItemFlag.ItemIsEditable)
+                    self._style_editable(prop_row)
                 type_section.addChild(prop_row)
             if defn.base_class and defn.base_class != node.type_id:
                 type_section.addChild(QTreeWidgetItem(["base_class", defn.base_class]))
             self._inspector.addTopLevelItem(type_section)
             type_section.setExpanded(True)
+            # Embed QComboBox widgets now that section is in the tree.
+            for prop_row, choices, inst_val, prop_name in combo_rows:
+                combo = QComboBox()
+                combo.addItems(choices)
+                combo.setCurrentIndex(max(combo.findText(inst_val), 0))
+
+                def _make_handler(n: NodeModel, pn: str, cb: QComboBox) -> None:
+                    def _changed(text: str) -> None:
+                        n.properties[pn] = text
+                        self._live_validate()
+                        if pn == "prompt_type":
+                            self._update_prompt_preview(n)
+                    cb.currentTextChanged.connect(_changed)
+
+                _make_handler(node, prop_name, combo)
+                self._inspector.setItemWidget(prop_row, 1, combo)
 
         self._inspector.blockSignals(False)
 
@@ -1800,10 +1821,24 @@ class MainWindow(QMainWindow):
 
     # ----------------------------------------------- tools menu handlers
 
+    @staticmethod
+    def _fetch_ollama_models(base_url: str) -> list[str]:
+        import json
+        import urllib.error
+        import urllib.request
+        try:
+            url = f"{base_url.rstrip('/')}/api/tags"
+            with urllib.request.urlopen(url, timeout=5) as resp:
+                data = json.loads(resp.read())
+            return sorted(m["name"] for m in data.get("models", []))
+        except Exception:
+            return []
+
     def _on_provider_manager(self) -> None:
         settings = QSettings("Monotoba", "PocketFlowCreator")
         dlg = QDialog(self)
         dlg.setWindowTitle("Provider Manager")
+        dlg.resize(440, 0)
         layout = QVBoxLayout(dlg)
 
         active_group = QGroupBox("Active Provider")
@@ -1821,11 +1856,35 @@ class MainWindow(QMainWindow):
 
         ollama_group = QGroupBox("Ollama Provider Settings")
         ollama_form = QFormLayout(ollama_group)
-        ollama_url = QLineEdit(str(settings.value("ollama/base_url", "http://localhost:11434")))
-        ollama_model = QLineEdit(str(settings.value("ollama/default_model", "qwen2.5-coder:14b")))
+        saved_url = str(settings.value("ollama/base_url", "http://localhost:11434"))
+        saved_model = str(settings.value("ollama/default_model", "qwen2.5-coder:14b"))
+        ollama_url = QLineEdit(saved_url)
         ollama_form.addRow("Base URL:", ollama_url)
-        ollama_form.addRow("Default model:", ollama_model)
+
+        model_row = QHBoxLayout()
+        ollama_model_combo = QComboBox()
+        ollama_model_combo.setEditable(True)
+        ollama_model_combo.setMinimumWidth(220)
+        refresh_btn = QPushButton("Refresh")
+        model_row.addWidget(ollama_model_combo)
+        model_row.addWidget(refresh_btn)
+        ollama_form.addRow("Default model:", model_row)
         layout.addWidget(ollama_group)
+
+        def _populate_models(select: str = "") -> None:
+            models = self._fetch_ollama_models(ollama_url.text().strip())
+            ollama_model_combo.clear()
+            if models:
+                ollama_model_combo.addItems(models)
+                target = select or ollama_model_combo.currentText()
+                idx = ollama_model_combo.findText(target)
+                ollama_model_combo.setCurrentIndex(max(idx, 0))
+            else:
+                ollama_model_combo.addItem(select or saved_model)
+                ollama_model_combo.setCurrentIndex(0)
+
+        _populate_models(saved_model)
+        refresh_btn.clicked.connect(lambda: _populate_models(ollama_model_combo.currentText()))
 
         mock_group = QGroupBox("Mock Provider Settings")
         mock_form = QFormLayout(mock_group)
@@ -1845,7 +1904,7 @@ class MainWindow(QMainWindow):
             return
         settings.setValue("run/provider", "ollama" if rb_ollama.isChecked() else "mock")
         settings.setValue("ollama/base_url", ollama_url.text().strip())
-        settings.setValue("ollama/default_model", ollama_model.text().strip())
+        settings.setValue("ollama/default_model", ollama_model_combo.currentText().strip())
         settings.setValue("mock/response", mock_response.text())
         self.statusBar().showMessage("Provider settings saved.")
 
