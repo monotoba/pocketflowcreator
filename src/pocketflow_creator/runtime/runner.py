@@ -86,6 +86,24 @@ class FlowRunner:
 
     MAX_STEPS = 200  # guard against cycles
 
+    @staticmethod
+    def _resolve_prompt(node_props: dict[str, object], project_root: Path | None) -> str:
+        """Return the prompt string for an LLM node, handling both string and path types."""
+        prompt_type = str(node_props.get("prompt_type", "string"))
+        raw = str(node_props.get("prompt_file", ""))
+        if not raw:
+            return ""
+        if prompt_type == "path":
+            if project_root is None:
+                return f"(cannot read prompt file — no project root: {raw})"
+            try:
+                return (project_root / raw).read_text(encoding="utf-8")
+            except FileNotFoundError:
+                return f"(prompt file not found: {raw})"
+            except Exception as exc:
+                return f"(error reading {raw}: {exc})"
+        return raw  # prompt_type == "string"
+
     def steps(
         self,
         graph: GraphModel,
@@ -93,6 +111,7 @@ class FlowRunner:
         *,
         shared: dict[str, object] | None = None,
         known_graphs: dict[str, GraphModel] | None = None,
+        project_root: Path | None = None,
     ) -> Generator[RunStep, None, None]:
         """Yield one RunStep per executed node. Non-blocking; consumer controls pacing.
 
@@ -137,9 +156,12 @@ class FlowRunner:
                     # Passthrough: subgraph not available; record ref and continue.
                     shared_store[f"{node.id}_subflow_ref"] = ref
             elif "llm" in node.type_id.lower():
-                prompt = f"[{node.title}] {node.type_id}"
+                prompt = self._resolve_prompt(node.properties, project_root) or (
+                    f"[{node.title}] {node.type_id}"
+                )
                 response = provider.complete(prompt)
-                shared_store[f"{node.id}_response"] = response
+                output_key = str(node.properties.get("output_key", f"{node.id}_response"))
+                shared_store[output_key] = response
 
             shared_after = copy.deepcopy(shared_store)
             outgoing = [e for e in graph.edges if e.from_node == current_id]
@@ -166,13 +188,19 @@ class FlowRunner:
         project_name: str = "",
         shared: dict[str, object] | None = None,
         known_graphs: dict[str, GraphModel] | None = None,
+        project_root: Path | None = None,
     ) -> RunTrace:
         started_at = datetime.now(tz=timezone.utc).isoformat()
         return RunTrace(
             started_at=started_at,
             project_name=project_name,
             graph_title=graph.title,
-            steps=list(self.steps(graph, provider, shared=shared, known_graphs=known_graphs)),
+            steps=list(
+                self.steps(
+                    graph, provider,
+                    shared=shared, known_graphs=known_graphs, project_root=project_root,
+                )
+            ),
         )
 
     def run_debug(
@@ -186,6 +214,7 @@ class FlowRunner:
         project_name: str = "",
         shared: dict[str, object] | None = None,
         known_graphs: dict[str, GraphModel] | None = None,
+        project_root: Path | None = None,
     ) -> RunTrace:
         """Run the graph in debug mode; pauses at breakpoints via controller.
 
@@ -196,7 +225,9 @@ class FlowRunner:
         started_at = datetime.now(tz=timezone.utc).isoformat()
         collected: list[RunStep] = []
 
-        for step in self.steps(graph, provider, shared=shared, known_graphs=known_graphs):
+        for step in self.steps(
+            graph, provider, shared=shared, known_graphs=known_graphs, project_root=project_root
+        ):
             if controller.is_stopped:
                 break
             collected.append(step)

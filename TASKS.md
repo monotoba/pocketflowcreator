@@ -239,3 +239,15 @@ in every dialog, and tutorials moved from docs/ to the help/ tree.
 - [x] T-P03: Implement Tool Registry — discover and display @tool-decorated functions from project tools/ directory
 - [x] T-P04: Add Chinese (zh) and Japanese (ja) .ts + .qm translation files
 - [x] T-P05: Populate help/img/ with UI screenshots and link them from help pages
+
+---
+
+## M13 — Graph Editor Repair
+
+**Deliverable:** Graph canvas works reliably — nodes are deletable, connectors are
+correctly routed and visually accurate, and all edge interactions are stable.
+
+- [ ] T-G01: Repair graph editor — audit NodeItem, EdgeItem, and GraphScene for
+             regressions introduced since M4; restore all broken interactions
+- [ ] T-G02: Fix graph connectors — edge routing, port positions, and label placement
+             should be correct after node moves, zoom changes, and scene reloads

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -76,6 +77,7 @@ from pocketflow_creator.validation.graph_validator import GraphValidator
 
 _MAX_RECENT = 5
 _VERSION = "0.1.0"
+_TEMP_PROJECT_DIR = ".pocketflow_creator_temp"
 
 
 def _node_skeleton_text(type_id: str, base_class: str) -> str:
@@ -103,6 +105,7 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self._project: ProjectModel | None = None
+        self._is_temp_project: bool = False
         self._graphs: dict[str, GraphModel] = {}
         self._active_graph_rel: str | None = None
         self._bottom_editors: dict[str, QPlainTextEdit] = {}
@@ -148,6 +151,9 @@ class MainWindow(QMainWindow):
         self._graph_scene.node_item_double_clicked.connect(self._on_node_double_clicked)
         self._graph_scene.node_created.connect(self._on_node_created)
         self._graph_scene.node_deleted.connect(self._on_node_deleted)
+        self._graph_scene.edge_deleted.connect(self._on_edge_deleted)
+        self._graph_scene.edge_creation_requested.connect(self._on_edge_creation_requested)
+        self._graph_scene.set_start_node_requested.connect(self._on_set_start_node)
         self._inspector.itemChanged.connect(self._on_inspector_item_changed)
         self._explorer_tree.itemDoubleClicked.connect(
             self._on_explorer_item_double_clicked
@@ -159,7 +165,8 @@ class MainWindow(QMainWindow):
         self._recent = self._load_recent()
         self._update_recent_menu()
         self._apply_theme()
-        self.statusBar().showMessage(self.tr("Ready"))
+        self._cleanup_temp_project()  # remove any leftover from a previous session
+        self._create_untitled_flow()
 
     # ------------------------------------------------------------------ menus
 
@@ -175,6 +182,8 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
         act = file_menu.addAction(self.tr("Save"), self._on_save)
         act.setShortcut(QKeySequence.StandardKey.Save)
+        act = file_menu.addAction(self.tr("Save As..."), self._on_save_as)
+        act.setShortcut(QKeySequence.StandardKey.SaveAs)
         act = file_menu.addAction(self.tr("Save All"), self._on_save_all)
         act.setShortcut(QKeySequence("Ctrl+Shift+S"))
         file_menu.addSeparator()
@@ -230,8 +239,8 @@ class MainWindow(QMainWindow):
         project_menu.addAction(self.tr("Provider Profiles..."))
 
         flow_menu = self.menuBar().addMenu(self.tr("Flow"))
+        flow_menu.addAction(self.tr("New Flow..."), self._create_untitled_flow)
         for name in [
-            self.tr("New Flow..."),
             self.tr("New Subflow..."),
             self.tr("Set Start Node"),
             self.tr("Validate Active Flow"),
@@ -466,6 +475,73 @@ class MainWindow(QMainWindow):
                 path.name, lambda p=path: self._load_project_from_path(p)
             )
 
+    # -------------------------------------------------- temp-project helpers
+
+    def _temp_project_root(self) -> Path:
+        return Path(tempfile.gettempdir()) / _TEMP_PROJECT_DIR
+
+    def _cleanup_temp_project(self) -> None:
+        temp_root = self._temp_project_root()
+        if temp_root.exists():
+            shutil.rmtree(temp_root, ignore_errors=True)
+
+    # -------------------------------------------------- helpers
+
+    def _create_untitled_flow(self) -> None:
+        """Create a temp-project-backed untitled flow so all features work immediately."""
+        self._cleanup_temp_project()
+        temp_root = self._temp_project_root()
+        temp_root.mkdir(parents=True, exist_ok=True)
+        (temp_root / "graphs").mkdir(exist_ok=True)
+        graph_rel = "graphs/main.pfcgraph.yaml"
+        graph = GraphModel(id="main", title="Untitled Flow", nodes=[], edges=[])
+        GraphSaver().save(graph, temp_root / graph_rel)
+        self._project = ProjectModel(
+            name="Untitled",
+            package_name="untitled",
+            root=temp_root,
+            graphs=[graph_rel],
+        )
+        ProjectSaver().save(self._project)
+        self._is_temp_project = True
+        self._graphs = {graph_rel: graph}
+        self._active_graph_rel = graph_rel
+        self._graph_scene.load_graph(graph)
+        self.setWindowTitle(self.tr("PocketFlow Creator — Untitled (unsaved)"))
+        self.statusBar().showMessage(
+            self.tr("New flow ready. Use File > Save As to save it as a project.")
+        )
+
+    def _ensure_active_graph(self) -> bool:
+        """Guarantee _active_graph_rel is set. Always returns True.
+
+        If there is no active graph (project or untitled), one is created in memory.
+        If a project is open but has no graph file, one is written to disk.
+        """
+        if self._active_graph_rel is not None:
+            return True
+        if self._project is None or self._is_temp_project:
+            self._create_untitled_flow()
+            return True
+        # Project open but no active graph — create a default graph file
+        graph_rel = "graphs/main.pfcgraph.yaml"
+        graph = GraphModel(
+            id="main",
+            title=f"{self._project.name} — Main Flow",
+            nodes=[],
+            edges=[],
+        )
+        try:
+            GraphSaver().save(graph, self._project.root / graph_rel)
+            if graph_rel not in self._project.graphs:
+                self._project.graphs.append(graph_rel)
+            ProjectSaver().save(self._project)
+        except Exception:
+            pass  # Keep in memory even if the file write fails
+        self._graphs[graph_rel] = graph
+        self._active_graph_rel = graph_rel
+        return True
+
     # -------------------------------------------------- file action handlers
 
     def _on_new_project(self) -> None:
@@ -478,15 +554,29 @@ class MainWindow(QMainWindow):
         name = name.strip()
         package = name.lower().replace(" ", "_").replace("-", "_")
         root = Path(directory) / name
+        self._cleanup_temp_project()
+        self._is_temp_project = False
         self._project = ProjectModel(name=name, package_name=package, root=root)
         self._graphs = {}
+        self._active_graph_rel = None
         try:
             root.mkdir(parents=True, exist_ok=True)
+            graphs_dir = root / "graphs"
+            graphs_dir.mkdir(exist_ok=True)
+            graph_rel = "graphs/main.pfcgraph.yaml"
+            graph = GraphModel(id="main", title=f"{name} — Main Flow", nodes=[], edges=[])
+            GraphSaver().save(graph, root / graph_rel)
+            self._project.graphs.append(graph_rel)
             ProjectSaver().save(self._project)
+            self._graphs[graph_rel] = graph
+            self._active_graph_rel = graph_rel
+            self._graph_scene.load_graph(graph)
+            self._graph_view.zoom_to_fit()
             self._add_recent(self._project.project_file)
         except Exception as exc:
             QMessageBox.warning(self, "New Project Warning", f"Could not write project:\n{exc}")
         self._refresh_explorer()
+        self.setWindowTitle(f"PocketFlow Creator — {name}")
         self.statusBar().showMessage(f"New project: {name}")
 
     def _on_new_from_template(self) -> None:
@@ -585,8 +675,11 @@ class MainWindow(QMainWindow):
 
     def _load_project_from_path(self, path: Path) -> None:
         try:
+            self._cleanup_temp_project()
+            self._is_temp_project = False
             self._project = ProjectLoader().load(path)
             self._graphs = {}
+            self._active_graph_rel = None
             loader = GraphLoader()
             for rel in self._project.graphs:
                 gpath = self._project.root / rel
@@ -597,17 +690,85 @@ class MainWindow(QMainWindow):
                         QMessageBox.warning(
                             self, "Load Warning", f"Could not load {rel}:\n{exc}"
                         )
+            if not self._graphs:
+                # Project has no graphs (blank template or all files failed) — create a default
+                graph_rel = "graphs/main.pfcgraph.yaml"
+                graph = GraphModel(
+                    id="main",
+                    title=f"{self._project.name} — Main Flow",
+                    nodes=[],
+                    edges=[],
+                )
+                try:
+                    GraphSaver().save(graph, self._project.root / graph_rel)
+                    if graph_rel not in self._project.graphs:
+                        self._project.graphs.append(graph_rel)
+                    ProjectSaver().save(self._project)
+                    self._graphs[graph_rel] = graph
+                except Exception:
+                    pass  # Non-fatal — graph stays in memory even if save fails
             if self._graphs:
                 self._active_graph_rel = next(iter(self._graphs.keys()))
                 self._graph_scene.load_graph(self._graphs[self._active_graph_rel])
                 self._graph_view.zoom_to_fit()
             self._refresh_explorer()
             self._add_recent(path)
+            self.setWindowTitle(f"PocketFlow Creator — {self._project.name}")
             self.statusBar().showMessage(f"Opened: {self._project.name}")
         except Exception as exc:
             QMessageBox.critical(self, "Open Failed", str(exc))
 
+    def _on_save_as(self) -> None:
+        """Save the current flow (including temp projects) to a named project location."""
+        default_name = self._project.name if self._project and not self._is_temp_project else ""
+        name, ok = QInputDialog.getText(
+            self, self.tr("Save Project As"), self.tr("Project name:"), text=default_name
+        )
+        if not ok or not name.strip():
+            return
+        directory = QFileDialog.getExistingDirectory(self, self.tr("Choose Project Location"))
+        if not directory:
+            return
+        name = name.strip()
+        package = name.lower().replace(" ", "_").replace("-", "_")
+        new_root = Path(directory) / name
+        if new_root.exists():
+            btn = QMessageBox.question(
+                self,
+                self.tr("Overwrite?"),
+                self.tr(f"'{new_root}' already exists. Overwrite?"),
+            )
+            if btn != QMessageBox.StandardButton.Yes:
+                return
+            shutil.rmtree(new_root, ignore_errors=True)
+        try:
+            if self._project is not None:
+                shutil.copytree(self._project.root, new_root)
+            else:
+                new_root.mkdir(parents=True, exist_ok=True)
+            old_temp = self._project.root if self._is_temp_project else None
+            self._project = ProjectModel(
+                name=name,
+                package_name=package,
+                root=new_root,
+                graphs=list(self._project.graphs) if self._project else ["graphs/main.pfcgraph.yaml"],
+            )
+            ProjectSaver().save(self._project)
+            # Re-key _graphs with same relative paths (they are unchanged)
+            self._is_temp_project = False
+            if old_temp:
+                shutil.rmtree(old_temp, ignore_errors=True)
+            self._add_recent(self._project.project_file)
+            self.setWindowTitle(f"PocketFlow Creator — {name}")
+            self._refresh_explorer()
+            self.statusBar().showMessage(self.tr(f"Project saved as: {name}"))
+        except Exception as exc:
+            QMessageBox.critical(self, self.tr("Save As Failed"), str(exc))
+
     def _on_save(self) -> None:
+        if self._is_temp_project:
+            self._on_save_as()
+            return
         if self._project is None:
             self.statusBar().showMessage("No project open.")
             return
@@ -625,6 +786,9 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Saved.")
 
     def _on_save_all(self) -> None:
+        if self._is_temp_project:
+            self._on_save_as()
+            return
         if self._project is None:
             self.statusBar().showMessage("No project open.")
             return
@@ -693,7 +857,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Validation: {len(lines)} issue(s).")
 
     def _on_generate_code(self) -> None:
-        if self._project is None or not self._graphs:
+        if not self._graphs:
             self.statusBar().showMessage("No graphs to generate from.")
             return
         gen = PythonGenerator()
@@ -790,11 +954,20 @@ class MainWindow(QMainWindow):
     # ----------------------------------------------- run menu handlers
 
     def _on_run_active_flow(self) -> None:
-        if self._project is None or not self._graphs:
+        if not self._graphs:
             self.statusBar().showMessage("No graphs to run.")
             return
         graph = next(iter(self._graphs.values()))
         rel = next(iter(self._graphs.keys()))
+        # Auto-detect start node if not set
+        if not graph.start_node:
+            resolved = self._resolve_start_node(graph)
+            if resolved:
+                graph.start_node = resolved
+                self._graph_scene.mark_start_node(resolved)
+        if not graph.nodes:
+            self.statusBar().showMessage("Add at least one node before running.")
+            return
 
         settings = QSettings("Monotoba", "PocketFlowCreator")
         prov_type = str(settings.value("run/provider", "mock"))
@@ -808,46 +981,79 @@ class MainWindow(QMainWindow):
                 response=str(settings.value("mock/response", "mock response"))
             )
 
+        import threading as _threading
+
         runner = FlowRunner()
         known_graphs = {k: v for k, v in self._graphs.items() if k != rel}
-        try:
-            trace = runner.run(
-                graph, provider,
-                project_name=self._project.name,
-                known_graphs=known_graphs or None,
-            )
-        except Exception as exc:
-            QMessageBox.critical(self, "Run Failed", str(exc))
-            return
+        project_name = self._project.name if self._project else graph.title
+        project_root = self._project.root if self._project else None
 
-        lines: list[str] = [f"Run: {graph.title}  ({len(trace.steps)} step(s))\n"]
-        for step in trace.steps:
-            lines.append(f"  [{step.node_id}] {step.node_title}  → {step.action}")
-            if step.response:
-                lines.append(f"      response: {step.response}")
-        self._bottom_editors["Run Log"].setPlainText("\n".join(lines))
+        self._bottom_editors["Run Log"].setPlainText(f"Running {graph.title}…\n")
         self._switch_bottom_tab("Run Log")
+        self.statusBar().showMessage("Run started…")
 
-        shared_text = "\n".join(
-            f"{k}: {v}" for k, v in (trace.steps[-1].shared_after if trace.steps else {}).items()
-        )
-        self._bottom_editors["Shared Store"].setPlainText(shared_text or "{}")
+        from PySide6.QtCore import QObject, Signal as _Sig
 
-        if self._project.root:
-            try:
-                out = runner.save_trace(trace, self._project.root / "run_reports")
-                self.statusBar().showMessage(f"Run complete — trace saved: {out.name}")
-            except Exception:
-                self.statusBar().showMessage("Run complete.")
-        else:
+        class _RunSignals(QObject):
+            result_ready = _Sig(object)
+
+        signals = _RunSignals()
+
+        def _on_run_complete(result: object) -> None:
+            if isinstance(result, Exception):
+                QMessageBox.critical(self, "Run Failed", str(result))
+                self.statusBar().showMessage("Run failed.")
+                return
+            if not isinstance(result, RunTrace):
+                return
+            trace = result
+            lines: list[str] = [f"Run: {graph.title}  ({len(trace.steps)} step(s))\n"]
+            for step in trace.steps:
+                lines.append(f"  [{step.node_id}] {step.node_title}  → {step.action}")
+                if step.response:
+                    lines.append(f"      response: {step.response}")
+            self._bottom_editors["Run Log"].setPlainText("\n".join(lines))
+            shared_text = "\n".join(
+                f"{k}: {v}"
+                for k, v in (trace.steps[-1].shared_after if trace.steps else {}).items()
+            )
+            self._bottom_editors["Shared Store"].setPlainText(shared_text or "{}")
+            if project_root:
+                try:
+                    out = runner.save_trace(trace, project_root / "run_reports")
+                    self.statusBar().showMessage(f"Run complete — trace saved: {out.name}")
+                    return
+                except Exception:
+                    pass
             self.statusBar().showMessage("Run complete.")
 
-        _ = rel  # keep for future per-graph selection
+        signals.result_ready.connect(_on_run_complete)
+
+        def _run_thread() -> None:
+            try:
+                trace = runner.run(
+                    graph, provider,
+                    project_name=project_name,
+                    known_graphs=known_graphs or None,
+                    project_root=project_root,
+                )
+                signals.result_ready.emit(trace)
+            except Exception as exc:
+                signals.result_ready.emit(exc)
+
+        _threading.Thread(target=_run_thread, daemon=True).start()
 
     def _on_run_tests(self) -> None:
         import subprocess
         import sys
 
+        if self._is_temp_project:
+            self._bottom_editors["Test Results"].setPlainText(
+                "No tests to run.\n\nSave the project first (File > Save As), then add a "
+                "tests/ directory with pytest test files."
+            )
+            self._switch_bottom_tab("Test Results")
+            return
         if self._project is None:
             self.statusBar().showMessage("No project open.")
             return
@@ -870,11 +1076,19 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Tests finished.")
 
     def _on_debug_active_flow(self) -> None:
-        if self._project is None or not self._graphs:
+        if not self._graphs:
             self.statusBar().showMessage("No graphs to debug.")
             return
         _debug_rel = next(iter(self._graphs.keys()))
         graph = self._graphs[_debug_rel]
+        if not graph.start_node:
+            resolved = self._resolve_start_node(graph)
+            if resolved:
+                graph.start_node = resolved
+                self._graph_scene.mark_start_node(resolved)
+        if not graph.nodes:
+            self.statusBar().showMessage("Add at least one node before debugging.")
+            return
         _debug_known = {k: v for k, v in self._graphs.items() if k != _debug_rel}
         settings = QSettings("Monotoba", "PocketFlowCreator")
         prov_type = str(settings.value("run/provider", "mock"))
@@ -888,13 +1102,24 @@ class MainWindow(QMainWindow):
                 response=str(settings.value("mock/response", "mock response"))
             )
 
+        import threading as _threading
+
         ctrl = StepController()
         self._debug_controller = ctrl
         runner = FlowRunner()
         self._bottom_editors["Run Log"].setPlainText("Debug run started…\n")
         self._switch_bottom_tab("Run Log")
 
-        def _on_step(step: object) -> None:
+        # Local QObject subclass — defined here so QApplication already exists (avoids segfault).
+        from PySide6.QtCore import QObject, Signal as _Sig
+
+        class _DbgSignals(QObject):
+            step_ready = _Sig(object)
+            run_finished = _Sig()
+
+        signals = _DbgSignals()
+
+        def _on_step_gui(step: object) -> None:
             if not isinstance(step, RunStep):
                 return
             lines = self._bottom_editors["Run Log"].toPlainText()
@@ -909,21 +1134,26 @@ class MainWindow(QMainWindow):
                     f"Paused at [{step.node_id}] — click Resume to continue."
                 )
 
-        import threading as _threading
+        def _on_finished_gui() -> None:
+            self._stop_action.setEnabled(False)  # type: ignore[attr-defined]
+            self._resume_action.setEnabled(False)  # type: ignore[attr-defined]
+            self.statusBar().showMessage("Debug run finished.")
 
-        collected: list[object] = []
+        signals.step_ready.connect(_on_step_gui)
+        signals.run_finished.connect(_on_finished_gui)
 
         def _run_thread() -> None:
-            trace = runner.run_debug(
+            runner.run_debug(
                 graph,
                 provider,
                 ctrl,
                 breakpoints=self._breakpoints,
-                on_step=_on_step,
+                on_step=lambda s: signals.step_ready.emit(s),
                 project_name=self._project.name if self._project else "",
                 known_graphs=_debug_known or None,
+                project_root=self._project.root if self._project else None,
             )
-            collected.append(trace)
+            signals.run_finished.emit()
 
         t = _threading.Thread(target=_run_thread, daemon=True)
         self._debug_thread = t
@@ -1047,20 +1277,20 @@ class MainWindow(QMainWindow):
     def _update_prompt_preview(self, node: NodeModel) -> None:
         if "llm" not in node.type_id.lower():
             return
-        prompt_file = node.properties.get("prompt_file", "") if node.properties else ""
-        if not prompt_file or self._project is None:
+        props = node.properties or {}
+        prompt_type = str(props.get("prompt_type", "string"))
+        raw = str(props.get("prompt_file", ""))
+        if not raw:
             self._bottom_editors["Prompt Preview"].setPlainText(
-                f"[{node.title}] No prompt_file property set."
+                f"[{node.title}] No prompt set."
             )
             self._switch_bottom_tab("Prompt Preview")
             return
-        full_path = self._project.root / str(prompt_file)
-        try:
-            content = full_path.read_text(encoding="utf-8")
-        except FileNotFoundError:
-            content = f"(prompt file not found: {prompt_file})"
-        except Exception as exc:
-            content = f"(error reading {prompt_file}: {exc})"
+        if prompt_type == "path":
+            project_root = self._project.root if self._project else None
+            content = FlowRunner._resolve_prompt(props, project_root)
+        else:
+            content = raw
         self._bottom_editors["Prompt Preview"].setPlainText(content)
         self._switch_bottom_tab("Prompt Preview")
 
@@ -1154,7 +1384,9 @@ class MainWindow(QMainWindow):
         self._live_validate()
 
     def _load_node_type_registry(self) -> dict[str, NodeTypeDefinition]:
-        registry: dict[str, NodeTypeDefinition] = {}
+        from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES
+
+        registry: dict[str, NodeTypeDefinition] = dict(BUILTIN_NODE_TYPES)
         if self._project is None:
             return registry
         for rel in self._project.node_types:
@@ -1276,8 +1508,14 @@ class MainWindow(QMainWindow):
 
         if not isinstance(item, NodeItem):
             return
-        if self._project is None or self._active_graph_rel is None:
+        if not self._ensure_active_graph():
             return
+        assert self._active_graph_rel is not None
+        assert self._project is not None  # _create_untitled_flow always sets _project
+        # Keep the live GraphModel in sync so save/validate see the new node
+        graph = self._graphs.get(self._active_graph_rel)
+        if graph is not None and item.node not in graph.nodes:
+            graph.nodes.append(item.node)
         code_path = code_manager.ensure_code_file(self._active_graph_rel, self._project.root)
         registry = self._load_node_type_registry()
         nt = registry.get(item.node.type_id)
@@ -1297,6 +1535,65 @@ class MainWindow(QMainWindow):
         code_path = code_manager.get_code_file(self._active_graph_rel, self._project.root)
         if code_path.exists():
             code_manager.remove_node(code_path, node_id)
+
+    def _on_edge_deleted(self, edge_id: object) -> None:
+        if not isinstance(edge_id, str) or self._active_graph_rel is None:
+            return
+        graph = self._graphs.get(self._active_graph_rel)
+        if graph is not None:
+            graph.edges = [e for e in graph.edges if e.id != edge_id]
+
+    def _on_edge_creation_requested(self, src: object, tgt: object) -> None:
+        from pocketflow_creator.app.canvas import NodeItem
+
+        if not isinstance(src, NodeItem) or not isinstance(tgt, NodeItem):
+            return
+        if not self._ensure_active_graph():
+            return
+        assert self._active_graph_rel is not None
+        import uuid as _uuid
+        edge = EdgeModel(
+            id=f"edge_{_uuid.uuid4().hex[:8]}",
+            from_node=src.node.id,
+            to_node=tgt.node.id,
+            action="default",
+        )
+        graph = self._graphs.get(self._active_graph_rel)
+        if graph is not None:
+            graph.edges.append(edge)
+        self._graph_scene.add_edge(src, tgt, edge)
+
+    def _on_set_start_node(self, item: object) -> None:
+        from pocketflow_creator.app.canvas import NodeItem
+
+        if not isinstance(item, NodeItem):
+            return
+        if self._active_graph_rel is None:
+            return
+        graph = self._graphs.get(self._active_graph_rel)
+        if graph is None:
+            return
+        graph.start_node = item.node.id
+        self._graph_scene.mark_start_node(item.node.id)
+        self.statusBar().showMessage(f"Start node set: {item.node.title}")
+
+    @staticmethod
+    def _resolve_start_node(graph: GraphModel) -> str | None:
+        """Return the best start node id for a graph, or None if no nodes exist."""
+        if not graph.nodes:
+            return None
+        if graph.start_node and any(n.id == graph.start_node for n in graph.nodes):
+            return graph.start_node
+        # Prefer a node explicitly typed as start_node
+        for node in graph.nodes:
+            if node.type_id == "start_node":
+                return node.id
+        # Fall back to first node with no incoming edges
+        targets = {e.to_node for e in graph.edges}
+        for node in graph.nodes:
+            if node.id not in targets:
+                return node.id
+        return graph.nodes[0].id
 
     def _on_auto_layout(self) -> None:
         self._graph_scene.auto_layout()
@@ -1509,7 +1806,20 @@ class MainWindow(QMainWindow):
         dlg.setWindowTitle("Provider Manager")
         layout = QVBoxLayout(dlg)
 
-        ollama_group = QGroupBox("Ollama Provider")
+        active_group = QGroupBox("Active Provider")
+        active_layout = QVBoxLayout(active_group)
+        rb_ollama = QRadioButton("Ollama")
+        rb_mock = QRadioButton("Mock (for testing)")
+        active_layout.addWidget(rb_ollama)
+        active_layout.addWidget(rb_mock)
+        current_prov = str(settings.value("run/provider", "mock"))
+        if current_prov == "ollama":
+            rb_ollama.setChecked(True)
+        else:
+            rb_mock.setChecked(True)
+        layout.addWidget(active_group)
+
+        ollama_group = QGroupBox("Ollama Provider Settings")
         ollama_form = QFormLayout(ollama_group)
         ollama_url = QLineEdit(str(settings.value("ollama/base_url", "http://localhost:11434")))
         ollama_model = QLineEdit(str(settings.value("ollama/default_model", "qwen2.5-coder:14b")))
@@ -1517,7 +1827,7 @@ class MainWindow(QMainWindow):
         ollama_form.addRow("Default model:", ollama_model)
         layout.addWidget(ollama_group)
 
-        mock_group = QGroupBox("Mock Provider")
+        mock_group = QGroupBox("Mock Provider Settings")
         mock_form = QFormLayout(mock_group)
         mock_response = QLineEdit(str(settings.value("mock/response", "mock response")))
         mock_form.addRow("Fixed response:", mock_response)
@@ -1533,6 +1843,7 @@ class MainWindow(QMainWindow):
 
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
+        settings.setValue("run/provider", "ollama" if rb_ollama.isChecked() else "mock")
         settings.setValue("ollama/base_url", ollama_url.text().strip())
         settings.setValue("ollama/default_model", ollama_model.text().strip())
         settings.setValue("mock/response", mock_response.text())

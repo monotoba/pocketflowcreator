@@ -16,6 +16,7 @@ try:
         QIcon,
         QPainter,
         QPainterPath,
+        QPainterPathStroker,
         QPen,
         QPixmap,
         QPolygonF,
@@ -28,6 +29,7 @@ try:
         QGraphicsView,
         QListWidget,
         QListWidgetItem,
+        QMenu,
         QStyleOptionGraphicsItem,
         QWidget,
     )
@@ -573,6 +575,7 @@ class NodeItem(QGraphicsItem):
         self._node = node
         self._has_error = False
         self._has_breakpoint = False
+        self._is_start = False
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
@@ -589,6 +592,10 @@ class NodeItem(QGraphicsItem):
 
     def set_breakpoint(self, active: bool) -> None:
         self._has_breakpoint = active
+        self.update()
+
+    def set_is_start(self, active: bool) -> None:
+        self._is_start = active
         self.update()
 
     def boundingRect(self) -> QRectF:
@@ -646,6 +653,16 @@ class NodeItem(QGraphicsItem):
             painter.setBrush(QBrush(QColor(colors["breakpoint"])))
             painter.drawEllipse(QPointF(_WIDTH - 10, 10), 5, 5)
 
+        if self._is_start:
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(QColor("#44bb44")))
+            triangle = QPolygonF([
+                QPointF(8, _HEIGHT / 2 - 6),
+                QPointF(8, _HEIGHT / 2 + 6),
+                QPointF(18, _HEIGHT / 2),
+            ])
+            painter.drawPolygon(triangle)
+
     def port_scene_pos(self) -> QPointF:
         return self.mapToScene(QPointF(_WIDTH, _HEIGHT / 2))
 
@@ -656,6 +673,20 @@ class NodeItem(QGraphicsItem):
         scene = self.scene()
         if isinstance(scene, GraphScene):
             scene.node_item_double_clicked.emit(self)
+        event.accept()
+
+    def contextMenuEvent(self, event: Any) -> None:
+        scene = self.scene()
+        if not isinstance(scene, GraphScene):
+            return
+        menu = QMenu()
+        start_text = "Set as Start Node" if not self._is_start else "Already Start Node"
+        act = menu.addAction(start_text)
+        if self._is_start:
+            act.setEnabled(False)
+        chosen = menu.exec(event.screenPos())
+        if chosen is act and not self._is_start:
+            scene.set_start_node_requested.emit(self)
         event.accept()
 
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
@@ -685,6 +716,14 @@ class EdgeItem(QGraphicsLineItem):
     @property
     def edge(self) -> EdgeModel:
         return self._edge
+
+    def shape(self) -> QPainterPath:
+        line_path = QPainterPath()
+        line_path.moveTo(self.line().p1())
+        line_path.lineTo(self.line().p2())
+        stroker = QPainterPathStroker()
+        stroker.setWidth(12.0)
+        return stroker.createStroke(line_path)
 
     def update_position(self) -> None:
         src_pos = self._src.port_scene_pos()
@@ -726,6 +765,9 @@ class GraphScene(QGraphicsScene):
     node_item_double_clicked = Signal(object)  # emits NodeItem
     node_created = Signal(object)              # emits NodeItem
     node_deleted = Signal(str)                 # emits node_id
+    edge_creation_requested = Signal(object, object)  # emits (src NodeItem, tgt NodeItem)
+    edge_deleted = Signal(str)                 # emits edge_id
+    set_start_node_requested = Signal(object)  # emits NodeItem
 
     def __init__(self, parent: Any = None) -> None:
         super().__init__(parent)
@@ -747,6 +789,7 @@ class GraphScene(QGraphicsScene):
         self._edge_items = []
         for node in graph.nodes:
             item = NodeItem(node)
+            item.set_is_start(node.id == graph.start_node)
             self.addItem(item)
             self._node_items[node.id] = item
         for edge in graph.edges:
@@ -756,6 +799,10 @@ class GraphScene(QGraphicsScene):
                 ei = EdgeItem(edge, src, tgt)
                 self.addItem(ei)
                 self._edge_items.append(ei)
+
+    def mark_start_node(self, node_id: str | None) -> None:
+        for nid, item in self._node_items.items():
+            item.set_is_start(nid == node_id)
 
     def create_node_at(
         self,
@@ -780,6 +827,12 @@ class GraphScene(QGraphicsScene):
         self.node_created.emit(item)
         return item
 
+    def add_edge(self, src: NodeItem, tgt: NodeItem, edge: EdgeModel) -> EdgeItem:
+        ei = EdgeItem(edge, src, tgt)
+        self.addItem(ei)
+        self._edge_items.append(ei)
+        return ei
+
     def update_edges(self) -> None:
         for ei in self._edge_items:
             ei.update_position()
@@ -789,16 +842,23 @@ class GraphScene(QGraphicsScene):
             item.set_has_error(node_id in error_ids)
 
     def delete_selected(self) -> None:
-        """Remove all selected NodeItems (and their edges) from the scene."""
+        """Remove all selected NodeItems and EdgeItems from the scene."""
         for item in list(self.selectedItems()):
             if isinstance(item, NodeItem):
                 node_id = item.node.id
                 for ei in [e for e in self._edge_items if e._src is item or e._tgt is item]:
                     self.removeItem(ei)
                     self._edge_items.remove(ei)
+                    self.edge_deleted.emit(ei.edge.id)
                 self.removeItem(item)
                 self._node_items.pop(node_id, None)
                 self.node_deleted.emit(node_id)
+            elif isinstance(item, EdgeItem):
+                edge_id = item.edge.id
+                self.removeItem(item)
+                if item in self._edge_items:
+                    self._edge_items.remove(item)
+                self.edge_deleted.emit(edge_id)
 
     def delete_node_by_id(self, node_id: str) -> None:
         """Remove a specific node from the scene by its ID."""
@@ -894,6 +954,41 @@ class GraphView(QGraphicsView):
         self.setAcceptDrops(True)
         self._pan_active = False
         self._pan_start = QPointF()
+        self._edge_src: NodeItem | None = None
+        self._edge_rubber: QGraphicsLineItem | None = None
+
+    def _node_at_port(self, scene_pos: QPointF, kind: str) -> NodeItem | None:
+        """Return the NodeItem whose output (kind='output') or input port is near scene_pos.
+
+        For 'output' (start of drag): small radius, must be near the port circle.
+        For 'input' (drop target): generous radius, with fallback to anywhere on the node body.
+        """
+        scene = self.scene()
+        if not isinstance(scene, GraphScene):
+            return None
+        if kind == "output":
+            hit_r = _PORT_R * 2.5
+            for item in scene._node_items.values():
+                port = item.port_scene_pos()
+                dx = scene_pos.x() - port.x()
+                dy = scene_pos.y() - port.y()
+                if dx * dx + dy * dy <= hit_r * hit_r:
+                    return item
+        else:
+            # Near input port circle (generous radius)
+            hit_r = _PORT_R * 4.0
+            for item in scene._node_items.values():
+                port = item.input_port_scene_pos()
+                dx = scene_pos.x() - port.x()
+                dy = scene_pos.y() - port.y()
+                if dx * dx + dy * dy <= hit_r * hit_r:
+                    return item
+            # Fallback: anywhere on the node body counts as targeting the input
+            for item in scene._node_items.values():
+                local = item.mapFromScene(scene_pos)
+                if 0 <= local.y() <= _HEIGHT and -_PORT_R <= local.x() <= _WIDTH:
+                    return item
+        return None
 
     def wheelEvent(self, event: Any) -> None:
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
@@ -908,9 +1003,23 @@ class GraphView(QGraphicsView):
             self._pan_start = event.position()
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
             event.accept()
-        else:
-            super().mousePressEvent(event)
-            self.setFocus()  # ensure Delete key reaches the scene
+            return
+        if event.button() == Qt.MouseButton.LeftButton:
+            scene_pos = self.mapToScene(event.position().toPoint())
+            src = self._node_at_port(scene_pos, "output")
+            if src is not None:
+                self._edge_src = src
+                sp = src.port_scene_pos()
+                rubber = QGraphicsLineItem(sp.x(), sp.y(), scene_pos.x(), scene_pos.y())
+                rubber.setPen(QPen(QColor("#4a9eff"), 1.5, Qt.PenStyle.DashLine))
+                rubber.setZValue(-1)
+                self.scene().addItem(rubber)
+                self._edge_rubber = rubber
+                self.setCursor(Qt.CursorShape.CrossCursor)
+                event.accept()
+                return
+        super().mousePressEvent(event)
+        self.setFocus()  # ensure Delete key reaches the scene
 
     def mouseMoveEvent(self, event: Any) -> None:
         if self._pan_active:
@@ -923,6 +1032,11 @@ class GraphView(QGraphicsView):
                 int(self.verticalScrollBar().value() - delta.y())
             )
             event.accept()
+        elif self._edge_src is not None and self._edge_rubber is not None:
+            scene_pos = self.mapToScene(event.position().toPoint())
+            sp = self._edge_src.port_scene_pos()
+            self._edge_rubber.setLine(sp.x(), sp.y(), scene_pos.x(), scene_pos.y())
+            event.accept()
         else:
             super().mouseMoveEvent(event)
 
@@ -930,6 +1044,24 @@ class GraphView(QGraphicsView):
         if event.button() == Qt.MouseButton.MiddleButton:
             self._pan_active = False
             self.setCursor(Qt.CursorShape.ArrowCursor)
+            event.accept()
+        elif event.button() == Qt.MouseButton.LeftButton and self._edge_src is not None:
+            src = self._edge_src
+            self._edge_src = None
+            scene = self.scene()
+            if self._edge_rubber is not None:
+                scene.removeItem(self._edge_rubber)
+                self._edge_rubber = None
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+            # Use Qt's own spatial query — guaranteed correct under any zoom/pan/transform
+            scene_pos = self.mapToScene(event.position().toPoint())
+            tgt: NodeItem | None = None
+            for item in scene.items(scene_pos):
+                if isinstance(item, NodeItem) and item is not src:
+                    tgt = item
+                    break
+            if tgt is not None and isinstance(scene, GraphScene):
+                scene.edge_creation_requested.emit(src, tgt)
             event.accept()
         else:
             super().mouseReleaseEvent(event)
