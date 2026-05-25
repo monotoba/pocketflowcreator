@@ -141,16 +141,28 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
             display_name="Classifier Node",
             category="AI",
             base_class="Node",
+            allow_prompt_files=True,
             properties={
+                "prompt_type": {
+                    "type": "string",
+                    "default": "string",
+                    "choices": ["string", "path"],
+                    "description": "'string' = literal prompt text, 'path' = relative path to a Markdown file",
+                },
+                "prompt_file": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Classification prompt. Leave empty to auto-build from categories and input_key.",
+                },
                 "categories": {
                     "type": "string",
                     "default": "",
-                    "description": "Comma-separated categories (also the action names)",
+                    "description": "Comma-separated category labels — must match the node's Actions field",
                 },
                 "model": {
                     "type": "string",
                     "default": "",
-                    "description": "LLM model name",
+                    "description": "LLM model name (blank = project default)",
                 },
                 "input_key": {
                     "type": "string",
@@ -337,7 +349,19 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
             category="AI",
             base_class="Node",
             actions=["done", "continue"],
+            allow_prompt_files=True,
             properties={
+                "prompt_type": {
+                    "type": "string",
+                    "default": "string",
+                    "choices": ["string", "path"],
+                    "description": "'string' = literal prompt text, 'path' = relative path to a Markdown file",
+                },
+                "prompt_file": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Agent system/task prompt. Leave empty to use the value at input_key.",
+                },
                 "max_steps": {
                     "type": "integer",
                     "default": 10,
@@ -346,7 +370,7 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
                 "model": {
                     "type": "string",
                     "default": "",
-                    "description": "LLM model name",
+                    "description": "LLM model name (blank = project default)",
                 },
                 "input_key": {
                     "type": "string",
@@ -395,16 +419,28 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
             category="AI",
             base_class="Node",
             actions=["pass", "fail"],
+            allow_prompt_files=True,
             properties={
+                "prompt_type": {
+                    "type": "string",
+                    "default": "string",
+                    "choices": ["string", "path"],
+                    "description": "'string' = literal prompt text, 'path' = relative path to a Markdown file",
+                },
+                "prompt_file": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Evaluation prompt template. Leave empty to auto-build from criteria and input_key.",
+                },
                 "model": {
                     "type": "string",
                     "default": "",
-                    "description": "LLM model name",
+                    "description": "LLM model name (blank = project default)",
                 },
                 "criteria": {
                     "type": "string",
                     "default": "",
-                    "description": "Evaluation criteria description given to the LLM",
+                    "description": "Evaluation criteria used in the auto-built prompt when prompt_file is empty",
                 },
                 "threshold": {
                     "type": "number",

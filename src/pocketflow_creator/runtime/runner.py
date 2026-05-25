@@ -135,6 +135,9 @@ class FlowRunner:
             shared_before = copy.deepcopy(shared_store)
             prompt = ""
             response = ""
+            outgoing = [e for e in graph.edges if e.from_node == current_id]
+            available_actions = {e.action for e in outgoing}
+            chosen_action = outgoing[0].action if outgoing else "default"
 
             if node.type_id == "subflow_node":
                 ref = str(node.properties.get("subflow_ref", ""))
@@ -162,10 +165,57 @@ class FlowRunner:
                 response = provider.complete(prompt)
                 output_key = str(node.properties.get("output_key", f"{node.id}_response"))
                 shared_store[output_key] = response
+            elif node.type_id == "classifier_node":
+                input_key = str(node.properties.get("input_key", "input"))
+                content = str(shared_store.get(input_key, ""))
+                categories = str(node.properties.get("categories", ""))
+                prompt = self._resolve_prompt(node.properties, project_root) or (
+                    f"Classify the following text as exactly one of [{categories}].\n"
+                    f"Reply with only the category name, nothing else.\n\nText: {content}"
+                )
+                response = provider.complete(prompt)
+                label = response.strip().lower()
+                if label not in available_actions:
+                    # fuzzy match: accept if the response contains an action name
+                    label = next(
+                        (act for act in available_actions if act in label or label in act),
+                        next(iter(available_actions), "default"),
+                    )
+                chosen_action = label
+                shared_store[f"{node.id}_label"] = label
+            elif node.type_id == "judge_node":
+                input_key = str(node.properties.get("input_key", "content"))
+                content = str(shared_store.get(input_key, ""))
+                criteria = str(node.properties.get("criteria", ""))
+                prompt = self._resolve_prompt(node.properties, project_root) or (
+                    f"Evaluate the content below against the criteria.\n"
+                    f"Reply with exactly 'pass' or 'fail'.\n\n"
+                    f"Criteria: {criteria}\n\nContent: {content}"
+                )
+                response = provider.complete(prompt)
+                verdict = response.strip().lower()
+                if "pass" in verdict and "pass" in available_actions:
+                    chosen_action = "pass"
+                elif "fail" in verdict and "fail" in available_actions:
+                    chosen_action = "fail"
+                shared_store[f"{node.id}_verdict"] = verdict
+            elif node.type_id == "agent_node":
+                input_key = str(node.properties.get("input_key", "task"))
+                task = str(shared_store.get(input_key, ""))
+                prompt = self._resolve_prompt(node.properties, project_root) or (
+                    f"You are an AI agent. Complete the following task:\n\n{task}"
+                )
+                response = provider.complete(prompt)
+                output_key = str(node.properties.get("output_key", "result"))
+                shared_store[output_key] = response
+                resp_lower = response.strip().lower()
+                done_words = ("done", "complete", "finished", "answer")
+                if "done" in available_actions and any(w in resp_lower for w in done_words):
+                    chosen_action = "done"
+                elif "continue" in available_actions:
+                    chosen_action = "continue"
 
             shared_after = copy.deepcopy(shared_store)
-            outgoing = [e for e in graph.edges if e.from_node == current_id]
-            chosen_action = outgoing[0].action if outgoing else "default"
 
             yield RunStep(
                 node_id=current_id,
