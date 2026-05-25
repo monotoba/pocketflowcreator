@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 import threading
 from collections.abc import Generator
 from dataclasses import dataclass, field
@@ -104,6 +105,33 @@ class FlowRunner:
                 return f"(error reading {raw}: {exc})"
         return raw  # prompt_type == "string"
 
+    @staticmethod
+    def _interpolate(text: str, shared_store: dict[str, object]) -> str:
+        """Replace shared store references in a prompt string.
+
+        Supports two syntaxes:
+          {key}            — replaced with str(shared_store[key])
+          shared['key']    — replaced with str(shared_store[key])
+          shared["key"]    — replaced with str(shared_store[key])
+
+        Unknown keys are left as-is so the LLM sees the original placeholder.
+        """
+        # shared['key'] and shared["key"]
+        def _replace_shared(m: re.Match) -> str:
+            key = m.group(1)
+            return str(shared_store[key]) if key in shared_store else m.group(0)
+
+        text = re.sub(r"""shared\[['"]([^'"]+)['"]\]""", _replace_shared, text)
+
+        # {key} — only replace when the key exists in the store to avoid
+        # accidentally clobbering unrelated curly-brace content
+        def _replace_brace(m: re.Match) -> str:
+            key = m.group(1)
+            return str(shared_store[key]) if key in shared_store else m.group(0)
+
+        text = re.sub(r"\{([^}]+)\}", _replace_brace, text)
+        return text
+
     def steps(
         self,
         graph: GraphModel,
@@ -159,8 +187,11 @@ class FlowRunner:
                     # Passthrough: subgraph not available; record ref and continue.
                     shared_store[f"{node.id}_subflow_ref"] = ref
             elif "llm" in node.type_id.lower():
-                prompt = self._resolve_prompt(node.properties, project_root) or (
-                    f"[{node.title}] {node.type_id}"
+                prompt = self._interpolate(
+                    self._resolve_prompt(node.properties, project_root) or (
+                        f"[{node.title}] {node.type_id}"
+                    ),
+                    shared_store,
                 )
                 response = provider.complete(prompt)
                 output_key = str(node.properties.get("output_key", f"{node.id}_response"))
@@ -169,9 +200,13 @@ class FlowRunner:
                 input_key = str(node.properties.get("input_key", "input"))
                 content = str(shared_store.get(input_key, ""))
                 categories = str(node.properties.get("categories", ""))
-                prompt = self._resolve_prompt(node.properties, project_root) or (
-                    f"Classify the following text as exactly one of [{categories}].\n"
-                    f"Reply with only the category name, nothing else.\n\nText: {content}"
+                resolved = self._resolve_prompt(node.properties, project_root)
+                prompt = self._interpolate(
+                    resolved or (
+                        f"Classify the following text as exactly one of [{categories}].\n"
+                        f"Reply with only the category name, nothing else.\n\nText: {content}"
+                    ),
+                    shared_store,
                 )
                 response = provider.complete(prompt)
                 label = response.strip().lower()
@@ -187,10 +222,13 @@ class FlowRunner:
                 input_key = str(node.properties.get("input_key", "content"))
                 content = str(shared_store.get(input_key, ""))
                 criteria = str(node.properties.get("criteria", ""))
-                prompt = self._resolve_prompt(node.properties, project_root) or (
-                    f"Evaluate the content below against the criteria.\n"
-                    f"Reply with exactly 'pass' or 'fail'.\n\n"
-                    f"Criteria: {criteria}\n\nContent: {content}"
+                prompt = self._interpolate(
+                    self._resolve_prompt(node.properties, project_root) or (
+                        f"Evaluate the content below against the criteria.\n"
+                        f"Reply with exactly 'pass' or 'fail'.\n\n"
+                        f"Criteria: {criteria}\n\nContent: {content}"
+                    ),
+                    shared_store,
                 )
                 response = provider.complete(prompt)
                 verdict = response.strip().lower()
@@ -202,8 +240,11 @@ class FlowRunner:
             elif node.type_id == "agent_node":
                 input_key = str(node.properties.get("input_key", "task"))
                 task = str(shared_store.get(input_key, ""))
-                prompt = self._resolve_prompt(node.properties, project_root) or (
-                    f"You are an AI agent. Complete the following task:\n\n{task}"
+                prompt = self._interpolate(
+                    self._resolve_prompt(node.properties, project_root) or (
+                        f"You are an AI agent. Complete the following task:\n\n{task}"
+                    ),
+                    shared_store,
                 )
                 response = provider.complete(prompt)
                 output_key = str(node.properties.get("output_key", "result"))
