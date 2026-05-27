@@ -121,7 +121,7 @@ class GraphValidator:
                 issues.append(
                     ValidationIssue(
                         "error",
-                        "PFCE2102",
+                        "PFCE2103",
                         node.id,
                         f"Subflow node '{node.id}' references missing graph '{ref}'.",
                     )
