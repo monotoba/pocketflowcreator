@@ -379,6 +379,7 @@ class MainWindow(QMainWindow):
 
     def _build_project_explorer(self) -> QDockWidget:
         dock = QDockWidget(self.tr("Project Explorer"), self)
+        dock.setObjectName("projectExplorerDock")
         self._explorer_tree = QTreeWidget()
         self._explorer_tree.setHeaderHidden(True)
         dock.setWidget(self._explorer_tree)
@@ -386,11 +387,13 @@ class MainWindow(QMainWindow):
 
     def _build_component_palette(self) -> QDockWidget:
         dock = QDockWidget(self.tr("Component Palette"), self)
+        dock.setObjectName("componentPaletteDock")
         dock.setWidget(PaletteWidget())
         return dock
 
     def _build_object_inspector(self) -> QDockWidget:
         dock = QDockWidget(self.tr("Object Inspector"), self)
+        dock.setObjectName("objectInspectorDock")
         self._inspector = QTreeWidget()
         self._inspector.setHeaderLabels([self.tr("Property"), self.tr("Value")])
         self._inspector.setAlternatingRowColors(True)
@@ -400,6 +403,7 @@ class MainWindow(QMainWindow):
 
     def _build_bottom_dock(self) -> QDockWidget:
         dock = QDockWidget(self.tr("Output"), self)
+        dock.setObjectName("outputDock")
         self._bottom_dock = dock
         self._bottom_tab_widget = QTabWidget()
         plain_tabs = [
