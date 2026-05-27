@@ -143,6 +143,9 @@ class MainWindow(QMainWindow):
         # Assigned by their respective _build_* methods:
         self._explorer_tree: QTreeWidget
         self._bottom_tab_widget: QTabWidget
+        self._explorer_dock: QDockWidget
+        self._palette_dock: QDockWidget
+        self._inspector_dock: QDockWidget
         self._bottom_dock: QDockWidget
         self._markdown_preview: QTextBrowser
         self._md_splitter: QSplitter
@@ -302,6 +305,7 @@ class MainWindow(QMainWindow):
         window_menu = self.menuBar().addMenu(self.tr("Window"))
         window_menu.addAction(self.tr("Save Layout"), self._on_save_layout)
         window_menu.addAction(self.tr("Reset Layout"), self._on_reset_layout)
+        window_menu.addAction(self.tr("Default Layout"), self._on_default_layout)
         window_menu.addSeparator()
         _next = window_menu.addAction(self.tr("Next Tab"), self._on_next_tab)
         _next.setShortcut(QKeySequence("Ctrl+Tab"))
@@ -380,6 +384,7 @@ class MainWindow(QMainWindow):
     def _build_project_explorer(self) -> QDockWidget:
         dock = QDockWidget(self.tr("Project Explorer"), self)
         dock.setObjectName("projectExplorerDock")
+        self._explorer_dock = dock
         self._explorer_tree = QTreeWidget()
         self._explorer_tree.setHeaderHidden(True)
         dock.setWidget(self._explorer_tree)
@@ -388,12 +393,14 @@ class MainWindow(QMainWindow):
     def _build_component_palette(self) -> QDockWidget:
         dock = QDockWidget(self.tr("Component Palette"), self)
         dock.setObjectName("componentPaletteDock")
+        self._palette_dock = dock
         dock.setWidget(PaletteWidget())
         return dock
 
     def _build_object_inspector(self) -> QDockWidget:
         dock = QDockWidget(self.tr("Object Inspector"), self)
         dock.setObjectName("objectInspectorDock")
+        self._inspector_dock = dock
         self._inspector = QTreeWidget()
         self._inspector.setHeaderLabels([self.tr("Property"), self.tr("Value")])
         self._inspector.setAlternatingRowColors(True)
@@ -473,14 +480,35 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(self.tr("Layout saved."))
 
     def _on_reset_layout(self) -> None:
-        """Remove saved layout from QSettings and restore default window size."""
+        """Remove saved layout from QSettings; next launch will use factory defaults."""
         settings = QSettings("Monotoba", "PocketFlowCreator")
         settings.remove(self._LAYOUT_GEOMETRY_KEY)
         settings.remove(self._LAYOUT_STATE_KEY)
         settings.remove(self._LAYOUT_SPLITTER_KEY)
+        self.statusBar().showMessage(self.tr("Saved layout cleared — restart to apply defaults."))
+
+    def _apply_default_layout(self) -> None:
+        """Physically move all docks back to their factory positions right now."""
+        # Re-dock every widget to its original area (also un-floats any floating docks)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._explorer_dock)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._palette_dock)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._inspector_dock)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._bottom_dock)
+        # Make sure all docks are visible
+        for dock in (self._explorer_dock, self._palette_dock,
+                     self._inspector_dock, self._bottom_dock):
+            dock.setVisible(True)
         self.resize(1400, 900)
         self._md_splitter.setSizes([1, 1])
-        self.statusBar().showMessage(self.tr("Layout reset to defaults."))
+
+    def _on_default_layout(self) -> None:
+        """Apply factory layout immediately and clear any saved layout."""
+        settings = QSettings("Monotoba", "PocketFlowCreator")
+        settings.remove(self._LAYOUT_GEOMETRY_KEY)
+        settings.remove(self._LAYOUT_STATE_KEY)
+        settings.remove(self._LAYOUT_SPLITTER_KEY)
+        self._apply_default_layout()
+        self.statusBar().showMessage(self.tr("Layout restored to factory defaults."))
 
     def closeEvent(self, event: Any) -> None:  # type: ignore[override]
         """Auto-save layout on close so the next session opens with the same arrangement."""
