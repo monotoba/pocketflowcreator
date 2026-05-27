@@ -1,13 +1,41 @@
 # PocketFlow Creator
 
+> **⚠️ Status: Temporarily paused pending upstream license clarification**
+
+---
+
+## Notice — Project Temporarily Paused
+
+This project is temporarily paused while I clarify licensing terms with the
+creator of PocketFlow.
+
+PocketFlow Creator was published as an early related project intended to provide
+a visual workflow-design GUI for PocketFlow-style workflows. After publishing, I
+realized that the upstream PocketFlow repository does not appear to include an
+explicit license file.
+
+Until the licensing situation is clarified, I am not making further development
+claims about this project. I am also prepared to revise the project, change its
+license, remove PocketFlow-related code or references, or take the project down
+if requested by the PocketFlow maintainer.
+
+**PocketFlow Creator is not an official PocketFlow project and is not affiliated
+with, endorsed by, or maintained by the PocketFlow project unless such permission
+or relationship is granted later.**
+
+Thank you for your understanding.
+
+---
+
 A RAD-style visual designer for building [PocketFlow](https://github.com/The-Pocket/PocketFlow)
 LLM workflows and agentic applications. Design flows on a live canvas, run them against Ollama or
 a mock provider, inspect shared-store state step-by-step, and export a runnable Python package —
 all from one IDE-like GUI built on PySide6.
 
-## Status — v0.1.0 (fully functional)
+## Status — v0.1.0 (early / experimental — see notice above)
 
-All 14 milestones (M0–M14) are complete. 106 tests, all passing.
+All 14 planned milestones (M0–M14) were implemented before the project was paused.
+106 tests, all passing at time of pause.
 
 ---
 
