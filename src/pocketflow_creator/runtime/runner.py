@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from pocketflow_creator.model.graph_model import GraphModel
+from pocketflow_creator.model.graph_model import GraphModel, NodeModel
 from pocketflow_creator.runtime.providers import LLMProvider
 
 
@@ -87,6 +87,8 @@ class FlowRunner:
 
     MAX_STEPS = 200  # guard against cycles
 
+    # ------------------------------------------------------------------ helpers
+
     @staticmethod
     def _resolve_prompt(node_props: dict[str, object], project_root: Path | None) -> str:
         """Return the prompt string for an LLM node, handling both string and path types."""
@@ -132,6 +134,178 @@ class FlowRunner:
         text = re.sub(r"\{([^}]+)\}", _replace_brace, text)
         return text
 
+    # --------------------------------------------------- per-node-type handlers
+
+    def _handle_subflow_node(
+        self,
+        node: NodeModel,
+        shared_store: dict[str, object],
+        provider: LLMProvider,
+        known_graphs: dict[str, GraphModel] | None,
+        project_root: Path | None,
+        input_callback: object,
+        chosen_action: str,
+    ) -> tuple[list[RunStep], str, str, str]:
+        """Execute a subflow inline; return (inner_steps, prompt, response, chosen_action).
+
+        The caller must ``yield from inner_steps`` before yielding the outer RunStep.
+        """
+        ref = str(node.properties.get("subflow_ref", ""))
+        subgraph = (known_graphs or {}).get(ref)
+        inner_steps: list[RunStep] = []
+        if subgraph is not None:
+            # Execute the subgraph inline; collect into a list so we can read the
+            # final shared_after for state merge before continuing in the parent.
+            inner_steps = list(  # noqa: UP028
+                self.steps(
+                    subgraph, provider, shared=shared_store,
+                    known_graphs=known_graphs, project_root=project_root,
+                    input_callback=input_callback,
+                )
+            )
+            if inner_steps:
+                shared_store.update(inner_steps[-1].shared_after)
+        shared_store[f"{node.id}_subflow_ref"] = ref
+        return inner_steps, "", "", chosen_action
+
+    def _handle_llm_node(
+        self,
+        node: NodeModel,
+        shared_store: dict[str, object],
+        provider: LLMProvider,
+        project_root: Path | None,
+        chosen_action: str,
+    ) -> tuple[str, str, str]:
+        """Run an LLM node; return (prompt, response, chosen_action)."""
+        prompt = self._interpolate(
+            self._resolve_prompt(node.properties, project_root) or (
+                f"[{node.title}] {node.type_id}"
+            ),
+            shared_store,
+        )
+        response = provider.complete(prompt)
+        output_key = str(node.properties.get("output_key", f"{node.id}_response"))
+        shared_store[output_key] = response
+        return prompt, response, chosen_action
+
+    def _handle_classifier_node(
+        self,
+        node: NodeModel,
+        shared_store: dict[str, object],
+        available_actions: set[str],
+        provider: LLMProvider,
+        project_root: Path | None,
+    ) -> tuple[str, str, str]:
+        """Run a classifier node; return (prompt, response, chosen_action)."""
+        input_key = str(node.properties.get("input_key", "input"))
+        content = str(shared_store.get(input_key, ""))
+        categories = str(node.properties.get("categories", ""))
+        resolved = self._resolve_prompt(node.properties, project_root)
+        prompt = self._interpolate(
+            resolved or (
+                f"Classify the following text as exactly one of [{categories}].\n"
+                f"Reply with only the category name, nothing else.\n\nText: {content}"
+            ),
+            shared_store,
+        )
+        response = provider.complete(prompt)
+        label = response.strip().lower()
+        if label not in available_actions:
+            # fuzzy match: accept if the response contains an action name
+            label = next(
+                (act for act in available_actions if act in label or label in act),
+                next(iter(available_actions), "default"),
+            )
+        shared_store[f"{node.id}_label"] = label
+        return prompt, response, label
+
+    def _handle_judge_node(
+        self,
+        node: NodeModel,
+        shared_store: dict[str, object],
+        available_actions: set[str],
+        provider: LLMProvider,
+        project_root: Path | None,
+        chosen_action: str,
+    ) -> tuple[str, str, str]:
+        """Run a judge node; return (prompt, response, chosen_action)."""
+        input_key = str(node.properties.get("input_key", "content"))
+        content = str(shared_store.get(input_key, ""))
+        criteria = str(node.properties.get("criteria", ""))
+        prompt = self._interpolate(
+            self._resolve_prompt(node.properties, project_root) or (
+                f"Evaluate the content below against the criteria.\n"
+                f"Reply with exactly 'pass' or 'fail'.\n\n"
+                f"Criteria: {criteria}\n\nContent: {content}"
+            ),
+            shared_store,
+        )
+        response = provider.complete(prompt)
+        verdict = response.strip().lower()
+        if "pass" in verdict and "pass" in available_actions:
+            chosen_action = "pass"
+        elif "fail" in verdict and "fail" in available_actions:
+            chosen_action = "fail"
+        shared_store[f"{node.id}_verdict"] = verdict
+        return prompt, response, chosen_action
+
+    def _handle_agent_node(
+        self,
+        node: NodeModel,
+        shared_store: dict[str, object],
+        available_actions: set[str],
+        provider: LLMProvider,
+        project_root: Path | None,
+        chosen_action: str,
+    ) -> tuple[str, str, str]:
+        """Run an agent node; return (prompt, response, chosen_action)."""
+        input_key = str(node.properties.get("input_key", "task"))
+        task = str(shared_store.get(input_key, ""))
+        prompt = self._interpolate(
+            self._resolve_prompt(node.properties, project_root) or (
+                f"You are an AI agent. Complete the following task:\n\n{task}"
+            ),
+            shared_store,
+        )
+        response = provider.complete(prompt)
+        output_key = str(node.properties.get("output_key", "result"))
+        shared_store[output_key] = response
+        resp_lower = response.strip().lower()
+        done_words = ("done", "complete", "finished", "answer")
+        if "done" in available_actions and any(w in resp_lower for w in done_words):
+            chosen_action = "done"
+        elif "continue" in available_actions:
+            chosen_action = "continue"
+        return prompt, response, chosen_action
+
+    def _handle_human_input_node(
+        self,
+        node: NodeModel,
+        shared_store: dict[str, object],
+        available_actions: set[str],
+        input_callback: object,
+        chosen_action: str,
+    ) -> tuple[str, str, str]:
+        """Handle a human-input node; return (prompt, response, chosen_action)."""
+        output_key = str(node.properties.get("output_key", "input"))
+        if callable(input_callback):
+            data = input_callback(dict(node.properties), dict(shared_store))  # type: ignore[operator]
+            if isinstance(data, dict):
+                shared_store.update(data)
+                chosen_action = "saved"
+            elif isinstance(data, list):
+                shared_store[output_key] = data
+                chosen_action = "saved"
+            else:
+                # None → user cancelled
+                chosen_action = "cancelled"
+        else:
+            # No callback wired (e.g. non-GUI run); skip and continue.
+            chosen_action = next(iter(available_actions), "default")
+        return "", "", chosen_action
+
+    # ------------------------------------------------------------------ runner
+
     def steps(
         self,
         graph: GraphModel,
@@ -162,119 +336,39 @@ class FlowRunner:
             visited += 1
 
             shared_before = copy.deepcopy(shared_store)
-            prompt = ""
-            response = ""
             outgoing = [e for e in graph.edges if e.from_node == current_id]
             available_actions = {e.action for e in outgoing}
             chosen_action = outgoing[0].action if outgoing else "default"
+            inner_steps: list[RunStep] = []
 
             if node.type_id == "subflow_node":
-                ref = str(node.properties.get("subflow_ref", ""))
-                subgraph = (known_graphs or {}).get(ref)
-                if subgraph is not None:
-                    # Execute the subgraph inline; collect into a list so we can read the
-                    # final shared_after for state merge before continuing in the parent.
-                    inner_steps = list(  # noqa: UP028
-                        self.steps(
-                            subgraph, provider, shared=shared_store,
-                            known_graphs=known_graphs, project_root=project_root,
-                            input_callback=input_callback,
-                        )
-                    )
-                    for inner_step in inner_steps:  # noqa: UP028
-                        yield inner_step
-                    if inner_steps:
-                        shared_store.update(inner_steps[-1].shared_after)
-                    shared_store[f"{node.id}_subflow_ref"] = ref
-                else:
-                    # Passthrough: subgraph not available; record ref and continue.
-                    shared_store[f"{node.id}_subflow_ref"] = ref
+                inner_steps, prompt, response, chosen_action = self._handle_subflow_node(
+                    node, shared_store, provider, known_graphs, project_root,
+                    input_callback, chosen_action,
+                )
+                yield from inner_steps
             elif "llm" in node.type_id.lower():
-                prompt = self._interpolate(
-                    self._resolve_prompt(node.properties, project_root) or (
-                        f"[{node.title}] {node.type_id}"
-                    ),
-                    shared_store,
+                prompt, response, chosen_action = self._handle_llm_node(
+                    node, shared_store, provider, project_root, chosen_action,
                 )
-                response = provider.complete(prompt)
-                output_key = str(node.properties.get("output_key", f"{node.id}_response"))
-                shared_store[output_key] = response
             elif node.type_id == "classifier_node":
-                input_key = str(node.properties.get("input_key", "input"))
-                content = str(shared_store.get(input_key, ""))
-                categories = str(node.properties.get("categories", ""))
-                resolved = self._resolve_prompt(node.properties, project_root)
-                prompt = self._interpolate(
-                    resolved or (
-                        f"Classify the following text as exactly one of [{categories}].\n"
-                        f"Reply with only the category name, nothing else.\n\nText: {content}"
-                    ),
-                    shared_store,
+                prompt, response, chosen_action = self._handle_classifier_node(
+                    node, shared_store, available_actions, provider, project_root,
                 )
-                response = provider.complete(prompt)
-                label = response.strip().lower()
-                if label not in available_actions:
-                    # fuzzy match: accept if the response contains an action name
-                    label = next(
-                        (act for act in available_actions if act in label or label in act),
-                        next(iter(available_actions), "default"),
-                    )
-                chosen_action = label
-                shared_store[f"{node.id}_label"] = label
             elif node.type_id == "judge_node":
-                input_key = str(node.properties.get("input_key", "content"))
-                content = str(shared_store.get(input_key, ""))
-                criteria = str(node.properties.get("criteria", ""))
-                prompt = self._interpolate(
-                    self._resolve_prompt(node.properties, project_root) or (
-                        f"Evaluate the content below against the criteria.\n"
-                        f"Reply with exactly 'pass' or 'fail'.\n\n"
-                        f"Criteria: {criteria}\n\nContent: {content}"
-                    ),
-                    shared_store,
+                prompt, response, chosen_action = self._handle_judge_node(
+                    node, shared_store, available_actions, provider, project_root, chosen_action,
                 )
-                response = provider.complete(prompt)
-                verdict = response.strip().lower()
-                if "pass" in verdict and "pass" in available_actions:
-                    chosen_action = "pass"
-                elif "fail" in verdict and "fail" in available_actions:
-                    chosen_action = "fail"
-                shared_store[f"{node.id}_verdict"] = verdict
             elif node.type_id == "agent_node":
-                input_key = str(node.properties.get("input_key", "task"))
-                task = str(shared_store.get(input_key, ""))
-                prompt = self._interpolate(
-                    self._resolve_prompt(node.properties, project_root) or (
-                        f"You are an AI agent. Complete the following task:\n\n{task}"
-                    ),
-                    shared_store,
+                prompt, response, chosen_action = self._handle_agent_node(
+                    node, shared_store, available_actions, provider, project_root, chosen_action,
                 )
-                response = provider.complete(prompt)
-                output_key = str(node.properties.get("output_key", "result"))
-                shared_store[output_key] = response
-                resp_lower = response.strip().lower()
-                done_words = ("done", "complete", "finished", "answer")
-                if "done" in available_actions and any(w in resp_lower for w in done_words):
-                    chosen_action = "done"
-                elif "continue" in available_actions:
-                    chosen_action = "continue"
-
             elif node.type_id == "human_input_node":
-                output_key = str(node.properties.get("output_key", "input"))
-                if callable(input_callback):
-                    data = input_callback(dict(node.properties), dict(shared_store))
-                    if isinstance(data, dict):
-                        shared_store.update(data)
-                        chosen_action = "saved"
-                    elif isinstance(data, list):
-                        shared_store[output_key] = data
-                        chosen_action = "saved"
-                    else:
-                        # None → user cancelled
-                        chosen_action = "cancelled"
-                else:
-                    # No callback wired (e.g. non-GUI run); skip and continue.
-                    chosen_action = next(iter(available_actions), "default")
+                prompt, response, chosen_action = self._handle_human_input_node(
+                    node, shared_store, available_actions, input_callback, chosen_action,
+                )
+            else:
+                prompt, response = "", ""
 
             shared_after = copy.deepcopy(shared_store)
 
@@ -341,7 +435,7 @@ class FlowRunner:
         Intended to run in a background thread. on_step is called with each
         RunStep if provided (use a thread-safe callback or Qt signal wrapper).
         """
-        bp = breakpoints or set()
+        bp = breakpoints if breakpoints is not None else set()
         started_at = datetime.now(tz=timezone.utc).isoformat()
         collected: list[RunStep] = []
 
