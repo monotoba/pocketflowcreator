@@ -6,6 +6,16 @@ import urllib.request
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from pocketflow_creator.app.settings_keys import (
+    _APP,
+    _ORG,
+    _SKEY_MOCK_RESPONSE,
+    _SKEY_OLLAMA_MODEL,
+    _SKEY_OLLAMA_TIMEOUT,
+    _SKEY_OLLAMA_URL,
+    _SKEY_PROVIDER,
+)
+
 if TYPE_CHECKING:
     from PySide6.QtCore import QSettings
     from PySide6.QtWidgets import (
@@ -63,7 +73,7 @@ def exec_provider_manager(
     Reads and writes QSettings directly.  Returns True if the user accepted
     (settings were saved), False if cancelled.
     """
-    settings = QSettings("Monotoba", "PocketFlowCreator")
+    settings = QSettings(_ORG, _APP)
     dlg = QDialog(parent)
     dlg.setWindowTitle("Provider Manager")
     dlg.resize(440, 0)
@@ -75,7 +85,7 @@ def exec_provider_manager(
     rb_mock = QRadioButton("Mock (for testing)")
     active_layout.addWidget(rb_ollama)
     active_layout.addWidget(rb_mock)
-    current_prov = str(settings.value("run/provider", "mock"))
+    current_prov = str(settings.value(_SKEY_PROVIDER, "mock"))
     if current_prov == "ollama":
         rb_ollama.setChecked(True)
     else:
@@ -84,9 +94,9 @@ def exec_provider_manager(
 
     ollama_group = QGroupBox("Ollama Provider Settings")
     ollama_form = QFormLayout(ollama_group)
-    saved_url = str(settings.value("ollama/base_url", "http://localhost:11434"))
-    saved_model = str(settings.value("ollama/default_model", "qwen2.5-coder:14b"))
-    saved_timeout = int(settings.value("ollama/timeout", 120))  # type: ignore[arg-type]
+    saved_url = str(settings.value(_SKEY_OLLAMA_URL, "http://localhost:11434"))
+    saved_model = str(settings.value(_SKEY_OLLAMA_MODEL, "qwen2.5-coder:14b"))
+    saved_timeout = int(settings.value(_SKEY_OLLAMA_TIMEOUT, 120))  # type: ignore[arg-type]
     ollama_url = QLineEdit(saved_url)
     ollama_form.addRow("Base URL:", ollama_url)
 
@@ -127,7 +137,7 @@ def exec_provider_manager(
 
     mock_group = QGroupBox("Mock Provider Settings")
     mock_form = QFormLayout(mock_group)
-    mock_response = QLineEdit(str(settings.value("mock/response", "mock response")))
+    mock_response = QLineEdit(str(settings.value(_SKEY_MOCK_RESPONSE, "mock response")))
     mock_form.addRow("Fixed response:", mock_response)
     layout.addWidget(mock_group)
 
@@ -143,9 +153,9 @@ def exec_provider_manager(
     if dlg.exec() != QDialog.DialogCode.Accepted:
         return False
 
-    settings.setValue("run/provider", "ollama" if rb_ollama.isChecked() else "mock")
-    settings.setValue("ollama/base_url", ollama_url.text().strip())
-    settings.setValue("ollama/default_model", ollama_model_combo.currentText().strip())
-    settings.setValue("ollama/timeout", timeout_spin.value())
-    settings.setValue("mock/response", mock_response.text())
+    settings.setValue(_SKEY_PROVIDER, "ollama" if rb_ollama.isChecked() else "mock")
+    settings.setValue(_SKEY_OLLAMA_URL, ollama_url.text().strip())
+    settings.setValue(_SKEY_OLLAMA_MODEL, ollama_model_combo.currentText().strip())
+    settings.setValue(_SKEY_OLLAMA_TIMEOUT, timeout_spin.value())
+    settings.setValue(_SKEY_MOCK_RESPONSE, mock_response.text())
     return True

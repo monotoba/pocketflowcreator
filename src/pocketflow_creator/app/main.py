@@ -88,6 +88,17 @@ from pocketflow_creator.app import code_manager, run_controller
 from pocketflow_creator.app.dialogs.auto_arrange_dialog import AutoArrangeDialog
 from pocketflow_creator.app.dialogs.provider_manager_dialog import exec_provider_manager
 from pocketflow_creator.app.dialogs.shared_store_designer_dialog import open_shared_store_designer
+from pocketflow_creator.app.settings_keys import (
+    _APP,
+    _ORG,
+    _SKEY_DARK_MODE,
+    _SKEY_LAYOUT_GEOMETRY,
+    _SKEY_LAYOUT_SPLITTER,
+    _SKEY_LAYOUT_STATE,
+    _SKEY_LOCALE,
+    _SKEY_RECENT,
+    _SKEY_THEME,
+)
 from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES
 from pocketflow_creator.runtime.runner import FlowRunner, RunStep, RunTrace, StepController
 from pocketflow_creator.validation.graph_validator import GraphValidator
@@ -138,11 +149,11 @@ class MainWindow(QMainWindow):
         self._debug_controller: StepController | None = None
         self._debug_thread: object = None  # QThread when active
         self._breakpoints: set[str] = set()
-        _settings = QSettings("Monotoba", "PocketFlowCreator")
+        _settings = QSettings(_ORG, _APP)
         # Migrate old bool setting → string if needed
-        _stored = _settings.value("ui/theme", None)
+        _stored = _settings.value(_SKEY_THEME, None)
         if _stored is None:
-            _old = _settings.value("ui/dark_mode", None)
+            _old = _settings.value(_SKEY_DARK_MODE, None)
             _stored = "dark" if _old is True or _old == "true" else (
                 "light" if _old is False or _old == "false" else "system"
             )
@@ -461,23 +472,19 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------- layout persistence
 
-    _LAYOUT_GEOMETRY_KEY = "ui/layout/geometry"
-    _LAYOUT_STATE_KEY    = "ui/layout/window_state"
-    _LAYOUT_SPLITTER_KEY = "ui/layout/md_splitter"
-
     def _save_layout(self) -> None:
         """Persist window geometry, dock arrangement, and splitter sizes to QSettings."""
-        settings = QSettings("Monotoba", "PocketFlowCreator")
-        settings.setValue(self._LAYOUT_GEOMETRY_KEY, self.saveGeometry())
-        settings.setValue(self._LAYOUT_STATE_KEY, self.saveState())
-        settings.setValue(self._LAYOUT_SPLITTER_KEY, self._md_splitter.saveState())
+        settings = QSettings(_ORG, _APP)
+        settings.setValue(_SKEY_LAYOUT_GEOMETRY, self.saveGeometry())
+        settings.setValue(_SKEY_LAYOUT_STATE, self.saveState())
+        settings.setValue(_SKEY_LAYOUT_SPLITTER, self._md_splitter.saveState())
 
     def _restore_layout(self) -> None:
         """Restore window geometry, dock arrangement, and splitter sizes from QSettings."""
-        settings = QSettings("Monotoba", "PocketFlowCreator")
-        geometry = settings.value(self._LAYOUT_GEOMETRY_KEY)
-        state = settings.value(self._LAYOUT_STATE_KEY)
-        splitter = settings.value(self._LAYOUT_SPLITTER_KEY)
+        settings = QSettings(_ORG, _APP)
+        geometry = settings.value(_SKEY_LAYOUT_GEOMETRY)
+        state = settings.value(_SKEY_LAYOUT_STATE)
+        splitter = settings.value(_SKEY_LAYOUT_SPLITTER)
         if geometry:
             self.restoreGeometry(geometry)
         if state:
@@ -491,10 +498,10 @@ class MainWindow(QMainWindow):
 
     def _on_reset_layout(self) -> None:
         """Remove saved layout from QSettings; next launch will use factory defaults."""
-        settings = QSettings("Monotoba", "PocketFlowCreator")
-        settings.remove(self._LAYOUT_GEOMETRY_KEY)
-        settings.remove(self._LAYOUT_STATE_KEY)
-        settings.remove(self._LAYOUT_SPLITTER_KEY)
+        settings = QSettings(_ORG, _APP)
+        settings.remove(_SKEY_LAYOUT_GEOMETRY)
+        settings.remove(_SKEY_LAYOUT_STATE)
+        settings.remove(_SKEY_LAYOUT_SPLITTER)
         self.statusBar().showMessage(self.tr("Saved layout cleared — restart to apply defaults."))
 
     def _apply_default_layout(self) -> None:
@@ -513,10 +520,10 @@ class MainWindow(QMainWindow):
 
     def _on_default_layout(self) -> None:
         """Apply factory layout immediately and clear any saved layout."""
-        settings = QSettings("Monotoba", "PocketFlowCreator")
-        settings.remove(self._LAYOUT_GEOMETRY_KEY)
-        settings.remove(self._LAYOUT_STATE_KEY)
-        settings.remove(self._LAYOUT_SPLITTER_KEY)
+        settings = QSettings(_ORG, _APP)
+        settings.remove(_SKEY_LAYOUT_GEOMETRY)
+        settings.remove(_SKEY_LAYOUT_STATE)
+        settings.remove(_SKEY_LAYOUT_SPLITTER)
         self._apply_default_layout()
         self.statusBar().showMessage(self.tr("Layout restored to factory defaults."))
 
@@ -579,8 +586,8 @@ class MainWindow(QMainWindow):
     # -------------------------------------------------------- recent projects
 
     def _load_recent(self) -> list[Path]:
-        settings = QSettings("Monotoba", "PocketFlowCreator")
-        raw = settings.value("recent_projects", [])
+        settings = QSettings(_ORG, _APP)
+        raw = settings.value(_SKEY_RECENT, [])
         if isinstance(raw, str):
             items: list[str] = [raw]
         elif isinstance(raw, list):
@@ -593,8 +600,8 @@ class MainWindow(QMainWindow):
         recent = [p for p in self._recent if p != path]
         recent.insert(0, path)
         self._recent = recent[:_MAX_RECENT]
-        settings = QSettings("Monotoba", "PocketFlowCreator")
-        settings.setValue("recent_projects", [str(p) for p in self._recent])
+        settings = QSettings(_ORG, _APP)
+        settings.setValue(_SKEY_RECENT, [str(p) for p in self._recent])
         self._update_recent_menu()
 
     def _update_recent_menu(self) -> None:
@@ -1847,7 +1854,7 @@ class MainWindow(QMainWindow):
     ]
 
     def _on_options(self) -> None:
-        settings = QSettings("Monotoba", "PocketFlowCreator")
+        settings = QSettings(_ORG, _APP)
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Options"))
         layout = QVBoxLayout(dlg)
@@ -1879,7 +1886,7 @@ class MainWindow(QMainWindow):
         lang_label = QLabel(self.tr("Restart the application to apply a language change."))
         lang_label.setWordWrap(True)
         lang_combo = QComboBox()
-        current_locale = str(settings.value("ui/locale", "system"))
+        current_locale = str(settings.value(_SKEY_LOCALE, "system"))
         current_index = 0
         for i, (code, display) in enumerate(self._LANGUAGES):
             lang_combo.addItem(display, code)
@@ -1908,8 +1915,8 @@ class MainWindow(QMainWindow):
         else:
             self._theme_mode = "system"
 
-        settings.setValue("ui/theme", self._theme_mode)
-        settings.setValue("ui/locale", lang_combo.currentData())
+        settings.setValue(_SKEY_THEME, self._theme_mode)
+        settings.setValue(_SKEY_LOCALE, lang_combo.currentData())
         self._apply_theme()
         self.statusBar().showMessage(self.tr("Options saved."))
 
@@ -2192,11 +2199,11 @@ def run(argv: Sequence[str] | None = None) -> int:
         raise RuntimeError("PySide6 is not available. Install project dependencies first.")
     app = QApplication(list(argv or []))
     app.setApplicationName("PocketFlow Creator")
-    app.setOrganizationName("Monotoba")
+    app.setOrganizationName(_ORG)
 
     # Install locale-specific translator before building the main window
-    _settings = QSettings("Monotoba", "PocketFlowCreator")
-    locale_code = str(_settings.value("ui/locale", "system"))
+    _settings = QSettings(_ORG, _APP)
+    locale_code = str(_settings.value(_SKEY_LOCALE, "system"))
     _trans_dir = str(Path(__file__).parent.parent / "translations")
     _locale = QLocale.system() if locale_code == "system" else QLocale(locale_code)
     _translator = QTranslator(app)

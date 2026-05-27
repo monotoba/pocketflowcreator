@@ -17,6 +17,15 @@ if TYPE_CHECKING:
     from PySide6.QtCore import QSettings
     from PySide6.QtWidgets import QDialog, QMainWindow
 
+from pocketflow_creator.app.settings_keys import (
+    _APP,
+    _ORG,
+    _SKEY_MOCK_RESPONSE,
+    _SKEY_OLLAMA_MODEL,
+    _SKEY_OLLAMA_TIMEOUT,
+    _SKEY_OLLAMA_URL,
+    _SKEY_PROVIDER,
+)
 from pocketflow_creator.model.graph_model import GraphModel
 from pocketflow_creator.runtime.providers import MockProvider, OllamaProvider
 from pocketflow_creator.runtime.runner import FlowRunner, RunStep, RunTrace, StepController
@@ -28,15 +37,15 @@ def build_provider() -> MockProvider | OllamaProvider:
         from PySide6.QtCore import QSettings
     except ImportError:  # pragma: no cover
         return MockProvider(response="mock response")
-    settings = QSettings("Monotoba", "PocketFlowCreator")
-    prov_type = str(settings.value("run/provider", "mock"))
+    settings = QSettings(_ORG, _APP)
+    prov_type = str(settings.value(_SKEY_PROVIDER, "mock"))
     if prov_type == "ollama":
         return OllamaProvider(
-            base_url=str(settings.value("ollama/base_url", "http://localhost:11434")),
-            default_model=str(settings.value("ollama/default_model", "qwen2.5-coder:14b")),
-            timeout=int(settings.value("ollama/timeout", 120)),  # type: ignore[arg-type]
+            base_url=str(settings.value(_SKEY_OLLAMA_URL, "http://localhost:11434")),
+            default_model=str(settings.value(_SKEY_OLLAMA_MODEL, "qwen2.5-coder:14b")),
+            timeout=int(settings.value(_SKEY_OLLAMA_TIMEOUT, 120)),  # type: ignore[arg-type]
         )
-    return MockProvider(response=str(settings.value("mock/response", "mock response")))
+    return MockProvider(response=str(settings.value(_SKEY_MOCK_RESPONSE, "mock response")))
 
 
 def make_input_callback(
