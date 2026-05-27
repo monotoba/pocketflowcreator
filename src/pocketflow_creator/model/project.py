@@ -15,6 +15,7 @@ class ProjectModel:
     prompts: list[str] = field(default_factory=list)
     node_types: list[str] = field(default_factory=list)
     shared_store_schema: str | None = None
+    auto_arrange: dict = field(default_factory=dict)
 
     @property
     def project_file(self) -> Path:

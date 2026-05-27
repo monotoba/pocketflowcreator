@@ -7,11 +7,41 @@ Entries are ordered newest-first within each version.
 
 ## [Unreleased]
 
-### Added
+### Added — Getting to Know Nodes tutorial series
+- 7-file tutorial series (`gtkn_index.md` + 6 part files) covering all 20 built-in node types
+  through hands-on mini-flows, progressing simplest → most complex
+- Part 1: Start, Stop, Basic — foundation lifecycle and shared store
+- Part 2: File Reader, File Writer, Python Tool — I/O and @tool functions
+- Part 3: Router, Human Review, Human Input — flow control and human-in-the-loop
+- Part 4: LLM Prompt, JSON LLM, Classifier, Judge — LLM integration patterns
+- Part 5: Batch, Async, Async Batch, Async Parallel Batch — batch and async execution
+- Part 6: RAG, Agent, Subflow — advanced patterns
+- `Help > Getting to Know Nodes` menu item added; opens `tutorials/gtkn_index.md`
+- Tutorials index updated with series table and links
+
+---
+
+## [0.2.0] — 2026-05-27
+
+### Added — Graph Auto Arrange (M14)
+- Auto Arrange dialog (`View > Auto Arrange…`, Ctrl+Shift+L) with three layout algorithms: Layered BFS, Grid, and Force-directed (spring-embedder)
+- Three connector styles: Straight, Curved (quadratic Bezier), and Orthogonal (right-angle routing)
+- `EdgeItem` upgraded from `QGraphicsLineItem` to `QGraphicsPathItem` — `update_position(connector_style)` builds the path for whichever style is active
+- `GraphScene.set_connector_style()`, `layout_grid()`, `layout_force()` — new scene methods; `auto_layout()` now accepts `h_gap`/`v_gap` parameters
+- `AutoArrangeDialog` in `main.py` — algorithm, connector style, h_gap, v_gap, and max-columns (for grid) are configurable before each run
+- Auto Arrange is undoable — pushes a `GraphSnapshotCommand` to the undo stack
+- `auto_arrange` dict field on `ProjectModel`; `ProjectLoader`/`ProjectSaver` persist settings under `auto_arrange:` in `.pfcproj.yaml`
+- Saved connector style is restored when a project is opened
+
+### Added — Undo / Redo
 - Snapshot-based undo/redo (Ctrl+Z / Ctrl+Y) for all graph mutations: add node, delete node/edge, add edge, edit node properties, change edge action, and move node
 - `GraphSnapshotCommand` in `commands.py` — single command class stores `deepcopy(graph)` before/after each mutation and rebuilds the scene via `GraphScene.load_graph()` on undo/redo
 - `node_drag_started` and `node_move_finished` signals on `GraphScene` to detect drag completion for move commands
 - Undo stack is cleared automatically when opening, creating, or switching projects
+
+### Changed — Node Type Wizard layout
+- `NodeTypeWizard` restructured into a three-tab layout: **Definition** (identity fields + flags), **Actions** (list + add/remove), **Properties** (table + add/remove)
+- Dialog resized from 560×560 to 560×360 so it fits smaller displays
 
 ---
 

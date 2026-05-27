@@ -242,12 +242,37 @@ in every dialog, and tutorials moved from docs/ to the help/ tree.
 
 ---
 
-## M13 — Graph Editor Repair
+## M13 — Graph Editor Repair  ✓ Complete
 
 **Deliverable:** Graph canvas works reliably — nodes are deletable, connectors are
 correctly routed and visually accurate, and all edge interactions are stable.
 
-- [ ] T-G01: Repair graph editor — audit NodeItem, EdgeItem, and GraphScene for
+- [x] T-G01: Repair graph editor — audit NodeItem, EdgeItem, and GraphScene for
              regressions introduced since M4; restore all broken interactions
-- [ ] T-G02: Fix graph connectors — edge routing, port positions, and label placement
+- [x] T-G02: Fix graph connectors — edge routing, port positions, and label placement
              should be correct after node moves, zoom changes, and scene reloads
+
+---
+
+## M14 — Graph Auto Arrange  ✓ Complete
+
+**Deliverable:** Users can arrange the graph canvas automatically using three layout algorithms
+(Layered BFS, Grid, Force-directed) and three connector styles (Straight, Curved, Orthogonal).
+Settings are persisted in the project file and the operation is undoable.
+
+**Depends on:** M13
+
+- [x] T-A01: Add `auto_arrange` dict field to `ProjectModel`; update `ProjectLoader`/`ProjectSaver`
+             to load/save it under `auto_arrange:` in `.pfcproj.yaml`
+- [x] T-A02: Change `EdgeItem` base class from `QGraphicsLineItem` to `QGraphicsPathItem`;
+             implement `update_position(connector_style)` with straight, curved (Bezier),
+             and orthogonal path building
+- [x] T-A03: Add `connector_style` attribute and `set_connector_style()` to `GraphScene`;
+             update `update_edges()` and `add_edge()` to thread the style through
+- [x] T-A04: Add `layout_grid()` (row/column placement) and `layout_force()` (spring-embedder)
+             to `GraphScene`; parameterise `auto_layout()` with `h_gap`/`v_gap`
+- [x] T-A05: Implement `AutoArrangeDialog` — algorithm, connector style, h_gap, v_gap, max_cols
+- [x] T-A06: Replace `_on_auto_layout` with `_on_auto_arrange` in `MainWindow` — shows dialog,
+             runs chosen algorithm, pushes `GraphSnapshotCommand` to undo stack, saves settings
+             to `project.auto_arrange`, zooms to fit
+- [x] T-A07: Apply saved `connector_style` from project when loading a project/graph

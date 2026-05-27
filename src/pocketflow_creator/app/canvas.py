@@ -25,6 +25,7 @@ try:
         QAbstractItemView,
         QGraphicsItem,
         QGraphicsLineItem,
+        QGraphicsPathItem,
         QGraphicsScene,
         QGraphicsView,
         QListWidget,
@@ -39,6 +40,7 @@ except Exception:  # pragma: no cover - permits import in non-GUI test environme
 
     QGraphicsItem = object  # type: ignore[assignment,misc]
     QGraphicsLineItem = object  # type: ignore[assignment,misc]
+    QGraphicsPathItem = object  # type: ignore[assignment,misc]
     QGraphicsScene = object  # type: ignore[assignment,misc]
     QGraphicsView = object  # type: ignore[assignment,misc]
     QListWidget = object  # type: ignore[assignment,misc]
@@ -831,7 +833,7 @@ class NodeItem(QGraphicsItem):
         return super().itemChange(change, value)
 
 
-class EdgeItem(QGraphicsLineItem):
+class EdgeItem(QGraphicsPathItem):
     def __init__(
         self,
         edge: EdgeModel,
@@ -852,17 +854,26 @@ class EdgeItem(QGraphicsLineItem):
         return self._edge
 
     def shape(self) -> QPainterPath:
-        line_path = QPainterPath()
-        line_path.moveTo(self.line().p1())
-        line_path.lineTo(self.line().p2())
         stroker = QPainterPathStroker()
         stroker.setWidth(12.0)
-        return stroker.createStroke(line_path)
+        return stroker.createStroke(self.path())
 
-    def update_position(self) -> None:
+    def update_position(self, connector_style: str = "straight") -> None:
         src_pos = self._src.action_port_scene_pos(self._edge.action)
         tgt_pos = self._tgt.input_port_scene_pos()
-        self.setLine(src_pos.x(), src_pos.y(), tgt_pos.x(), tgt_pos.y())
+        path = QPainterPath()
+        path.moveTo(src_pos)
+        if connector_style == "curved":
+            mid_x = (src_pos.x() + tgt_pos.x()) / 2
+            path.quadTo(QPointF(mid_x, src_pos.y()), tgt_pos)
+        elif connector_style == "orthogonal":
+            mid_x = (src_pos.x() + tgt_pos.x()) / 2
+            path.lineTo(QPointF(mid_x, src_pos.y()))
+            path.lineTo(QPointF(mid_x, tgt_pos.y()))
+            path.lineTo(tgt_pos)
+        else:
+            path.lineTo(tgt_pos)
+        self.setPath(path)
 
 
 _DARK_COLORS = {
@@ -910,7 +921,16 @@ class GraphScene(QGraphicsScene):
         self._node_items: dict[str, NodeItem] = {}
         self._edge_items: list[EdgeItem] = []
         self._dark = True
+        self._connector_style: str = "straight"
         self.selectionChanged.connect(self._on_selection_changed)
+
+    @property
+    def connector_style(self) -> str:
+        return self._connector_style
+
+    def set_connector_style(self, style: str) -> None:
+        self._connector_style = style
+        self.update_edges()
 
     def set_dark(self, dark: bool) -> None:
         self._dark = dark
@@ -935,6 +955,7 @@ class GraphScene(QGraphicsScene):
                 ei = EdgeItem(edge, src, tgt)
                 self.addItem(ei)
                 self._edge_items.append(ei)
+        self.update_edges()
 
     def mark_start_node(self, node_id: str | None) -> None:
         for nid, item in self._node_items.items():
@@ -967,11 +988,12 @@ class GraphScene(QGraphicsScene):
         ei = EdgeItem(edge, src, tgt)
         self.addItem(ei)
         self._edge_items.append(ei)
+        ei.update_position(self._connector_style)
         return ei
 
     def update_edges(self) -> None:
         for ei in self._edge_items:
-            ei.update_position()
+            ei.update_position(self._connector_style)
 
     def apply_validation(self, error_ids: set[str]) -> None:
         for node_id, item in self._node_items.items():
@@ -1014,12 +1036,10 @@ class GraphScene(QGraphicsScene):
         else:
             super().keyPressEvent(event)
 
-    def auto_layout(self) -> None:
+    def auto_layout(self, h_gap: int = 60, v_gap: int = 30) -> None:
         """Hierarchical BFS layout: layers left-to-right, nodes top-to-bottom within layer."""
         if not self._node_items:
             return
-        H_GAP = 60
-        V_GAP = 30
         all_ids = set(self._node_items.keys())
         has_incoming: set[str] = {ei._tgt.node.id for ei in self._edge_items}
         roots = all_ids - has_incoming or all_ids
@@ -1058,16 +1078,81 @@ class GraphScene(QGraphicsScene):
             nodes_in_layer = layers[lyr_idx]
             items_in_layer = [self._node_items[nid] for nid in nodes_in_layer]
             heights = [it.height for it in items_in_layer]
-            total_h = sum(heights) + V_GAP * (len(heights) - 1)
+            total_h = sum(heights) + v_gap * (len(heights) - 1)
             y_start = -total_h / 2
-            x_pos = 60 + lyr_idx * (_WIDTH + H_GAP)
+            x_pos = 60 + lyr_idx * (_WIDTH + h_gap)
             y_pos = y_start
             for item, h in zip(items_in_layer, heights):
                 item.setPos(x_pos, y_pos)
                 item.node.position["x"] = x_pos
                 item.node.position["y"] = y_pos
-                y_pos += h + V_GAP
+                y_pos += h + v_gap
 
+        self.update_edges()
+
+    def layout_grid(self, max_cols: int = 4, h_gap: int = 60, v_gap: int = 30) -> None:
+        """Grid layout: nodes placed in rows and columns, left-to-right, top-to-bottom."""
+        if not self._node_items:
+            return
+        items = list(self._node_items.values())
+        for i, item in enumerate(items):
+            col = i % max_cols
+            row = i // max_cols
+            x = 60 + col * (_WIDTH + h_gap)
+            y = 60 + row * (item.height + v_gap)
+            item.setPos(x, y)
+            item.node.position["x"] = x
+            item.node.position["y"] = y
+        self.update_edges()
+
+    def layout_force(self, h_gap: int = 60, v_gap: int = 30, iterations: int = 150) -> None:
+        """Force-directed (spring-embedder) layout."""
+        if not self._node_items:
+            return
+        items = self._node_items
+        positions: dict[str, list[float]] = {
+            nid: [item.pos().x(), item.pos().y()] for nid, item in items.items()
+        }
+        edges_list = [(ei._src.node.id, ei._tgt.node.id) for ei in self._edge_items]
+        k = math.sqrt((_WIDTH + h_gap) * (_HEIGHT + v_gap))
+        ids = list(items.keys())
+
+        for step in range(iterations):
+            forces: dict[str, list[float]] = {nid: [0.0, 0.0] for nid in ids}
+            # Repulsion between all pairs
+            for i, u in enumerate(ids):
+                for v in ids[i + 1:]:
+                    dx = positions[u][0] - positions[v][0]
+                    dy = positions[u][1] - positions[v][1]
+                    d = math.sqrt(dx * dx + dy * dy) or 0.1
+                    f = k * k / d
+                    forces[u][0] += f * dx / d
+                    forces[u][1] += f * dy / d
+                    forces[v][0] -= f * dx / d
+                    forces[v][1] -= f * dy / d
+            # Attraction along edges
+            for u, v in edges_list:
+                dx = positions[v][0] - positions[u][0]
+                dy = positions[v][1] - positions[u][1]
+                d = math.sqrt(dx * dx + dy * dy) or 0.1
+                f = d * d / k
+                forces[u][0] += f * dx / d
+                forces[u][1] += f * dy / d
+                forces[v][0] -= f * dx / d
+                forces[v][1] -= f * dy / d
+            # Apply with cooling temperature
+            temp = (_WIDTH + h_gap) * (1.0 - step / iterations)
+            for nid in ids:
+                fx, fy = forces[nid]
+                d = math.sqrt(fx * fx + fy * fy) or 0.1
+                positions[nid][0] += (fx / d) * min(d, temp)
+                positions[nid][1] += (fy / d) * min(d, temp)
+
+        for nid, item in items.items():
+            x, y = positions[nid]
+            item.setPos(x, y)
+            item.node.position["x"] = x
+            item.node.position["y"] = y
         self.update_edges()
 
     def _on_selection_changed(self) -> None:

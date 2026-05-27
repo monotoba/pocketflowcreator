@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pocketflow-creator"
-version = "0.1.0"
+version = "0.2.0"
 description = "RAD-style visual designer scaffold for PocketFlow LLM workflows"
 readme = "README.md"
 requires-python = ">=3.10"

@@ -62,10 +62,15 @@ You can also browse topics directly:
 | Save all | Ctrl+Shift+S |
 | Undo | Ctrl+Z |
 | Redo | Ctrl+Y |
+| Generate code | Ctrl+G |
 | Validate | Ctrl+Shift+V |
+| Auto Arrange… | Ctrl+Shift+L |
 | Run active flow | F5 |
 | Debug active flow | Shift+F5 |
 | Toggle breakpoint | F9 |
-| Auto arrange *(coming soon)* | — |
+| Zoom in | Ctrl++ |
+| Zoom out | Ctrl+- |
 | Zoom to fit | Ctrl+0 |
+| Zoom to selected node | Ctrl+Shift+Z |
+| Delete selected node/edge | Delete |
 | Help | F1 |

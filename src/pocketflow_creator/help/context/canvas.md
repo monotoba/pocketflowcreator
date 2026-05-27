@@ -21,10 +21,33 @@ The canvas is the central panel where you visually design your PocketFlow workfl
 
 | Action | How |
 |---|---|
-| **Zoom in/out** | Ctrl+Scroll wheel |
-| **Pan** | Middle-click and drag |
+| **Zoom in/out** | Ctrl+Scroll wheel, or Ctrl++ / Ctrl+- |
+| **Pan** | Middle-drag or Space-drag |
 | **Zoom to Fit** | View > Zoom to Fit (Ctrl+0) |
-| **Auto Arrange** | *(coming soon)* — connector style, row/column limits, spacing |
+| **Zoom to selected node** | Ctrl+Shift+Z |
+| **Auto Arrange…** | View > Auto Arrange… (Ctrl+Shift+L) — opens settings dialog before running |
+
+## Auto Arrange
+
+**View > Auto Arrange…** (Ctrl+Shift+L) opens a settings dialog before rearranging the canvas.
+
+| Setting | Options |
+|---|---|
+| **Algorithm** | Layered BFS, Grid, Force-directed (spring-embedder) |
+| **Connector style** | Straight, Curved (quadratic Bezier), Orthogonal (right-angle) |
+| **H Gap / V Gap** | Horizontal and vertical spacing between nodes |
+| **Max Cols** | Maximum columns (used by the Grid algorithm) |
+
+Settings are persisted per-project in the `.pfcproj.yaml` file under `auto_arrange:`. The operation is fully undoable with Ctrl+Z.
+
+## Undo / Redo
+
+| Action | Shortcut |
+|---|---|
+| **Undo** | Ctrl+Z |
+| **Redo** | Ctrl+Y |
+
+Undo covers: add node, delete node/edge, add edge, edit property, change edge action, move node, and Auto Arrange. The undo stack clears when a project is opened or created.
 
 ## Node Anatomy
 

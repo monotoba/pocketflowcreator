@@ -5,7 +5,7 @@ PocketFlow LLM workflows. It follows the Delphi/VB style: every visible object h
 every transition is an action, every generated behavior can be inspected as Python, and every
 custom behavior belongs in user-owned files that are never overwritten.
 
-**Version:** 0.1.1  
+**Version:** 0.2.0  
 **Framework target:** PocketFlow (any version)  
 **Language:** Python 3.10+  
 **GUI framework:** PySide6 (Qt 6)
@@ -128,7 +128,7 @@ class MyNode(Node):
 The UI supports multiple languages. Change the language in **Tools > Options > Language**.
 A restart is required for the change to take effect.
 
-Currently shipped: **English** (en), **Spanish** (es), **French** (fr), **German** (de).
+Currently shipped: **English** (en), **Spanish** (es), **French** (fr), **German** (de), **Chinese** (zh), **Japanese** (ja).
 
 ---
 

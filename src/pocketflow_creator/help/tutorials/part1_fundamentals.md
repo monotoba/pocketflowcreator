@@ -130,11 +130,13 @@ cycle — what you see is always current.
 | Run active flow | F5 |
 | Debug active flow | Shift+F5 |
 | Toggle breakpoint | F9 |
+| Undo | Ctrl+Z |
+| Redo | Ctrl+Y |
 | Zoom in | Ctrl++ |
 | Zoom out | Ctrl+- |
 | Zoom to fit | Ctrl+0 |
 | Zoom to selected node | Ctrl+Shift+Z |
-| Auto arrange *(coming soon)* | — |
+| Auto Arrange… | Ctrl+Shift+L |
 | Delete selected node | Delete |
 
 ---

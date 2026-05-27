@@ -6,6 +6,24 @@ Part 2 or Part 3 tutorial in any order.
 
 ---
 
+## Getting to Know Nodes — Node-Type Tutorial Series
+
+[→ Open the Series Index](gtkn_index.md)
+
+A dedicated series that teaches every built-in node type through hands-on mini-flows,
+progressing from the simplest nodes to the most advanced.
+
+| Part | Nodes covered |
+|---|---|
+| [Part 1 — Foundation](gtkn_part1.md) | Start, Stop, Basic |
+| [Part 2 — I/O and Tools](gtkn_part2.md) | File Reader, File Writer, Python Tool |
+| [Part 3 — Flow Control & Human Interaction](gtkn_part3.md) | Router, Human Review, Human Input |
+| [Part 4 — LLM Nodes](gtkn_part4.md) | LLM Prompt, JSON LLM, Classifier, Judge |
+| [Part 5 — Batch and Async](gtkn_part5.md) | Batch, Async, Async Batch, Async Parallel Batch |
+| [Part 6 — Advanced Patterns](gtkn_part6.md) | RAG, Agent, Subflow |
+
+---
+
 ## How to Read These Tutorials
 
 Each tutorial lists:

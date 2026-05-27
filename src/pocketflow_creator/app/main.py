@@ -80,7 +80,7 @@ from pocketflow_creator.runtime.runner import FlowRunner, RunStep, RunTrace, Ste
 from pocketflow_creator.validation.graph_validator import GraphValidator
 
 _MAX_RECENT = 5
-_VERSION = "0.1.0"
+_VERSION = "0.2.0"
 _TEMP_PROJECT_DIR = ".pocketflow_creator_temp"
 
 
@@ -101,6 +101,75 @@ def _node_skeleton_text(type_id: str, base_class: str) -> str:
 _EDITOR_TABS: frozenset[str] = frozenset({"Python", "Markdown", "YAML"})
 _ROLE_PATH = Qt.ItemDataRole.UserRole  # type: ignore[attr-defined]
 _ROLE_KIND = Qt.ItemDataRole(Qt.ItemDataRole.UserRole.value + 1)  # type: ignore[attr-defined]
+
+
+class AutoArrangeDialog(QDialog):
+    """Settings dialog shown before running Auto Arrange."""
+
+    _ALGORITHMS = [
+        ("Layered (BFS)", "layered"),
+        ("Grid", "grid"),
+        ("Force-Directed", "force"),
+    ]
+    _STYLES = [
+        ("Straight", "straight"),
+        ("Curved (Bezier)", "curved"),
+        ("Orthogonal", "orthogonal"),
+    ]
+
+    def __init__(self, settings: dict, parent: QMainWindow | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Auto Arrange")
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        layout.addLayout(form)
+
+        self._algo_combo = QComboBox()
+        for label, _ in self._ALGORITHMS:
+            self._algo_combo.addItem(label)
+        current_algo = settings.get("algorithm", "layered")
+        idx = next((i for i, (_, v) in enumerate(self._ALGORITHMS) if v == current_algo), 0)
+        self._algo_combo.setCurrentIndex(idx)
+        form.addRow("Algorithm:", self._algo_combo)
+
+        self._style_combo = QComboBox()
+        for label, _ in self._STYLES:
+            self._style_combo.addItem(label)
+        current_style = settings.get("connector_style", "straight")
+        sidx = next((i for i, (_, v) in enumerate(self._STYLES) if v == current_style), 0)
+        self._style_combo.setCurrentIndex(sidx)
+        form.addRow("Connector Style:", self._style_combo)
+
+        self._h_gap = QSpinBox()
+        self._h_gap.setRange(10, 400)
+        self._h_gap.setValue(int(settings.get("h_gap", 60)))
+        form.addRow("Horizontal Gap:", self._h_gap)
+
+        self._v_gap = QSpinBox()
+        self._v_gap.setRange(10, 400)
+        self._v_gap.setValue(int(settings.get("v_gap", 30)))
+        form.addRow("Vertical Gap:", self._v_gap)
+
+        self._max_cols = QSpinBox()
+        self._max_cols.setRange(1, 20)
+        self._max_cols.setValue(int(settings.get("max_cols", 4)))
+        form.addRow("Max Columns (Grid):", self._max_cols)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def get_settings(self) -> dict:
+        return {
+            "algorithm": self._ALGORITHMS[self._algo_combo.currentIndex()][1],
+            "connector_style": self._STYLES[self._style_combo.currentIndex()][1],
+            "h_gap": self._h_gap.value(),
+            "v_gap": self._v_gap.value(),
+            "max_cols": self._max_cols.value(),
+        }
 
 
 class MainWindow(QMainWindow):
@@ -237,7 +306,7 @@ class MainWindow(QMainWindow):
         act.setShortcut(QKeySequence("Ctrl+0"))
         act = view_menu.addAction(self.tr("Zoom to Node"), self._on_zoom_to_node)
         act.setShortcut(QKeySequence("Ctrl+Shift+Z"))
-        act = view_menu.addAction(self.tr("Auto Layout"), self._on_auto_layout)
+        act = view_menu.addAction(self.tr("Auto Arrange…"), self._on_auto_arrange)
         act.setShortcut(QKeySequence("Ctrl+Shift+L"))
 
         project_menu = self.menuBar().addMenu(self.tr("Project"))
@@ -305,6 +374,7 @@ class MainWindow(QMainWindow):
         _help_act = help_menu.addAction(self.tr("PocketFlow Creator Help"), self._on_help)
         _help_act.setShortcut(QKeySequence(Qt.Key.Key_F1))
         help_menu.addAction(self.tr("Tutorials"), self._on_help_tutorials)
+        help_menu.addAction(self.tr("Getting to Know Nodes"), self._on_help_gtkn)
         help_menu.addAction(self.tr("PocketFlow Node Reference"), self._on_help_node_ref)
         help_menu.addSeparator()
         help_menu.addAction(self.tr("About PocketFlow"), self._on_about_pocketflow)
@@ -734,6 +804,8 @@ class MainWindow(QMainWindow):
             if self._graphs:
                 self._active_graph_rel = next(iter(self._graphs.keys()))
                 self._undo_stack.clear()
+                saved_style = self._project.auto_arrange.get("connector_style", "straight")
+                self._graph_scene.set_connector_style(saved_style)
                 self._graph_scene.load_graph(self._graphs[self._active_graph_rel])
                 self._graph_view.zoom_to_fit()
             self._refresh_explorer()
@@ -1293,6 +1365,9 @@ class MainWindow(QMainWindow):
     def _on_help_tutorials(self) -> None:
         self._open_help("tutorials/index.md")
 
+    def _on_help_gtkn(self) -> None:
+        self._open_help("tutorials/gtkn_index.md")
+
     def _on_help_node_ref(self) -> None:
         self._open_help("quick_ref.md")
 
@@ -1807,8 +1882,39 @@ class MainWindow(QMainWindow):
                 return node.id
         return graph.nodes[0].id
 
-    def _on_auto_layout(self) -> None:
-        self._graph_scene.auto_layout()
+    def _on_auto_arrange(self) -> None:
+        if self._active_graph_rel is None:
+            return
+        graph = self._graphs.get(self._active_graph_rel)
+        if graph is None:
+            return
+        project = self._project
+        settings: dict = dict(project.auto_arrange) if project else {}
+        dlg = AutoArrangeDialog(settings, self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        new_settings = dlg.get_settings()
+        before = copy.deepcopy(graph)
+        style = new_settings["connector_style"]
+        algo = new_settings["algorithm"]
+        h_gap = new_settings["h_gap"]
+        v_gap = new_settings["v_gap"]
+        max_cols = new_settings["max_cols"]
+        self._graph_scene.set_connector_style(style)
+        if algo == "grid":
+            self._graph_scene.layout_grid(max_cols=max_cols, h_gap=h_gap, v_gap=v_gap)
+        elif algo == "force":
+            self._graph_scene.layout_force(h_gap=h_gap, v_gap=v_gap)
+        else:
+            self._graph_scene.auto_layout(h_gap=h_gap, v_gap=v_gap)
+        after = copy.deepcopy(graph)
+        rel = self._active_graph_rel
+        cmd = GraphSnapshotCommand(
+            "Auto Arrange", self._graphs, rel, before, after, self._graph_scene
+        )
+        self._undo_stack.push(cmd)
+        if project:
+            project.auto_arrange = new_settings
         self._graph_view.zoom_to_fit()
 
     def _resolve_dark(self) -> bool:

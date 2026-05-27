@@ -30,6 +30,7 @@ class ProjectLoader:
             prompts=list(data.get("prompts", [])),
             node_types=list(data.get("node_types", [])),
             shared_store_schema=data.get("shared_store_schema"),
+            auto_arrange=dict(data.get("auto_arrange") or {}),
         )
 
 
@@ -48,6 +49,8 @@ class ProjectSaver:
         }
         if project.shared_store_schema is not None:
             data["shared_store_schema"] = project.shared_store_schema
+        if project.auto_arrange:
+            data["auto_arrange"] = project.auto_arrange
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("w", encoding="utf-8") as f:
             yaml.safe_dump(data, f, sort_keys=False, default_flow_style=False)

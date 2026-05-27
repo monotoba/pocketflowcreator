@@ -97,8 +97,12 @@ For a detailed walkthrough see [Your First Flow](your_first_flow.md).
 | Run | F5 |
 | Debug | Shift+F5 |
 | Toggle breakpoint | F9 |
-| Auto arrange *(coming soon)* | — |
+| Auto Arrange… | Ctrl+Shift+L |
+| Zoom in | Ctrl++ |
+| Zoom out | Ctrl+- |
 | Zoom to fit | Ctrl+0 |
+| Zoom to selected node | Ctrl+Shift+Z |
+| Delete selected node/edge | Delete |
 | Help | F1 |
 
 ---

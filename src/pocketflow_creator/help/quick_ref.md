@@ -186,6 +186,14 @@ the content and waits for input. `post()` routes to `"approved"` or `"rejected"`
 any custom actions you declare). Use this for content moderation, data labelling,
 quality gates, or any step that requires a human decision before the flow continues.
 
+### Human Input Node
+**Base class:** `Node`
+
+Reads a string from the user at runtime (via `input()` or a UI prompt) and writes it
+to the shared store under `output_key`. Use this as the interactive entry point for
+flows that require user input each time they run — chatbots, question-answer tools, or
+any pipeline where the query varies per invocation.
+
 ---
 
 ## Reference
@@ -211,6 +219,7 @@ quality gates, or any step that requires a human decision before the flow contin
 | Async Batch Node | `AsyncBatchNode` | Sequential async batch |
 | Async Parallel Batch Node | `AsyncParallelBatchNode` | Concurrent async batch |
 | Human Review Node | `Node` | Human approval gate |
+| Human Input Node | `Node` | Interactive user input |
 
 ---
 

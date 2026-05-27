@@ -1,10 +1,12 @@
 # Custom Node Type Wizard
 
 **Node > New Custom Node Type…** opens the wizard for defining a reusable node type.
+The dialog is 560×360 and organised into **three tabs**: Definition, Actions, and Properties.
+A **?** help button in the title bar opens this help page.
 
-## Fields
+## Tab 1: Definition
 
-### Identification
+Contains the identity fields and behaviour flags.
 
 | Field | Description | Example |
 |---|---|---|
@@ -13,7 +15,14 @@
 | **Category** | Palette group this type appears under | `Analysis` |
 | **Base Class** | PocketFlow base class to inherit from | `Node`, `BatchNode`, `AsyncNode` |
 
-### Actions
+**Flags** (also on the Definition tab):
+
+| Flag | Effect |
+|---|---|
+| **Is Abstract** | Type cannot be placed directly; only used as a base class for other types |
+| **Allow Unknown Actions** | Skips validator check for undeclared action names |
+
+## Tab 2: Actions
 
 List the output action strings this node can return from `post()`.
 Separate with commas or enter one per line.
@@ -22,7 +31,7 @@ Example: `positive, negative, neutral`
 
 The validator uses this list to check that wired edges have valid action labels.
 
-### Properties
+## Tab 3: Properties
 
 Custom properties appear in the Object Inspector when this node type is selected.
 
@@ -31,13 +40,6 @@ Custom properties appear in the Object Inspector when this node type is selected
 | **Name** | Property key (snake_case) |
 | **Type** | Data type: `string`, `integer`, `number`, `boolean` |
 | **Default** | Value pre-filled in the Inspector when the node is added |
-
-### Flags
-
-| Flag | Effect |
-|---|---|
-| **Is Abstract** | Type cannot be placed directly; only used as a base class for other types |
-| **Allow Unknown Actions** | Skips validator check for undeclared action names |
 
 ## What the Wizard Creates
 

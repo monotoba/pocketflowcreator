@@ -17,6 +17,7 @@ try:
         QPushButton,
         QTableWidget,
         QTableWidgetItem,
+        QTabWidget,
         QVBoxLayout,
         QWidget,
     )
@@ -36,12 +37,18 @@ class NodeTypeWizard(QDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("New Custom Node Type")
-        self.resize(560, 560)
+        self.resize(560, 360)
         self._build_ui()
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
 
+        tabs = QTabWidget()
+        layout.addWidget(tabs)
+
+        # ── Tab 1: Definition ──────────────────────────────────────────────
+        def_widget = QWidget()
+        def_layout = QVBoxLayout(def_widget)
         basic = QGroupBox("Identity")
         form = QFormLayout(basic)
         self._id_edit = QLineEdit()
@@ -58,10 +65,22 @@ class NodeTypeWizard(QDialog):
         form.addRow("Category *:", self._category_edit)
         form.addRow("Base Class *:", self._base_edit)
         form.addRow("Description:", self._desc_edit)
-        layout.addWidget(basic)
+        def_layout.addWidget(basic)
 
-        actions_group = QGroupBox("Actions")
-        alay = QVBoxLayout(actions_group)
+        flags_group = QGroupBox("Flags")
+        flay = QHBoxLayout(flags_group)
+        self._hooks_cb = QCheckBox("Allow Python Hooks")
+        self._prompts_cb = QCheckBox("Allow Prompt Files")
+        flay.addWidget(self._hooks_cb)
+        flay.addWidget(self._prompts_cb)
+        def_layout.addWidget(flags_group)
+        def_layout.addStretch()
+        def_layout.addWidget(QLabel("* Required fields"))
+        tabs.addTab(def_widget, "Definition")
+
+        # ── Tab 2: Actions ─────────────────────────────────────────────────
+        act_widget = QWidget()
+        alay = QVBoxLayout(act_widget)
         self._actions_list = QListWidget()
         self._actions_list.addItems(["default"])
         alay.addWidget(self._actions_list)
@@ -76,10 +95,11 @@ class NodeTypeWizard(QDialog):
         a_row.addWidget(add_a)
         a_row.addWidget(del_a)
         alay.addLayout(a_row)
-        layout.addWidget(actions_group)
+        tabs.addTab(act_widget, "Actions")
 
-        props_group = QGroupBox("Properties")
-        play = QVBoxLayout(props_group)
+        # ── Tab 3: Properties ──────────────────────────────────────────────
+        prop_widget = QWidget()
+        play = QVBoxLayout(prop_widget)
         self._props_table = QTableWidget(0, 3)
         self._props_table.setHorizontalHeaderLabels(["Name", "Type", "Default"])
         self._props_table.horizontalHeader().setStretchLastSection(True)
@@ -93,17 +113,7 @@ class NodeTypeWizard(QDialog):
         p_row.addWidget(del_p)
         p_row.addStretch()
         play.addLayout(p_row)
-        layout.addWidget(props_group)
-
-        flags_group = QGroupBox("Flags")
-        flay = QHBoxLayout(flags_group)
-        self._hooks_cb = QCheckBox("Allow Python Hooks")
-        self._prompts_cb = QCheckBox("Allow Prompt Files")
-        flay.addWidget(self._hooks_cb)
-        flay.addWidget(self._prompts_cb)
-        layout.addWidget(flags_group)
-
-        layout.addWidget(QLabel("* Required fields"))
+        tabs.addTab(prop_widget, "Properties")
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel

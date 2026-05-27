@@ -76,11 +76,9 @@ routing flows where multiple outgoing edges exist.
 **Step 5: Arrange and Zoom to Fit.**
 
 Drag nodes into a left-to-right arrangement that matches the flow, then use View > Zoom
-to Fit (Ctrl+0) to centre the canvas. Keeping nodes tidy is a good habit — a readable
-canvas is easier to debug, especially once flows grow to a dozen nodes.
-
-> **Note:** Auto-arrange (automatic layout with connector style and spacing options)
-> is planned for a future release.
+to Fit (Ctrl+0) to centre the canvas. For automatic layout, use **View > Auto Arrange…**
+(Ctrl+Shift+L) — choose an algorithm (Layered BFS, Grid, or Force-directed), a connector
+style, and spacing, then click OK. The arrangement is undoable with Ctrl+Z.
 
 **Step 6: Write the node code.**
 
