@@ -60,6 +60,7 @@ Code shown in `code blocks` is written in the **Python editor** tab.
 | Tutorial 29 | [Using the Agent Node](part2_patterns.md#tutorial-29-using-the-agent-node) |
 | Tutorial 30 | [Using the RAG Node](part2_patterns.md#tutorial-30-using-the-rag-node) |
 | Tutorial 31 | [Using the Judge Node](part2_patterns.md#tutorial-31-using-the-judge-node) |
+| Tutorial 32 | [Human Input + Classifier — Interactive Sentiment Triage](part2_patterns.md#tutorial-32-human-input--classifier--interactive-sentiment-triage) |
 
 ---
 

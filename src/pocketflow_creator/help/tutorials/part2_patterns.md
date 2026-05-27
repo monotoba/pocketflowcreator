@@ -73,10 +73,14 @@ Draw an edge from **Start → Ask LLM**, typing `default` as the action. Draw an
 there is only one path, the action must be explicit. This explicitness becomes critical in
 routing flows where multiple outgoing edges exist.
 
-**Step 5: Auto Layout and Zoom to Fit.**
+**Step 5: Arrange and Zoom to Fit.**
 
-Use Edit > Auto Layout, then View > Zoom to Fit. This is a good habit to establish — a
-tidy canvas is easier to read and debug, especially once flows grow to a dozen nodes.
+Drag nodes into a left-to-right arrangement that matches the flow, then use View > Zoom
+to Fit (Ctrl+0) to centre the canvas. Keeping nodes tidy is a good habit — a readable
+canvas is easier to debug, especially once flows grow to a dozen nodes.
+
+> **Note:** Auto-arrange (automatic layout with connector style and spacing options)
+> is planned for a future release.
 
 **Step 6: Write the node code.**
 
@@ -2315,6 +2319,291 @@ making criteria a runtime property rather than hardcoding it in `exec`.
 **Expected result:** The flow terminates in 1–4 iterations. `judge_iteration` shows the
 count. `output` contains the final (possibly refined) result. `judge_feedback` shows
 the last piece of feedback given (empty if the first attempt passed).
+
+---
+
+## Tutorial 32: Human Input + Classifier — Interactive Sentiment Triage
+
+**What you'll learn:** How to collect free-text input from the user at runtime using a
+Human Input Node, then route the flow to different branches based on sentiment
+classification with a Classifier Node.
+
+**Prerequisites:** Tutorial 15 (Human-in-the-Loop) and Tutorial 11 (Conditional Routing).
+
+---
+
+### Why this combination exists
+
+Most LLM workflows operate on data that was prepared before the run started — a file, a
+database query, a previous step's output. But many real applications need to ask the user
+something mid-flow: which document to process, what question to answer, or — as in this
+tutorial — what text to analyse.
+
+The Human Input Node pauses the runner, shows a dialog to collect data, and merges the
+result into shared state before the next node executes. Paired with a Classifier Node, you
+get a pattern that appears constantly in customer support, content moderation, and triage
+systems: the user provides the input, the LLM labels it, and the flow branches to the
+handler that matches that label.
+
+---
+
+### The flow you will build
+
+A customer review sentiment triage tool. The user types a review into a dialog at runtime.
+The Classifier Node sends it to an LLM and asks it to label the sentiment as `positive`,
+`negative`, or `neutral`. Each branch drafts an appropriate follow-up response using a
+separate LLM Prompt Node.
+
+```
+                                    ┌──positive──► [Draft Praise]    ──► [Stop]
+                                    │
+[Start] ──► [Collect Review] ──saved──► [Classify Sentiment] ──negative──► [Draft Apology]  ──► [Stop]
+                             │
+                             │                              ──neutral───► [Draft Follow-up] ──► [Stop]
+                             │
+                          cancelled──────────────────────────────────────────────────────────► [Stop]
+```
+
+The `saved` / `cancelled` split handles the case where the user closes the dialog without
+saving — the flow exits cleanly without calling the LLM.
+
+---
+
+### Step-by-step
+
+**Step 1: Create the project.**
+
+File > New Project. Name it `tut_sentiment_triage`. Creator creates the standard folder
+structure and opens an empty canvas.
+
+---
+
+**Step 2: Add the Start Node.**
+
+Drag **Start Node** from the palette onto the canvas. It becomes the flow's entry point
+automatically.
+
+---
+
+**Step 3: Add a Human Input Node.**
+
+Drag **Human Input Node** onto the canvas to the right of Start. In the Inspector, set:
+
+| Property | Value |
+|---|---|
+| **Title** | `Collect Review` |
+| **input_type** | `form` |
+| **fields** | `review:string::` |
+| **output_key** | `input` |
+
+The `fields` value `review:string::` defines a single text field:
+- `review` — the field label shown in the dialog and the key written to shared state
+- `string` — data type (plain text)
+- third segment empty — no default value
+- fourth segment empty — no dropdown choices
+
+When the node runs, a dialog appears with a single text box labelled **review**. When the
+user clicks **Save**, the value is written to `shared['review']`. When the user clicks
+**Cancel**, the node takes the `cancelled` action instead.
+
+> **Field definition syntax:** `label:type:default:choices`
+>
+> Multiple fields are separated by semicolons. Examples:
+> - `name:string:Anonymous:` — text field, default "Anonymous"
+> - `rating:integer:5:` — integer spinner, default 5
+> - `status:string::active,closed,pending` — dropdown, three choices
+
+---
+
+**Step 4: Add a Classifier Node.**
+
+Drag **Classifier Node** onto the canvas to the right of Collect Review. In the Inspector,
+set:
+
+| Property | Value |
+|---|---|
+| **Title** | `Classify Sentiment` |
+| **input_key** | `review` |
+| **categories** | `positive,negative,neutral` |
+
+`input_key: review` tells the Classifier to read `shared['review']` — the same key the
+Human Input Node wrote. `categories` lists the exact labels the LLM should choose from.
+These labels must match the action names on the outgoing edges you will draw in Step 6.
+
+Leave `prompt_file` empty. The Classifier auto-builds a prompt from `categories` and the
+text at `input_key`.
+
+---
+
+**Step 5: Add three LLM Prompt Nodes and a Stop Node.**
+
+Drag three **LLM Prompt Node** items onto the canvas, one for each branch. Name them:
+
+- `Draft Praise` (positive branch)
+- `Draft Apology` (negative branch)
+- `Draft Follow-up` (neutral branch)
+
+Drag a **Stop Node** onto the canvas. A single Stop Node handles all three branches — you
+will connect all three LLM nodes to it.
+
+For each LLM node, set `prompt_type` to `string` and fill `prompt_file` with a
+branch-specific prompt:
+
+**Draft Praise** — `prompt_file`:
+```
+The customer left this positive review: {review}
+
+Write a short, warm thank-you message (2–3 sentences) acknowledging their feedback.
+```
+
+**Draft Apology** — `prompt_file`:
+```
+The customer left this negative review: {review}
+
+Write a sincere apology and offer to resolve the issue. Keep it under 4 sentences.
+```
+
+**Draft Follow-up** — `prompt_file`:
+```
+The customer left this neutral review: {review}
+
+Write a friendly follow-up asking what we could do better. Keep it under 3 sentences.
+```
+
+The `{review}` placeholder is replaced at runtime with `shared['review']` — the text the
+user entered in the dialog.
+
+For each LLM node, set `output_key` to `response` so all three branches write to the
+same key (the Stop node just ends the flow regardless).
+
+---
+
+**Step 6: Wire the edges.**
+
+Connect nodes in this order, using the action names shown:
+
+| From | Action | To |
+|---|---|---|
+| Start | `default` | Collect Review |
+| Collect Review | `saved` | Classify Sentiment |
+| Collect Review | `cancelled` | Stop |
+| Classify Sentiment | `positive` | Draft Praise |
+| Classify Sentiment | `negative` | Draft Apology |
+| Classify Sentiment | `neutral` | Draft Follow-up |
+| Draft Praise | `default` | Stop |
+| Draft Apology | `default` | Stop |
+| Draft Follow-up | `default` | Stop |
+
+The Classifier Node's outgoing action names (`positive`, `negative`, `neutral`) must
+exactly match the category labels you set in the `categories` property. The Classifier
+asks the LLM to reply with one of those labels, then uses the reply to choose which edge
+to follow.
+
+> **If the LLM returns a label that is not an exact match**, the Classifier does fuzzy
+> matching — it checks whether the response *contains* one of the action names. For
+> example, `"The sentiment is negative."` matches the `negative` edge. If no match is
+> found, it falls through to the first available action.
+
+---
+
+**Step 7: Arrange and Validate.**
+
+Drag the nodes into a left-to-right arrangement that reflects the flow structure — Start
+on the left, Stop on the right, branches fanning out in between. Then Project > Validate
+Project (Ctrl+Shift+V). All nodes should show green — no missing connections or
+unreachable edges.
+
+---
+
+**Step 8: Run the flow.**
+
+Run > Run Active Flow (F5).
+
+A dialog titled **Collect Review** appears with a single field:
+
+```
+┌─────────────────────────────────────────┐
+│ Collect Review                          │
+├─────────────────────────────────────────┤
+│                                         │
+│  review: [                            ] │
+│                                         │
+│              [  Save  ]  [ Cancel ]     │
+└─────────────────────────────────────────┘
+```
+
+> **Form vs List mode buttons:**
+> In **form mode** the dialog has **Save** and **Cancel** — click Save once all fields are
+> filled.
+> In **list mode** the dialog has **Add**, **Remove**, **Done**, and **Cancel** — use Add
+> to collect as many items as needed, then click Done to finalise.
+
+Type a review and click **Save**. The flow continues to the Classifier, which labels the
+sentiment, routes to the matching LLM node, and writes the drafted response to
+`shared['response']`.
+
+Switch to the **Run Log** tab. You will see:
+
+```
+  [start]           Start               → default
+  [collect_review]  Collect Review      → saved
+  [classify]        Classify Sentiment  → negative
+  [draft_apology]   Draft Apology       → default
+  [stop]            Stop                → default
+```
+
+Switch to the **Shared Store** tab. You will see:
+
+```
+review: This product broke after two days. Very disappointed.
+classify_label: negative
+response: We're truly sorry to hear about your experience...
+```
+
+Click **Cancel** in the dialog instead of Save: the Run Log shows `Collect Review →
+cancelled` and the flow goes straight to Stop — no LLM call is made.
+
+---
+
+**Step 9: Extend the flow.**
+
+Now that the skeleton works, try these variations:
+
+**Add a second field.** Change `fields` in Collect Review to:
+
+```
+name:string:Anonymous:;review:string::
+```
+
+Two fields: `name` (with default "Anonymous") and `review`. The Shared Store now contains
+`shared['name']` and `shared['review']`. Update the prompts to include `{name}` where
+appropriate.
+
+**Add a dropdown.** Change `fields` to:
+
+```
+product:string::Widget Pro,Widget Lite,Widget Max;review:string::
+```
+
+The `product` field becomes a dropdown. Shared state gets `shared['product']` and
+`shared['review']`.
+
+**Add more categories.** Add `urgent` to `categories`: `positive,negative,neutral,urgent`.
+Draw a new edge from **Classify Sentiment** with action `urgent` to a new **Draft Escalation**
+LLM node. No other node changes — just wire the new branch.
+
+---
+
+### Key concepts from this tutorial
+
+| Concept | Where it appears |
+|---|---|
+| Human Input pauses the runner | `Collect Review` shows a dialog; the runner thread blocks until Save or Cancel |
+| Field definitions | `label:type:default:choices` syntax; multiple fields separated by `;` |
+| `saved` / `cancelled` routing | Human Input takes `saved` when the user clicks Save, `cancelled` on Cancel |
+| Prompt interpolation | `{review}` in any prompt is replaced with `shared['review']` at runtime |
+| Classifier label matching | The LLM is asked to choose one of the categories; the reply selects the outgoing edge |
+| Fuzzy label matching | If the LLM elaborates rather than replying with just the label, the runner extracts the best match |
 
 ---
 

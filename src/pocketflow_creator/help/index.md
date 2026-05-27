@@ -66,6 +66,6 @@ You can also browse topics directly:
 | Run active flow | F5 |
 | Debug active flow | Shift+F5 |
 | Toggle breakpoint | F9 |
-| Auto layout | Ctrl+Shift+L |
+| Auto arrange *(coming soon)* | — |
 | Zoom to fit | Ctrl+0 |
 | Help | F1 |

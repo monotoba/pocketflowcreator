@@ -24,7 +24,7 @@ The canvas is the central panel where you visually design your PocketFlow workfl
 | **Zoom in/out** | Ctrl+Scroll wheel |
 | **Pan** | Middle-click and drag |
 | **Zoom to Fit** | View > Zoom to Fit (Ctrl+0) |
-| **Auto Layout** | View > Auto Layout (Ctrl+Shift+L) — BFS layered arrangement |
+| **Auto Arrange** | *(coming soon)* — connector style, row/column limits, spacing |
 
 ## Node Anatomy
 

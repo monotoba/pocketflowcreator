@@ -62,8 +62,15 @@ def _load_snippets() -> list[dict[str, Any]]:
     except Exception:
         return []
 _WIDTH = 160
-_HEIGHT = 60
+_HEIGHT = 60       # minimum / single-action node height (kept for layout spacing)
+_HEADER_H = 36     # title (18 px) + type badge (13 px) + 5 px gap before action rows
+_PORT_ROW_H = 18   # height allocated per action row
 _PORT_R = 5
+
+
+def _node_height(n_actions: int) -> int:
+    """Dynamic node height: grows with action count; single-action stays at _HEIGHT."""
+    return max(_HEIGHT, _HEADER_H + max(1, n_actions) * _PORT_ROW_H)
 
 # ── Node type visual metadata ─────────────────────────────────────────────
 # (display_name, type_id, bg_color_hex)
@@ -79,6 +86,7 @@ _PALETTE_ITEMS_EX: list[tuple[str, str, str]] = [
     ("File Reader Node",  "file_reader_node", "#1a6b3c"),
     ("File Writer Node",  "file_writer_node", "#1565c0"),
     ("Human Review Node", "human_review_node","#c0392b"),
+    ("Human Input Node",         "human_input_node",         "#5c6bc0"),
     ("Batch Node",                "batch_node",                "#34495e"),
     ("Async Node",               "async_node",               "#6a1b9a"),
     ("Async Batch Node",         "async_batch_node",         "#00695c"),
@@ -491,6 +499,38 @@ def _ico_scales(p: QPainter, sz: float) -> None:
     p.drawLine(QPointF(sz * 0.34, sz * 0.84), QPointF(sz * 0.66, sz * 0.84))
 
 
+def _ico_human_input(p: QPainter, sz: float) -> None:
+    """Small person silhouette above a text-input rectangle — means 'keyboard input'."""
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    # Head (smaller than _ico_person so there's room for the input box)
+    p.drawEllipse(QPointF(sz / 2, sz * 0.22), sz * 0.13, sz * 0.13)
+    # Shoulders: upper half of a wide ellipse
+    body = QPainterPath()
+    body.addEllipse(QRectF(sz * 0.22, sz * 0.36, sz * 0.56, sz * 0.34))
+    clip = QPainterPath()
+    clip.addRect(QRectF(0, sz * 0.36, sz, sz * 0.34))
+    p.fillPath(body.intersected(clip), QColor("white"))
+    # Input box at the bottom
+    w = max(1.5, sz * 0.08)
+    pen = QPen(
+        QColor("white"), w, Qt.PenStyle.SolidLine,
+        Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin,
+    )
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    bx, by = sz * 0.10, sz * 0.72
+    bw, bh = sz * 0.80, sz * 0.20
+    p.drawRoundedRect(QRectF(bx, by, bw, bh), sz * 0.05, sz * 0.05)
+    # Text stub and cursor inside the box
+    cy = by + bh / 2
+    p.drawLine(QPointF(bx + sz * 0.07, cy), QPointF(bx + sz * 0.30, cy))
+    p.drawLine(
+        QPointF(bx + sz * 0.30, by + sz * 0.04),
+        QPointF(bx + sz * 0.30, by + bh - sz * 0.04),
+    )
+
+
 # Dispatch map: type_id → drawing function
 _ICON_DRAW: dict[str, Any] = {
     "start_node":       _ico_start,
@@ -512,6 +552,7 @@ _ICON_DRAW: dict[str, Any] = {
     "rag_node":                  _ico_rag,
     "judge_node":                _ico_scales,
     "subflow_node":              _ico_subflow,
+    "human_input_node":          _ico_human_input,
 }
 
 
@@ -599,7 +640,12 @@ class NodeItem(QGraphicsItem):
         self.update()
 
     def boundingRect(self) -> QRectF:
-        return QRectF(-_PORT_R, 0, _WIDTH + 2 * _PORT_R, _HEIGHT)
+        h = _node_height(len(self._node.actions or []))
+        return QRectF(-_PORT_R, 0, _WIDTH + 2 * _PORT_R, h)
+
+    @property
+    def height(self) -> int:
+        return _node_height(len(self._node.actions or []))
 
     def paint(
         self,
@@ -611,10 +657,12 @@ class NodeItem(QGraphicsItem):
         dark = scene._dark if hasattr(scene, "_dark") else True  # type: ignore[union-attr]
         colors = _DARK_COLORS if dark else _LIGHT_COLORS
 
-        body = QRectF(0, 0, _WIDTH, _HEIGHT)
+        actions = self._node.actions or ["default"]
+        h = _node_height(len(actions))
+
+        body = QRectF(0, 0, _WIDTH, h)
         path = QPainterPath()
         path.addRoundedRect(body, 8, 8)
-
         painter.fillPath(path, QBrush(QColor(colors["node_bg"])))
 
         if self._has_error:
@@ -626,13 +674,14 @@ class NodeItem(QGraphicsItem):
         painter.setPen(border_pen)
         painter.drawPath(path)
 
+        # ── Header: title (top-aligned) + type badge ────────────────────────
         base_font = painter.font()
         title_font = QFont(base_font)
         title_font.setBold(True)
         painter.setFont(title_font)
         painter.setPen(QPen(QColor(colors["title"])))
         painter.drawText(
-            QRectF(12, 8, _WIDTH - 24, 22), Qt.AlignmentFlag.AlignVCenter, self._node.title
+            QRectF(12, 4, _WIDTH - 24, 18), Qt.AlignmentFlag.AlignVCenter, self._node.title
         )
 
         badge_font = QFont(base_font)
@@ -640,14 +689,47 @@ class NodeItem(QGraphicsItem):
         painter.setFont(badge_font)
         painter.setPen(QPen(QColor(colors["badge"])))
         painter.drawText(
-            QRectF(12, 30, _WIDTH - 24, 18), Qt.AlignmentFlag.AlignVCenter, self._node.type_id
+            QRectF(12, 21, _WIDTH - 24, 13), Qt.AlignmentFlag.AlignVCenter, self._node.type_id
         )
 
+        # Separator between header and action area (only for multi-action nodes)
+        if len(actions) > 1:
+            sep_pen = QPen(QColor(colors["border_normal"]), 1)
+            sep_pen.setStyle(Qt.PenStyle.SolidLine)
+            painter.setPen(sep_pen)
+            painter.drawLine(QPointF(6, _HEADER_H), QPointF(_WIDTH - 6, _HEADER_H))
+
+        # ── Input port (left side, vertically centred on the node) ──────────
         painter.setPen(QPen(QColor(colors["port_outline"]), 1))
         painter.setBrush(QBrush(QColor(colors["port_fill"])))
-        painter.drawEllipse(QPointF(0, _HEIGHT / 2), _PORT_R, _PORT_R)
-        painter.drawEllipse(QPointF(_WIDTH, _HEIGHT / 2), _PORT_R, _PORT_R)
+        painter.drawEllipse(QPointF(0, h / 2), _PORT_R, _PORT_R)
 
+        # ── Action ports (right side, one row per action below the header) ──
+        port_font = QFont(base_font)
+        port_font.setPointSize(max(base_font.pointSize() - 2, 6))
+
+        # Input port label — show input_key property (fallback "in")
+        in_label = str(self._node.properties.get("input_key", "")).strip() or "in"
+        painter.setFont(port_font)
+        painter.setPen(QPen(QColor(colors["badge"])))
+        painter.drawText(
+            QRectF(_PORT_R + 4, h / 2 + _PORT_R, _WIDTH // 2 - 8, 14),
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            in_label,
+        )
+        for action, y in self._action_port_ys(actions):
+            painter.setPen(QPen(QColor(colors["port_outline"]), 1))
+            painter.setBrush(QBrush(QColor(colors["port_fill"])))
+            painter.drawEllipse(QPointF(_WIDTH, y), _PORT_R, _PORT_R)
+            # Label: right-aligned inside the action row, clear of the port circle
+            painter.setPen(QPen(QColor(colors["badge"])))
+            painter.drawText(
+                QRectF(8, y - 7, _WIDTH - 16, 14),
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                action,
+            )
+
+        # ── Decorators ───────────────────────────────────────────────────────
         if self._has_breakpoint:
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QBrush(QColor(colors["breakpoint"])))
@@ -657,9 +739,9 @@ class NodeItem(QGraphicsItem):
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QBrush(QColor("#44bb44")))
             triangle = QPolygonF([
-                QPointF(8, _HEIGHT / 2 - 6),
-                QPointF(8, _HEIGHT / 2 + 6),
-                QPointF(18, _HEIGHT / 2),
+                QPointF(8, h / 2 - 6),
+                QPointF(8, h / 2 + 6),
+                QPointF(18, h / 2),
             ])
             painter.drawPolygon(triangle)
 
@@ -668,14 +750,37 @@ class NodeItem(QGraphicsItem):
             painter.setBrush(QBrush(QColor("#dd4444")))
             sq = 10
             painter.drawRect(
-                int(_WIDTH - 8 - sq), int(_HEIGHT / 2 - sq / 2), sq, sq
+                int(_WIDTH - 8 - sq), int(h / 2 - sq / 2), sq, sq
             )
 
+    @staticmethod
+    def _action_port_ys(actions: list[str]) -> list[tuple[str, float]]:
+        """Return [(action_name, local_y), …] placed in the action area below the header."""
+        if not actions:
+            actions = ["default"]
+        n = len(actions)
+        h = _node_height(n)
+        row_h = (h - _HEADER_H) / n
+        return [(actions[i], _HEADER_H + i * row_h + row_h / 2) for i in range(n)]
+
+    def action_port_scene_pos(self, action: str) -> QPointF:
+        """Return the scene position of the port for *action*."""
+        actions = self._node.actions or ["default"]
+        for a, y in self._action_port_ys(actions):
+            if a == action:
+                return self.mapToScene(QPointF(_WIDTH, y))
+        # Fallback: first action port
+        _, y = self._action_port_ys(actions)[0]
+        return self.mapToScene(QPointF(_WIDTH, y))
+
     def port_scene_pos(self) -> QPointF:
-        return self.mapToScene(QPointF(_WIDTH, _HEIGHT / 2))
+        """First action port position (backward-compat for single-action nodes)."""
+        actions = self._node.actions or ["default"]
+        _, y = self._action_port_ys(actions)[0]
+        return self.mapToScene(QPointF(_WIDTH, y))
 
     def input_port_scene_pos(self) -> QPointF:
-        return self.mapToScene(QPointF(0, _HEIGHT / 2))
+        return self.mapToScene(QPointF(0, self.height / 2))
 
     def mouseDoubleClickEvent(self, event: Any) -> None:
         scene = self.scene()
@@ -699,6 +804,9 @@ class NodeItem(QGraphicsItem):
 
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
+            p = self.pos()
+            self.node.position["x"] = p.x()
+            self.node.position["y"] = p.y()
             scene = self.scene()
             if isinstance(scene, GraphScene):
                 scene.update_edges()
@@ -734,7 +842,7 @@ class EdgeItem(QGraphicsLineItem):
         return stroker.createStroke(line_path)
 
     def update_position(self) -> None:
-        src_pos = self._src.port_scene_pos()
+        src_pos = self._src.action_port_scene_pos(self._edge.action)
         tgt_pos = self._tgt.input_port_scene_pos()
         self.setLine(src_pos.x(), src_pos.y(), tgt_pos.x(), tgt_pos.y())
 
@@ -773,7 +881,7 @@ class GraphScene(QGraphicsScene):
     node_item_double_clicked = Signal(object)  # emits NodeItem
     node_created = Signal(object)              # emits NodeItem
     node_deleted = Signal(str)                 # emits node_id
-    edge_creation_requested = Signal(object, object)  # emits (src NodeItem, tgt NodeItem)
+    edge_creation_requested = Signal(object, object, str)  # emits (src NodeItem, tgt NodeItem, action)
     edge_deleted = Signal(str)                 # emits edge_id
     set_start_node_requested = Signal(object)  # emits NodeItem
 
@@ -928,15 +1036,17 @@ class GraphScene(QGraphicsScene):
 
         for lyr_idx in sorted(layers.keys()):
             nodes_in_layer = layers[lyr_idx]
-            total_h = len(nodes_in_layer) * (_HEIGHT + V_GAP) - V_GAP
+            items_in_layer = [self._node_items[nid] for nid in nodes_in_layer]
+            heights = [it.height for it in items_in_layer]
+            total_h = sum(heights) + V_GAP * (len(heights) - 1)
             y_start = -total_h / 2
             x_pos = 60 + lyr_idx * (_WIDTH + H_GAP)
-            for i, nid in enumerate(nodes_in_layer):
-                item = self._node_items[nid]
-                y_pos = y_start + i * (_HEIGHT + V_GAP)
+            y_pos = y_start
+            for item, h in zip(items_in_layer, heights):
                 item.setPos(x_pos, y_pos)
                 item.node.position["x"] = x_pos
                 item.node.position["y"] = y_pos
+                y_pos += h + V_GAP
 
         self.update_edges()
 
@@ -953,6 +1063,8 @@ class GraphScene(QGraphicsScene):
 
 
 class GraphView(QGraphicsView):
+    zoom_changed = Signal(float)  # emits current scale factor (1.0 = 100%)
+
     def __init__(self, scene: GraphScene, parent: QWidget | None = None) -> None:
         super().__init__(scene, parent)
         self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
@@ -963,45 +1075,67 @@ class GraphView(QGraphicsView):
         self._pan_active = False
         self._pan_start = QPointF()
         self._edge_src: NodeItem | None = None
+        self._edge_src_action: str = "default"
         self._edge_rubber: QGraphicsLineItem | None = None
 
-    def _node_at_port(self, scene_pos: QPointF, kind: str) -> NodeItem | None:
-        """Return the NodeItem whose output (kind='output') or input port is near scene_pos.
-
-        For 'output' (start of drag): small radius, must be near the port circle.
-        For 'input' (drop target): generous radius, with fallback to anywhere on the node body.
-        """
+    def _node_at_action_port(
+        self, scene_pos: QPointF
+    ) -> tuple[NodeItem, str] | None:
+        """Return (NodeItem, action_name) if scene_pos is near any action port."""
         scene = self.scene()
         if not isinstance(scene, GraphScene):
             return None
-        if kind == "output":
-            hit_r = _PORT_R * 2.5
-            for item in scene._node_items.values():
-                port = item.port_scene_pos()
+        hit_r = _PORT_R * 2.5
+        for item in scene._node_items.values():
+            actions = item.node.actions or ["default"]
+            for action, y in NodeItem._action_port_ys(actions):
+                port = item.mapToScene(QPointF(_WIDTH, y))
                 dx = scene_pos.x() - port.x()
                 dy = scene_pos.y() - port.y()
                 if dx * dx + dy * dy <= hit_r * hit_r:
-                    return item
-        else:
-            # Near input port circle (generous radius)
-            hit_r = _PORT_R * 4.0
-            for item in scene._node_items.values():
-                port = item.input_port_scene_pos()
-                dx = scene_pos.x() - port.x()
-                dy = scene_pos.y() - port.y()
-                if dx * dx + dy * dy <= hit_r * hit_r:
-                    return item
-            # Fallback: anywhere on the node body counts as targeting the input
-            for item in scene._node_items.values():
-                local = item.mapFromScene(scene_pos)
-                if 0 <= local.y() <= _HEIGHT and -_PORT_R <= local.x() <= _WIDTH:
-                    return item
+                    return item, action
         return None
+
+    def _node_at_input_port(self, scene_pos: QPointF) -> NodeItem | None:
+        """Return NodeItem near input port, with generous hit-radius + body fallback."""
+        scene = self.scene()
+        if not isinstance(scene, GraphScene):
+            return None
+        hit_r = _PORT_R * 4.0
+        for item in scene._node_items.values():
+            port = item.input_port_scene_pos()
+            dx = scene_pos.x() - port.x()
+            dy = scene_pos.y() - port.y()
+            if dx * dx + dy * dy <= hit_r * hit_r:
+                return item
+        for item in scene._node_items.values():
+            local = item.mapFromScene(scene_pos)
+            if 0 <= local.y() <= item.height and -_PORT_R <= local.x() <= _WIDTH:
+                return item
+        return None
+
+    def zoom_in(self) -> None:
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
+        self.scale(1.2, 1.2)
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.zoom_changed.emit(self.transform().m11())
+
+    def zoom_out(self) -> None:
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
+        self.scale(1 / 1.2, 1 / 1.2)
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.zoom_changed.emit(self.transform().m11())
+
+    def zoom_to_item(self, item: QGraphicsItem) -> None:
+        rect = item.mapRectToScene(item.boundingRect()).adjusted(-20, -20, 20, 20)
+        self.fitInView(rect, Qt.AspectRatioMode.KeepAspectRatio)
+        self.zoom_changed.emit(self.transform().m11())
 
     def wheelEvent(self, event: Any) -> None:
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
             factor = 1.15 if event.angleDelta().y() > 0 else 1 / 1.15
             self.scale(factor, factor)
+            self.zoom_changed.emit(self.transform().m11())
         else:
             super().wheelEvent(event)
 
@@ -1014,10 +1148,12 @@ class GraphView(QGraphicsView):
             return
         if event.button() == Qt.MouseButton.LeftButton:
             scene_pos = self.mapToScene(event.position().toPoint())
-            src = self._node_at_port(scene_pos, "output")
-            if src is not None:
+            hit = self._node_at_action_port(scene_pos)
+            if hit is not None:
+                src, action = hit
                 self._edge_src = src
-                sp = src.port_scene_pos()
+                self._edge_src_action = action
+                sp = src.action_port_scene_pos(action)
                 rubber = QGraphicsLineItem(sp.x(), sp.y(), scene_pos.x(), scene_pos.y())
                 rubber.setPen(QPen(QColor("#4a9eff"), 1.5, Qt.PenStyle.DashLine))
                 rubber.setZValue(-1)
@@ -1042,7 +1178,7 @@ class GraphView(QGraphicsView):
             event.accept()
         elif self._edge_src is not None and self._edge_rubber is not None:
             scene_pos = self.mapToScene(event.position().toPoint())
-            sp = self._edge_src.port_scene_pos()
+            sp = self._edge_src.action_port_scene_pos(self._edge_src_action)
             self._edge_rubber.setLine(sp.x(), sp.y(), scene_pos.x(), scene_pos.y())
             event.accept()
         else:
@@ -1069,7 +1205,7 @@ class GraphView(QGraphicsView):
                     tgt = item
                     break
             if tgt is not None and isinstance(scene, GraphScene):
-                scene.edge_creation_requested.emit(src, tgt)
+                scene.edge_creation_requested.emit(src, tgt, self._edge_src_action)
             event.accept()
         else:
             super().mouseReleaseEvent(event)
@@ -1080,6 +1216,7 @@ class GraphView(QGraphicsView):
             self.fitInView(scene.itemsBoundingRect(), Qt.AspectRatioMode.KeepAspectRatio)
         else:
             self.resetTransform()
+        self.zoom_changed.emit(self.transform().m11())
 
     def _has_node_mime(self, event: Any) -> bool:
         return event.mimeData().hasFormat(_MIME_NODE_TYPE) or event.mimeData().hasFormat(

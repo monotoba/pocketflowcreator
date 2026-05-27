@@ -373,7 +373,7 @@ Complete every item on the list. Tick each one off as you finish it.
 - [ ] Create a new project from the **Simple LLM Flow** template (File > New From Template)
 - [ ] Add 3 additional nodes from the palette — use at least one Batch Node and one Router Node
 - [ ] Edit node titles and Actions fields in the Object Inspector
-- [ ] Use Edit > Auto Layout and View > Zoom to Fit to tidy the canvas
+- [ ] Arrange nodes manually and use View > Zoom to Fit (Ctrl+0) to tidy the canvas
 - [ ] Draw an edge, then delete it and re-draw it with a different action label
 - [ ] Select multiple nodes with Shift+Click and move them together
 

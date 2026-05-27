@@ -468,5 +468,54 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
                 },
             },
         ),
+        NodeTypeDefinition(
+            node_type_id="human_input_node",
+            display_name="Human Input Node",
+            category="Human-in-the-Loop",
+            base_class="Node",
+            actions=["saved", "cancelled"],
+            properties={
+                "input_type": {
+                    "type": "string",
+                    "default": "form",
+                    "choices": ["form", "list"],
+                    "description": "'form' = collect named fields, 'list' = collect a list of items",
+                },
+                "title": {
+                    "type": "string",
+                    "default": "Human Input",
+                    "description": "Dialog window title shown to the user",
+                },
+                "fields": {
+                    "type": "string",
+                    "default": "",
+                    "description": (
+                        "Form mode only — semicolon-separated field definitions: "
+                        "label:type:default:choices. "
+                        "Type: string|integer|float. "
+                        "Choices: comma-separated (makes a dropdown). "
+                        "Example: Name:string::;Age:integer:18:;Country:string:US:US,UK,CA"
+                    ),
+                },
+                "item_prompt": {
+                    "type": "string",
+                    "default": "",
+                    "description": "List mode only — instruction text shown above the list",
+                },
+                "item_label": {
+                    "type": "string",
+                    "default": "item",
+                    "description": "List mode only — singular label for each entry (e.g. 'review')",
+                },
+                "output_key": {
+                    "type": "string",
+                    "default": "input",
+                    "description": (
+                        "Shared store key written on Save. "
+                        "Form mode: dict of field values. List mode: list of strings."
+                    ),
+                },
+            },
+        ),
     ]
 }

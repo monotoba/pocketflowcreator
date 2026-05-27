@@ -38,6 +38,7 @@ try:
         QPlainTextEdit,
         QPushButton,
         QRadioButton,
+        QSpinBox,
         QSplitter,
         QTableWidget,
         QTableWidgetItem,
@@ -65,6 +66,7 @@ except Exception:  # pragma: no cover - permits import in non-GUI test environme
 
 from pocketflow_creator.generation.exporter import Exporter
 from pocketflow_creator.generation.python_generator import PythonGenerator
+from pocketflow_creator.generation.dataflow_report import generate_dataflow_report
 from pocketflow_creator.generation.report import generate_project_report
 from pocketflow_creator.graph_io import GraphLoader, GraphSaver
 from pocketflow_creator.model.graph_model import EdgeModel, GraphModel, NodeModel
@@ -221,8 +223,14 @@ class MainWindow(QMainWindow):
             self.tr("Object Inspector"),
         ]:
             view_menu.addAction(name)
+        act = view_menu.addAction(self.tr("Zoom In"), self._on_zoom_in)
+        act.setShortcut(QKeySequence("Ctrl++"))
+        act = view_menu.addAction(self.tr("Zoom Out"), self._on_zoom_out)
+        act.setShortcut(QKeySequence("Ctrl+-"))
         act = view_menu.addAction(self.tr("Zoom to Fit"), self._on_zoom_to_fit)
         act.setShortcut(QKeySequence("Ctrl+0"))
+        act = view_menu.addAction(self.tr("Zoom to Node"), self._on_zoom_to_node)
+        act.setShortcut(QKeySequence("Ctrl+Shift+Z"))
         act = view_menu.addAction(self.tr("Auto Layout"), self._on_auto_layout)
         act.setShortcut(QKeySequence("Ctrl+Shift+L"))
 
@@ -235,6 +243,9 @@ class MainWindow(QMainWindow):
         project_menu.addAction(self.tr("Export Graph Image..."), self._on_export_graph_image)
         project_menu.addAction(
             self.tr("Export Project Report..."), self._on_export_project_report
+        )
+        project_menu.addAction(
+            self.tr("Data Flow Report"), self._on_dataflow_report
         )
         project_menu.addAction(self.tr("Provider Profiles..."))
 
@@ -299,7 +310,7 @@ class MainWindow(QMainWindow):
         tb = QToolBar(self.tr("Node Types"), self)
         tb.setObjectName("nodeTypeToolBar")
         tb.setMovable(False)
-        tb.setIconSize(QSize(32, 32))
+        tb.setIconSize(QSize(28, 28))
         tb.setStyleSheet("""
             QToolButton {
                 border: 2px solid transparent;
@@ -322,7 +333,7 @@ class MainWindow(QMainWindow):
             icon = make_node_icon(type_id, 32)
             btn = QToolButton()
             btn.setIcon(icon)
-            btn.setIconSize(QSize(32, 32))
+            btn.setIconSize(QSize(28, 28))
             btn.setToolTip(display_name)
             btn.clicked.connect(
                 lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
@@ -341,6 +352,10 @@ class MainWindow(QMainWindow):
     def _build_central_area(self) -> None:
         self._graph_view = GraphView(self._graph_scene)
         self.setCentralWidget(self._graph_view)
+        self._zoom_label = QLabel("100%")
+        self._zoom_label.setFixedWidth(54)
+        self.statusBar().addPermanentWidget(self._zoom_label)
+        self._graph_view.zoom_changed.connect(self._on_zoom_changed)
 
     def _build_docks(self) -> None:
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._build_project_explorer())
@@ -376,6 +391,7 @@ class MainWindow(QMainWindow):
             ("Problems", self.tr("No validation has been run.")),
             ("Run Log", self.tr("No active run.")),
             ("Shared Store", "{}"),
+            ("Data Flow", self.tr("Open a graph and run Project > Data Flow Report.")),
             ("Prompt Preview", self.tr("Select an LLM node to preview its prompt.")),
             ("Generated Code", self.tr("Generated code appears here.")),
             ("Python", self.tr("Open a Python file to edit custom code.")),
@@ -774,6 +790,9 @@ class MainWindow(QMainWindow):
             return
         try:
             ProjectSaver().save(self._project)
+            saver = GraphSaver()
+            for rel, graph in self._graphs.items():
+                saver.save(graph, self._project.root / rel)
         except Exception as exc:
             QMessageBox.critical(self, "Save Failed", str(exc))
             return
@@ -951,6 +970,24 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.critical(self, "Export Failed", str(exc))
 
+    def _on_dataflow_report(self) -> None:
+        if not self._graphs:
+            self.statusBar().showMessage("No graph open.")
+            return
+        graph = next(iter(self._graphs.values()))
+        # Auto-resolve start node exactly as the run handler does
+        if not graph.start_node or not any(n.id == graph.start_node for n in graph.nodes):
+            resolved = self._resolve_start_node(graph)
+            if resolved:
+                graph.start_node = resolved
+        registry = self._load_node_type_registry() if self._project else {}
+        from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES
+        all_types = {**BUILTIN_NODE_TYPES, **registry}
+        report = generate_dataflow_report(graph, all_types)
+        self._bottom_editors["Data Flow"].setPlainText(report)
+        self._switch_bottom_tab("Data Flow")
+        self.statusBar().showMessage("Data Flow Report generated.")
+
     # ----------------------------------------------- run menu handlers
 
     def _on_run_active_flow(self) -> None:
@@ -975,6 +1012,7 @@ class MainWindow(QMainWindow):
             provider: MockProvider | OllamaProvider = OllamaProvider(
                 base_url=str(settings.value("ollama/base_url", "http://localhost:11434")),
                 default_model=str(settings.value("ollama/default_model", "qwen2.5-coder:14b")),
+                timeout=int(settings.value("ollama/timeout", 120)),  # type: ignore[arg-type]
             )
         else:
             provider = MockProvider(
@@ -992,14 +1030,41 @@ class MainWindow(QMainWindow):
         self._switch_bottom_tab("Run Log")
         self.statusBar().showMessage("Run started…")
 
+        import threading as _input_threading
+
         from PySide6.QtCore import QObject, Signal as _Sig
 
         class _RunSignals(QObject):
             result_ready = _Sig(object)
+            input_requested = _Sig(object, object)
 
         signals = _RunSignals()
+        self._run_signals = signals  # pin to self so GC can't collect it before the slot fires
+
+        _input_event = _input_threading.Event()
+        _input_result: dict[str, object] = {"value": None}
+
+        def _on_input_requested_gui(props: object, store_snap: object) -> None:
+            from pocketflow_creator.app.human_input_dialog import create_human_input_dialog
+            p = props if isinstance(props, dict) else {}
+            s = store_snap if isinstance(store_snap, dict) else {}
+            dlg = create_human_input_dialog(str(p.get("input_type", "form")), p, s, self)
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                _input_result["value"] = dlg.result_data
+            else:
+                _input_result["value"] = None
+            _input_event.set()
+
+        def input_cb(props: dict, shared_store: dict) -> object:
+            _input_event.clear()
+            signals.input_requested.emit(props, shared_store)
+            _input_event.wait(timeout=600)
+            return _input_result["value"]
+
+        signals.input_requested.connect(_on_input_requested_gui)
 
         def _on_run_complete(result: object) -> None:
+            self._run_signals = None  # release the pin
             if isinstance(result, Exception):
                 QMessageBox.critical(self, "Run Failed", str(result))
                 self.statusBar().showMessage("Run failed.")
@@ -1036,6 +1101,7 @@ class MainWindow(QMainWindow):
                     project_name=project_name,
                     known_graphs=known_graphs or None,
                     project_root=project_root,
+                    input_callback=input_cb,
                 )
                 signals.result_ready.emit(trace)
             except Exception as exc:
@@ -1096,6 +1162,7 @@ class MainWindow(QMainWindow):
             provider: MockProvider | OllamaProvider = OllamaProvider(
                 base_url=str(settings.value("ollama/base_url", "http://localhost:11434")),
                 default_model=str(settings.value("ollama/default_model", "qwen2.5-coder:14b")),
+                timeout=int(settings.value("ollama/timeout", 120)),  # type: ignore[arg-type]
             )
         else:
             provider = MockProvider(
@@ -1111,13 +1178,39 @@ class MainWindow(QMainWindow):
         self._switch_bottom_tab("Run Log")
 
         # Local QObject subclass — defined here so QApplication already exists (avoids segfault).
+        import threading as _dbg_input_threading
+
         from PySide6.QtCore import QObject, Signal as _Sig
 
         class _DbgSignals(QObject):
             step_ready = _Sig(object)
             run_finished = _Sig()
+            input_requested = _Sig(object, object)
 
         signals = _DbgSignals()
+        self._dbg_signals = signals  # pin to self so GC can't collect it before slots fire
+
+        _dbg_input_event = _dbg_input_threading.Event()
+        _dbg_input_result: dict[str, object] = {"value": None}
+
+        def _on_dbg_input_requested_gui(props: object, store_snap: object) -> None:
+            from pocketflow_creator.app.human_input_dialog import create_human_input_dialog
+            p = props if isinstance(props, dict) else {}
+            s = store_snap if isinstance(store_snap, dict) else {}
+            dlg = create_human_input_dialog(str(p.get("input_type", "form")), p, s, self)
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                _dbg_input_result["value"] = dlg.result_data
+            else:
+                _dbg_input_result["value"] = None
+            _dbg_input_event.set()
+
+        def dbg_input_cb(props: dict, shared_store: dict) -> object:
+            _dbg_input_event.clear()
+            signals.input_requested.emit(props, shared_store)
+            _dbg_input_event.wait(timeout=600)
+            return _dbg_input_result["value"]
+
+        signals.input_requested.connect(_on_dbg_input_requested_gui)
 
         def _on_step_gui(step: object) -> None:
             if not isinstance(step, RunStep):
@@ -1135,6 +1228,7 @@ class MainWindow(QMainWindow):
                 )
 
         def _on_finished_gui() -> None:
+            self._dbg_signals = None  # release the pin
             self._stop_action.setEnabled(False)  # type: ignore[attr-defined]
             self._resume_action.setEnabled(False)  # type: ignore[attr-defined]
             self.statusBar().showMessage("Debug run finished.")
@@ -1152,6 +1246,7 @@ class MainWindow(QMainWindow):
                 project_name=self._project.name if self._project else "",
                 known_graphs=_debug_known or None,
                 project_root=self._project.root if self._project else None,
+                input_callback=dbg_input_cb,
             )
             signals.run_finished.emit()
 
@@ -1310,16 +1405,42 @@ class MainWindow(QMainWindow):
         self._current_node = None
         self._current_node_item = None
         self._current_edge = item.edge
+        edge = self._current_edge
+
+        # Collect available actions from the source node
+        src_actions: list[str] = ["default"]
+        if self._active_graph_rel:
+            graph = self._graphs.get(self._active_graph_rel)
+            if graph:
+                src = next((n for n in graph.nodes if n.id == edge.from_node), None)
+                if src and src.actions:
+                    src_actions = list(src.actions)
+
         self._inspector.blockSignals(True)
         self._inspector.clear()
         for label, value in [
-            ("ID", self._current_edge.id),
-            ("From", self._current_edge.from_node),
-            ("Action", self._current_edge.action),
-            ("To", self._current_edge.to_node),
+            ("ID",   edge.id),
+            ("From", edge.from_node),
+            ("To",   edge.to_node),
         ]:
             self._inspector.addTopLevelItem(QTreeWidgetItem([label, value]))
+
+        action_row = QTreeWidgetItem(["Action", ""])
+        self._inspector.addTopLevelItem(action_row)
         self._inspector.blockSignals(False)
+
+        # Embed combo box — must be added after the row is in the tree
+        combo = QComboBox()
+        combo.addItems(src_actions)
+        if edge.action not in src_actions:
+            combo.insertItem(0, edge.action)
+        combo.setCurrentText(edge.action)
+
+        def _action_changed(text: str) -> None:
+            edge.action = text or "default"
+
+        combo.currentTextChanged.connect(_action_changed)
+        self._inspector.setItemWidget(action_row, 1, combo)
 
     def _on_selection_cleared(self) -> None:
         self._current_node = None
@@ -1547,15 +1668,20 @@ class MainWindow(QMainWindow):
         self._graph_scene.delete_selected()
 
     def _on_node_deleted(self, node_id: object) -> None:
-        from pocketflow_creator.app import code_manager
-
-        if not isinstance(node_id, str):
+        if not isinstance(node_id, str) or self._active_graph_rel is None:
             return
-        if self._project is None or self._active_graph_rel is None:
-            return
-        code_path = code_manager.get_code_file(self._active_graph_rel, self._project.root)
-        if code_path.exists():
-            code_manager.remove_node(code_path, node_id)
+        graph = self._graphs.get(self._active_graph_rel)
+        if graph is not None:
+            graph.nodes = [n for n in graph.nodes if n.id != node_id]
+            graph.edges = [
+                e for e in graph.edges
+                if e.from_node != node_id and e.to_node != node_id
+            ]
+        if self._project is not None:
+            from pocketflow_creator.app import code_manager
+            code_path = code_manager.get_code_file(self._active_graph_rel, self._project.root)
+            if code_path.exists():
+                code_manager.remove_node(code_path, node_id)
 
     def _on_edge_deleted(self, edge_id: object) -> None:
         if not isinstance(edge_id, str) or self._active_graph_rel is None:
@@ -1564,7 +1690,7 @@ class MainWindow(QMainWindow):
         if graph is not None:
             graph.edges = [e for e in graph.edges if e.id != edge_id]
 
-    def _on_edge_creation_requested(self, src: object, tgt: object) -> None:
+    def _on_edge_creation_requested(self, src: object, tgt: object, action: object = "default") -> None:
         from pocketflow_creator.app.canvas import NodeItem
 
         if not isinstance(src, NodeItem) or not isinstance(tgt, NodeItem):
@@ -1577,7 +1703,7 @@ class MainWindow(QMainWindow):
             id=f"edge_{_uuid.uuid4().hex[:8]}",
             from_node=src.node.id,
             to_node=tgt.node.id,
-            action="default",
+            action=str(action) if action else "default",
         )
         graph = self._graphs.get(self._active_graph_rel)
         if graph is not None:
@@ -1722,8 +1848,21 @@ class MainWindow(QMainWindow):
         self._apply_theme()
         self.statusBar().showMessage(self.tr("Options saved."))
 
+    def _on_zoom_changed(self, scale: float) -> None:
+        self._zoom_label.setText(f"{int(round(scale * 100))}%")
+
+    def _on_zoom_in(self) -> None:
+        self._graph_view.zoom_in()
+
+    def _on_zoom_out(self) -> None:
+        self._graph_view.zoom_out()
+
     def _on_zoom_to_fit(self) -> None:
         self._graph_view.zoom_to_fit()
+
+    def _on_zoom_to_node(self) -> None:
+        if self._current_node_item is not None:
+            self._graph_view.zoom_to_item(self._current_node_item)
 
     # ----------------------------------------- explorer double-click handlers
 
@@ -1858,6 +1997,7 @@ class MainWindow(QMainWindow):
         ollama_form = QFormLayout(ollama_group)
         saved_url = str(settings.value("ollama/base_url", "http://localhost:11434"))
         saved_model = str(settings.value("ollama/default_model", "qwen2.5-coder:14b"))
+        saved_timeout = int(settings.value("ollama/timeout", 120))  # type: ignore[arg-type]
         ollama_url = QLineEdit(saved_url)
         ollama_form.addRow("Base URL:", ollama_url)
 
@@ -1869,6 +2009,16 @@ class MainWindow(QMainWindow):
         model_row.addWidget(ollama_model_combo)
         model_row.addWidget(refresh_btn)
         ollama_form.addRow("Default model:", model_row)
+
+        timeout_spin = QSpinBox()
+        timeout_spin.setRange(5, 3600)
+        timeout_spin.setSingleStep(15)
+        timeout_spin.setSuffix(" s")
+        timeout_spin.setValue(saved_timeout)
+        timeout_spin.setToolTip(
+            "Maximum seconds to wait for an Ollama response before raising a timeout error."
+        )
+        ollama_form.addRow("Request timeout:", timeout_spin)
         layout.addWidget(ollama_group)
 
         def _populate_models(select: str = "") -> None:
@@ -1905,6 +2055,7 @@ class MainWindow(QMainWindow):
         settings.setValue("run/provider", "ollama" if rb_ollama.isChecked() else "mock")
         settings.setValue("ollama/base_url", ollama_url.text().strip())
         settings.setValue("ollama/default_model", ollama_model_combo.currentText().strip())
+        settings.setValue("ollama/timeout", timeout_spin.value())
         settings.setValue("mock/response", mock_response.text())
         self.statusBar().showMessage("Provider settings saved.")
 

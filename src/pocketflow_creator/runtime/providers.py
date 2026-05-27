@@ -24,6 +24,7 @@ class MockProvider:
 class OllamaProvider:
     base_url: str = "http://localhost:11434"
     default_model: str = "qwen2.5-coder:14b"
+    timeout: int = 120
 
     def complete(self, prompt: str, *, model: str | None = None) -> str:
         url = f"{self.base_url.rstrip('/')}/api/generate"
@@ -34,7 +35,7 @@ class OllamaProvider:
             url, data=payload, headers={"Content-Type": "application/json"}, method="POST"
         )
         try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 body = json.loads(resp.read())
                 return str(body.get("response", ""))
         except urllib.error.URLError as exc:

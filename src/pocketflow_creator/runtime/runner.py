@@ -140,6 +140,7 @@ class FlowRunner:
         shared: dict[str, object] | None = None,
         known_graphs: dict[str, GraphModel] | None = None,
         project_root: Path | None = None,
+        input_callback: object = None,
     ) -> Generator[RunStep, None, None]:
         """Yield one RunStep per executed node. Non-blocking; consumer controls pacing.
 
@@ -175,7 +176,9 @@ class FlowRunner:
                     # final shared_after for state merge before continuing in the parent.
                     inner_steps = list(  # noqa: UP028
                         self.steps(
-                            subgraph, provider, shared=shared_store, known_graphs=known_graphs
+                            subgraph, provider, shared=shared_store,
+                            known_graphs=known_graphs, project_root=project_root,
+                            input_callback=input_callback,
                         )
                     )
                     for inner_step in inner_steps:  # noqa: UP028
@@ -256,6 +259,23 @@ class FlowRunner:
                 elif "continue" in available_actions:
                     chosen_action = "continue"
 
+            elif node.type_id == "human_input_node":
+                output_key = str(node.properties.get("output_key", "input"))
+                if callable(input_callback):
+                    data = input_callback(dict(node.properties), dict(shared_store))
+                    if isinstance(data, dict):
+                        shared_store.update(data)
+                        chosen_action = "saved"
+                    elif isinstance(data, list):
+                        shared_store[output_key] = data
+                        chosen_action = "saved"
+                    else:
+                        # None → user cancelled
+                        chosen_action = "cancelled"
+                else:
+                    # No callback wired (e.g. non-GUI run); skip and continue.
+                    chosen_action = next(iter(available_actions), "default")
+
             shared_after = copy.deepcopy(shared_store)
 
             yield RunStep(
@@ -269,6 +289,12 @@ class FlowRunner:
             )
 
             next_edge = next((e for e in outgoing if e.action == chosen_action), None)
+            if next_edge is None and outgoing:
+                # Fallback: prefer a 'default' edge, then any edge.
+                # Handles graphs built before action-aware port dragging was available.
+                next_edge = next(
+                    (e for e in outgoing if e.action == "default"), outgoing[0]
+                )
             current_id = next_edge.to_node if next_edge else ""
 
     def run(
@@ -280,6 +306,7 @@ class FlowRunner:
         shared: dict[str, object] | None = None,
         known_graphs: dict[str, GraphModel] | None = None,
         project_root: Path | None = None,
+        input_callback: object = None,
     ) -> RunTrace:
         started_at = datetime.now(tz=timezone.utc).isoformat()
         return RunTrace(
@@ -290,6 +317,7 @@ class FlowRunner:
                 self.steps(
                     graph, provider,
                     shared=shared, known_graphs=known_graphs, project_root=project_root,
+                    input_callback=input_callback,
                 )
             ),
         )
@@ -306,6 +334,7 @@ class FlowRunner:
         shared: dict[str, object] | None = None,
         known_graphs: dict[str, GraphModel] | None = None,
         project_root: Path | None = None,
+        input_callback: object = None,
     ) -> RunTrace:
         """Run the graph in debug mode; pauses at breakpoints via controller.
 
@@ -317,7 +346,8 @@ class FlowRunner:
         collected: list[RunStep] = []
 
         for step in self.steps(
-            graph, provider, shared=shared, known_graphs=known_graphs, project_root=project_root
+            graph, provider, shared=shared, known_graphs=known_graphs,
+            project_root=project_root, input_callback=input_callback,
         ):
             if controller.is_stopped:
                 break

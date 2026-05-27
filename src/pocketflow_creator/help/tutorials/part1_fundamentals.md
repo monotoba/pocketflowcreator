@@ -67,6 +67,17 @@ see the shape of your flow at a glance. Nodes are the work units; edges are the 
 transitions between them. The canvas is interactive: you can drag nodes to reposition
 them, click edges to inspect or relabel them, and zoom with Ctrl+Scroll.
 
+Each node shows its data contract directly on its tile:
+
+- **Left port** (input) — labelled with the shared-store key the node reads (its
+  `input_key` property). Nodes without an explicit input key show `in`.
+- **Right ports** (outputs) — one circle per action, each labelled with the action
+  name (e.g. `default`, `pass`, `fail`). Multi-action nodes grow taller to accommodate
+  all their ports; each port is wired to a separate outgoing edge.
+
+Reading these labels lets you trace the data flow across the graph without opening the
+Inspector or the code editor.
+
 **Object Inspector (right dock, top)**
 Shows and edits the properties of whatever is selected on the canvas. Selecting a node
 shows its ID, type, title, actions, and any custom properties. Selecting an edge shows
@@ -90,6 +101,7 @@ The tabbed panel at the bottom switches between several views:
 | **Generated Code** | Read-only view of the exported `flow.py` |
 | **Test Results** | Output from `pytest` when you run the test suite |
 | **Problems** | Validation errors from the most recent validate operation |
+| **Data Flow** | Plain-text report showing which shared-store keys each node reads and writes, execution order, and any routing warnings — generated via Project > Data Flow Report |
 
 ### How the Panels Work Together
 
@@ -118,8 +130,11 @@ cycle — what you see is always current.
 | Run active flow | F5 |
 | Debug active flow | Shift+F5 |
 | Toggle breakpoint | F9 |
+| Zoom in | Ctrl++ |
+| Zoom out | Ctrl+- |
 | Zoom to fit | Ctrl+0 |
-| Auto layout | Ctrl+Shift+L |
+| Zoom to selected node | Ctrl+Shift+Z |
+| Auto arrange *(coming soon)* | — |
 | Delete selected node | Delete |
 
 ---
@@ -590,6 +605,47 @@ Click an edge (the connecting line) rather than a node. The Inspector shows:
   Actions, otherwise the validator flags error PFCE2101. Clicking the action field lets
   you rename the edge in place.
 
+### Node Port Labels
+
+The canvas reflects the Inspector values without you needing to read any code:
+
+- **Input label** (lower-left of the node tile) — displays the value of the node's
+  `input_key` property, or `in` if none is set. This tells you at a glance which
+  shared-store key the node expects to find when it runs.
+- **Output labels** (right side, one per action) — each action port is labelled with
+  its action string. Multi-action nodes grow taller so every port has its own clearly
+  labelled row. Edges drawn from a specific port carry that action automatically.
+
+If you change `input_key` in the Inspector, the canvas label updates immediately.
+
+### The Data Flow Report
+
+Once your graph has more than a few nodes, understanding which key is written where and
+read by whom becomes non-trivial. The **Data Flow Report** answers that question in one
+click:
+
+**Project > Data Flow Report** — or look at the **Data Flow** tab in the bottom panel.
+
+The report contains three sections:
+
+**NODE DATA FLOW** — a table listing every node in BFS execution order, with columns for
+the shared-store keys it reads and the keys it writes. Multi-action nodes also show their
+branch destinations.
+
+**SHARED STORE KEY LIFECYCLE** — for every key that appears in the graph, one row showing
+which node writes it and which nodes read it. A key marked `(external)` in the
+"Written by" column must be supplied by the caller before the flow starts.
+
+**DATA FLOW NOTES** — routing and key warnings:
+- A key that is written but never read (likely dead output)
+- A key that is read but never written (must come from outside the flow)
+- A key written by more than one node (later write silently overwrites the earlier one)
+- An edge whose action doesn't match any action the source node declares
+
+Run the report whenever you add new nodes, change `input_key`/`output_key` properties,
+or add a new routing branch. It is the fastest way to catch data-contract mismatches
+before running the flow.
+
 ### When to Use the Inspector vs. the Code Editor
 
 Use the Inspector for everything structural: titles, actions, documented reads/writes,
@@ -877,7 +933,7 @@ my_project/
 **3. Explore the pre-wired graph**
 
 Open `graphs/main.pfcgraph.yaml`. You see three nodes already placed and connected.
-Run View > Auto Layout and Ctrl+0 to fit the view. The template has done the structural
+Use View > Zoom to Fit (Ctrl+0) to centre the view. The template has done the structural
 work; your job is to replace the placeholder prompt and implement the node bodies.
 
 **4. Edit the prompt**
