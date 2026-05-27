@@ -1261,7 +1261,7 @@ class GraphView(QGraphicsView):
                 sp = src.action_port_scene_pos(action)
                 rubber = QGraphicsLineItem(sp.x(), sp.y(), scene_pos.x(), scene_pos.y())
                 rubber.setPen(QPen(QColor("#4a9eff"), 1.5, Qt.PenStyle.DashLine))
-                rubber.setZValue(-1)
+                rubber.setZValue(1000)  # draw above all nodes while dragging
                 self.scene().addItem(rubber)
                 self._edge_rubber = rubber
                 self.setCursor(Qt.CursorShape.CrossCursor)
