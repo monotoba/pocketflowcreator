@@ -1,12 +1,18 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-try:
+if TYPE_CHECKING:
     from PySide6.QtCore import QRegularExpression
     from PySide6.QtGui import QColor, QFont, QSyntaxHighlighter, QTextCharFormat
-except ImportError:  # pragma: no cover
-    QSyntaxHighlighter = object  # type: ignore[assignment,misc]
+else:
+    try:
+        from PySide6.QtCore import QRegularExpression
+        from PySide6.QtGui import QColor, QFont, QSyntaxHighlighter, QTextCharFormat
+    except ImportError:  # pragma: no cover
+        # QSyntaxHighlighter is used as a base class at import time; the rest
+        # are only used inside method bodies never called without PySide6.
+        QSyntaxHighlighter = object
 
 
 class PythonHighlighter(QSyntaxHighlighter):

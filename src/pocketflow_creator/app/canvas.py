@@ -4,9 +4,12 @@ import json
 import math
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-try:
+# Separate type-checking imports from runtime imports so that Pyright always
+# sees the real Qt types (eliminating "possibly unbound" diagnostics) while
+# the runtime path gracefully degrades when PySide6 is absent (headless tests).
+if TYPE_CHECKING:
     from PySide6.QtCore import QMimeData, QPointF, QRectF, QSize, Qt, Signal
     from PySide6.QtGui import (
         QBrush,
@@ -34,16 +37,47 @@ try:
         QStyleOptionGraphicsItem,
         QWidget,
     )
-except ImportError:  # pragma: no cover - permits import in non-GUI test environments
-    def Signal(*a: Any, **kw: Any) -> Any:  # type: ignore[misc,no-redef]
-        return None
+else:
+    try:
+        from PySide6.QtCore import QMimeData, QPointF, QRectF, QSize, Qt, Signal
+        from PySide6.QtGui import (
+            QBrush,
+            QColor,
+            QDrag,
+            QFont,
+            QIcon,
+            QPainter,
+            QPainterPath,
+            QPainterPathStroker,
+            QPen,
+            QPixmap,
+            QPolygonF,
+        )
+        from PySide6.QtWidgets import (
+            QAbstractItemView,
+            QGraphicsItem,
+            QGraphicsLineItem,
+            QGraphicsPathItem,
+            QGraphicsScene,
+            QGraphicsView,
+            QListWidget,
+            QListWidgetItem,
+            QMenu,
+            QStyleOptionGraphicsItem,
+            QWidget,
+        )
+    except ImportError:  # pragma: no cover - permits import in non-GUI test environments
+        def Signal(*a: Any, **kw: Any) -> Any:
+            return None
 
-    QGraphicsItem = object  # type: ignore[assignment,misc]
-    QGraphicsLineItem = object  # type: ignore[assignment,misc]
-    QGraphicsPathItem = object  # type: ignore[assignment,misc]
-    QGraphicsScene = object  # type: ignore[assignment,misc]
-    QGraphicsView = object  # type: ignore[assignment,misc]
-    QListWidget = object  # type: ignore[assignment,misc]
+        # Only names used as class bases at import time need stubs; all others
+        # are inside function bodies never called without a running Qt instance.
+        QGraphicsItem = object
+        QGraphicsLineItem = object
+        QGraphicsPathItem = object
+        QGraphicsScene = object
+        QGraphicsView = object
+        QListWidget = object
 
 from pocketflow_creator.model.graph_model import EdgeModel, GraphModel, NodeModel
 

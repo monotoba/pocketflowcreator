@@ -3,14 +3,15 @@ from __future__ import annotations
 import copy
 from typing import TYPE_CHECKING, Any
 
-try:
-    from PySide6.QtGui import QUndoCommand
-except ImportError:  # pragma: no cover
-    QUndoCommand = object  # type: ignore[assignment,misc]
-
 if TYPE_CHECKING:
+    from PySide6.QtGui import QUndoCommand
     from pocketflow_creator.app.canvas import GraphScene
     from pocketflow_creator.model.graph_model import GraphModel
+else:
+    try:
+        from PySide6.QtGui import QUndoCommand
+    except ImportError:  # pragma: no cover
+        QUndoCommand = object
 
 
 class GraphSnapshotCommand(QUndoCommand):
