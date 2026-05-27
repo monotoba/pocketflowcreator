@@ -316,7 +316,7 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
 - [x] T-R06 🔴 Extract the human-input callback wiring (inner signal class, `_input_event`,
   `_input_result`, GUI slot, `input_cb` closure) into a reusable helper shared by
   `_on_run_active_flow` and `_on_debug_active_flow`.
-- [ ] T-R07 🟡 Extract `_clear_selection_state()` and call it from both `_on_undo` and
+- [x] T-R07 🟡 Extract `_clear_selection_state()` and call it from both `_on_undo` and
   `_on_redo` (currently identical except for the `undo()`/`redo()` call).
 - [ ] T-R08 🟡 Move all inline `import` statements inside handler methods (`threading`,
   `uuid`, `re`, `shutil`, `subprocess`, `sys`, `ast`, etc.) to file-level imports.
