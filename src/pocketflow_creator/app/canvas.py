@@ -802,6 +802,24 @@ class NodeItem(QGraphicsItem):
             scene.set_start_node_requested.emit(self)
         event.accept()
 
+    def mousePressEvent(self, event: Any) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_start_pos = self.pos()
+            scene = self.scene()
+            if isinstance(scene, GraphScene):
+                scene.node_drag_started.emit(self._node.id)
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event: Any) -> None:
+        super().mouseReleaseEvent(event)
+        if event.button() == Qt.MouseButton.LeftButton:
+            start = getattr(self, "_drag_start_pos", None)
+            if start is not None and start != self.pos():
+                scene = self.scene()
+                if isinstance(scene, GraphScene):
+                    scene.node_move_finished.emit(self._node.id)
+            self._drag_start_pos = None
+
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             p = self.pos()
@@ -884,6 +902,8 @@ class GraphScene(QGraphicsScene):
     edge_creation_requested = Signal(object, object, str)  # emits (src NodeItem, tgt NodeItem, action)
     edge_deleted = Signal(str)                 # emits edge_id
     set_start_node_requested = Signal(object)  # emits NodeItem
+    node_drag_started = Signal(str)            # emits node_id when a drag begins
+    node_move_finished = Signal(str)           # emits node_id when a drag ends with position change
 
     def __init__(self, parent: Any = None) -> None:
         super().__init__(parent)

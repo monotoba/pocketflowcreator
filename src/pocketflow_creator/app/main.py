@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import shutil
 import tempfile
 from collections.abc import Sequence
@@ -60,6 +61,7 @@ try:
         PaletteWidget,
         make_node_icon,
     )
+    from pocketflow_creator.app.commands import GraphSnapshotCommand
     from pocketflow_creator.app.editors import PythonHighlighter, YamlHighlighter
 except Exception:  # pragma: no cover - permits import in non-GUI test environments
     QApplication = None  # type: ignore[assignment,misc]
@@ -118,6 +120,8 @@ class MainWindow(QMainWindow):
         self._current_node: NodeModel | None = None
         self._current_node_item: NodeItem | None = None
         self._current_edge: EdgeModel | None = None
+        self._pre_drag_graph: GraphModel | None = None
+        self._inspector_snapshot: GraphModel | None = None
         self._debug_controller: StepController | None = None
         self._debug_thread: object = None  # QThread when active
         self._breakpoints: set[str] = set()
@@ -156,6 +160,8 @@ class MainWindow(QMainWindow):
         self._graph_scene.edge_deleted.connect(self._on_edge_deleted)
         self._graph_scene.edge_creation_requested.connect(self._on_edge_creation_requested)
         self._graph_scene.set_start_node_requested.connect(self._on_set_start_node)
+        self._graph_scene.node_drag_started.connect(self._on_node_drag_started)
+        self._graph_scene.node_move_finished.connect(self._on_node_move_finished)
         self._inspector.itemChanged.connect(self._on_inspector_item_changed)
         self._explorer_tree.itemDoubleClicked.connect(
             self._on_explorer_item_double_clicked
@@ -199,9 +205,9 @@ class MainWindow(QMainWindow):
         act.setShortcut(QKeySequence.StandardKey.Quit)
 
         edit_menu = self.menuBar().addMenu(self.tr("Edit"))
-        undo_act = edit_menu.addAction(self.tr("Undo"), self._undo_stack.undo)
+        undo_act = edit_menu.addAction(self.tr("Undo"), self._on_undo)
         undo_act.setShortcut(QKeySequence.StandardKey.Undo)
-        redo_act = edit_menu.addAction(self.tr("Redo"), self._undo_stack.redo)
+        redo_act = edit_menu.addAction(self.tr("Redo"), self._on_redo)
         redo_act.setShortcut(QKeySequence.StandardKey.Redo)
         edit_menu.addSeparator()
         cut_act = edit_menu.addAction(self.tr("Cut"))
@@ -522,6 +528,7 @@ class MainWindow(QMainWindow):
         self._is_temp_project = True
         self._graphs = {graph_rel: graph}
         self._active_graph_rel = graph_rel
+        self._undo_stack.clear()
         self._graph_scene.load_graph(graph)
         self.setWindowTitle(self.tr("PocketFlow Creator — Untitled (unsaved)"))
         self.statusBar().showMessage(
@@ -586,6 +593,7 @@ class MainWindow(QMainWindow):
             ProjectSaver().save(self._project)
             self._graphs[graph_rel] = graph
             self._active_graph_rel = graph_rel
+            self._undo_stack.clear()
             self._graph_scene.load_graph(graph)
             self._graph_view.zoom_to_fit()
             self._add_recent(self._project.project_file)
@@ -725,6 +733,7 @@ class MainWindow(QMainWindow):
                     pass  # Non-fatal — graph stays in memory even if save fails
             if self._graphs:
                 self._active_graph_rel = next(iter(self._graphs.keys()))
+                self._undo_stack.clear()
                 self._graph_scene.load_graph(self._graphs[self._active_graph_rel])
                 self._graph_view.zoom_to_fit()
             self._refresh_explorer()
@@ -1436,8 +1445,24 @@ class MainWindow(QMainWindow):
             combo.insertItem(0, edge.action)
         combo.setCurrentText(edge.action)
 
+        _edge_before: list[GraphModel | None] = [None]
+        if self._active_graph_rel:
+            _g = self._graphs.get(self._active_graph_rel)
+            _edge_before[0] = copy.deepcopy(_g) if _g is not None else None
+
         def _action_changed(text: str) -> None:
             edge.action = text or "default"
+            if self._active_graph_rel and _edge_before[0] is not None:
+                _g2 = self._graphs.get(self._active_graph_rel)
+                if _g2 is not None:
+                    rel = self._active_graph_rel
+                    after = copy.deepcopy(_g2)
+                    cmd = GraphSnapshotCommand(
+                        "Change Edge Action", self._graphs, rel,
+                        _edge_before[0], after, self._graph_scene,
+                    )
+                    self._undo_stack.push(cmd)
+                    _edge_before[0] = after
 
         combo.currentTextChanged.connect(_action_changed)
         self._inspector.setItemWidget(action_row, 1, combo)
@@ -1503,6 +1528,17 @@ class MainWindow(QMainWindow):
                 node.properties[label] = self._coerce_property(value, declared_type)
 
         self._live_validate()
+        if self._active_graph_rel and self._inspector_snapshot is not None:
+            graph = self._graphs.get(self._active_graph_rel)
+            if graph is not None:
+                rel = self._active_graph_rel
+                before = self._inspector_snapshot
+                after = copy.deepcopy(graph)
+                cmd = GraphSnapshotCommand(
+                    "Edit Property", self._graphs, rel, before, after, self._graph_scene
+                )
+                self._undo_stack.push(cmd)
+                self._inspector_snapshot = after
 
     def _load_node_type_registry(self) -> dict[str, NodeTypeDefinition]:
         from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES
@@ -1536,6 +1572,9 @@ class MainWindow(QMainWindow):
         item.setToolTip(col, "Click to edit")
 
     def _populate_inspector_for_node(self, node: NodeModel) -> None:
+        if self._active_graph_rel:
+            graph = self._graphs.get(self._active_graph_rel)
+            self._inspector_snapshot = copy.deepcopy(graph) if graph is not None else None
         self._inspector.blockSignals(True)
         self._inspector.clear()
         rows: list[tuple[str, str, bool]] = [
@@ -1654,18 +1693,38 @@ class MainWindow(QMainWindow):
             return
         assert self._active_graph_rel is not None
         assert self._project is not None  # _create_untitled_flow always sets _project
+        rel = self._active_graph_rel
+        graph = self._graphs.get(rel)
+        before = copy.deepcopy(graph) if graph is not None else None
         # Keep the live GraphModel in sync so save/validate see the new node
-        graph = self._graphs.get(self._active_graph_rel)
         if graph is not None and item.node not in graph.nodes:
             graph.nodes.append(item.node)
-        code_path = code_manager.ensure_code_file(self._active_graph_rel, self._project.root)
+        code_path = code_manager.ensure_code_file(rel, self._project.root)
         registry = self._load_node_type_registry()
         nt = registry.get(item.node.type_id)
         bc = nt.base_class if nt else ""
         code_manager.add_node(code_path, item.node, base_class=bc)
+        if graph is not None and before is not None:
+            after = copy.deepcopy(graph)
+            cmd = GraphSnapshotCommand("Add Node", self._graphs, rel, before, after, self._graph_scene)
+            self._undo_stack.push(cmd)
 
     def _on_delete_selected(self) -> None:
+        if self._active_graph_rel is None:
+            self._graph_scene.delete_selected()
+            return
+        graph = self._graphs.get(self._active_graph_rel)
+        before = copy.deepcopy(graph) if graph is not None else None
         self._graph_scene.delete_selected()
+        # _on_node_deleted / _on_edge_deleted fire synchronously above — graph is updated
+        if graph is not None and before is not None:
+            after = copy.deepcopy(graph)
+            if (len(after.nodes) != len(before.nodes) or len(after.edges) != len(before.edges)):
+                cmd = GraphSnapshotCommand(
+                    "Delete", self._graphs, self._active_graph_rel,
+                    before, after, self._graph_scene,
+                )
+                self._undo_stack.push(cmd)
 
     def _on_node_deleted(self, node_id: object) -> None:
         if not isinstance(node_id, str) or self._active_graph_rel is None:
@@ -1698,6 +1757,7 @@ class MainWindow(QMainWindow):
         if not self._ensure_active_graph():
             return
         assert self._active_graph_rel is not None
+        rel = self._active_graph_rel
         import uuid as _uuid
         edge = EdgeModel(
             id=f"edge_{_uuid.uuid4().hex[:8]}",
@@ -1705,10 +1765,15 @@ class MainWindow(QMainWindow):
             to_node=tgt.node.id,
             action=str(action) if action else "default",
         )
-        graph = self._graphs.get(self._active_graph_rel)
+        graph = self._graphs.get(rel)
+        before = copy.deepcopy(graph) if graph is not None else None
         if graph is not None:
             graph.edges.append(edge)
         self._graph_scene.add_edge(src, tgt, edge)
+        if graph is not None and before is not None:
+            after = copy.deepcopy(graph)
+            cmd = GraphSnapshotCommand("Add Edge", self._graphs, rel, before, after, self._graph_scene)
+            self._undo_stack.push(cmd)
 
     def _on_set_start_node(self, item: object) -> None:
         from pocketflow_creator.app.canvas import NodeItem
@@ -1847,6 +1912,42 @@ class MainWindow(QMainWindow):
         settings.setValue("ui/locale", lang_combo.currentData())
         self._apply_theme()
         self.statusBar().showMessage(self.tr("Options saved."))
+
+    def _on_undo(self) -> None:
+        self._undo_stack.undo()
+        self._current_node = None
+        self._current_node_item = None
+        self._current_edge = None
+        self._inspector_snapshot = None
+        self._inspector.clear()
+
+    def _on_redo(self) -> None:
+        self._undo_stack.redo()
+        self._current_node = None
+        self._current_node_item = None
+        self._current_edge = None
+        self._inspector_snapshot = None
+        self._inspector.clear()
+
+    def _on_node_drag_started(self, node_id: str) -> None:
+        if self._active_graph_rel is None:
+            return
+        graph = self._graphs.get(self._active_graph_rel)
+        self._pre_drag_graph = copy.deepcopy(graph) if graph is not None else None
+
+    def _on_node_move_finished(self, node_id: str) -> None:
+        if self._active_graph_rel is None or self._pre_drag_graph is None:
+            return
+        graph = self._graphs.get(self._active_graph_rel)
+        if graph is None:
+            return
+        rel = self._active_graph_rel
+        after = copy.deepcopy(graph)
+        cmd = GraphSnapshotCommand(
+            "Move Node", self._graphs, rel, self._pre_drag_graph, after, self._graph_scene
+        )
+        self._undo_stack.push(cmd)
+        self._pre_drag_graph = None
 
     def _on_zoom_changed(self, scale: float) -> None:
         self._zoom_label.setText(f"{int(round(scale * 100))}%")
