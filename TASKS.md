@@ -276,3 +276,177 @@ Settings are persisted in the project file and the operation is undoable.
              runs chosen algorithm, pushes `GraphSnapshotCommand` to undo stack, saves settings
              to `project.auto_arrange`, zooms to fit
 - [x] T-A07: Apply saved `connector_style` from project when loading a project/graph
+
+---
+
+## M15 — Boy Scout Refactoring  [ In Progress ]
+
+**Deliverable:** Codebase readability and maintainability improvements identified in
+[`BOY_SCOUT_NOTES.md`](BOY_SCOUT_NOTES.md). No functional changes — existing tests must
+stay green throughout. Tasks are grouped by theme and ordered high → medium → low priority.
+
+**Depends on:** M14
+
+### Group 1 — Fix the Qt try/import pattern (Cross-cutting)
+
+- [ ] T-R01 🔴 Replace `except Exception` with `except ImportError` in the PySide6
+  try/import blocks in `app/canvas.py`, `app/commands.py`, and `app/editors.py`.
+- [ ] T-R02 🔴 Resolve Pyright "possibly unbound" false-positives in `app/canvas.py`
+  and `app/editors.py` by moving type-only Qt imports under `if TYPE_CHECKING:` guards
+  and using a runtime availability check for non-type usage.
+
+### Group 2 — Split oversized files
+
+- [ ] T-R03 🔴 Split `app/canvas.py` (1404 lines) into a `canvas/` sub-package:
+  `canvas/icons.py`, `canvas/items.py`, `canvas/scene.py`, `canvas/view.py`,
+  `canvas/palette.py`, and a `canvas/__init__.py` that re-exports all existing public
+  names so no external imports need to change.
+- [ ] T-R04 🔴 Reduce `app/main.py` (2556 lines) by extracting self-contained dialogs
+  and the run controller:
+  `app/dialogs/provider_manager.py` (`ProviderManagerDialog`),
+  `app/dialogs/shared_store_designer.py` (`SharedStoreDesignerDialog`),
+  `app/dialogs/auto_arrange_dialog.py` (`AutoArrangeDialog`),
+  `app/run_controller.py` (`RunController` — all threading/signal/input-callback wiring).
+
+### Group 3 — Eliminate duplicated code in `app/main.py`
+
+- [ ] T-R05 🔴 Extract `_build_provider()` to replace the identical 12-line
+  provider-construction block duplicated at lines 1090–1101 and 1240–1251.
+- [ ] T-R06 🔴 Extract the human-input callback wiring (inner signal class, `_input_event`,
+  `_input_result`, GUI slot, `input_cb` closure) into a reusable helper shared by
+  `_on_run_active_flow` and `_on_debug_active_flow`.
+- [ ] T-R07 🟡 Extract `_clear_selection_state()` and call it from both `_on_undo` and
+  `_on_redo` (currently identical except for the `undo()`/`redo()` call).
+- [ ] T-R08 🟡 Move all inline `import` statements inside handler methods (`threading`,
+  `uuid`, `re`, `shutil`, `subprocess`, `sys`, `ast`, etc.) to file-level imports.
+- [ ] T-R09 🟡 Define module-level constants for all repeated `QSettings` key strings
+  (`_ORG`, `_APP`, `_SKEY_PROVIDER`, `_SKEY_OLLAMA_URL`, `_SKEY_OLLAMA_MODEL`, etc.)
+  and replace the ~9 scattered string literals.
+- [ ] T-R10 🟡 Fix f-strings passed into `self.tr()` at lines 603, 861, 1861, and 2020 —
+  format the string *after* translation using `% name` or `.format(name)`.
+- [ ] T-R11 🟡 Change `_stop_action` and `_resume_action` type annotations from `object`
+  to `QAction` and remove all `# type: ignore[attr-defined]` comments on their usage.
+- [ ] T-R12 🟡 Change `_ensure_active_graph` return type from `bool` to `None`, remove
+  the `return True` statements, and clean up the now-dead
+  `if not self._ensure_active_graph(): return` guards in callers.
+- [ ] T-R13 🟡 Replace `assert self._active_graph_rel is not None` (lines 1769, 1834)
+  with explicit `if … is None: return` guards that are safe under `python -O`.
+- [ ] T-R14 🟢 Add named constant `_PNG_BACKGROUND_DARK = 0xFF1A1A1A` for the PNG export
+  background fill colour (line 1028).
+- [ ] T-R15 🟢 Remove the redundant `_PALETTE_ITEMS` list from `canvas.py`; have
+  `PaletteWidget` iterate `_PALETTE_ITEMS_EX` directly.
+
+### Group 4 — Decompose `FlowRunner.steps` in `runtime/runner.py`
+
+- [ ] T-R16 🔴 Decompose the 160-line `FlowRunner.steps` while-loop body by extracting
+  each node-type branch into its own private method:
+  `_handle_subflow_node`, `_handle_llm_node`, `_handle_classifier_node`,
+  `_handle_judge_node`, `_handle_agent_node`, `_handle_human_input_node`.
+- [ ] T-R17 🟡 Replace `on_step: object` and `input_callback: object` with proper
+  `Callable` types from `collections.abc`; remove the resulting `# type: ignore[operator]`.
+- [ ] T-R18 🟡 Replace `bp = breakpoints or set()` with
+  `bp = breakpoints if breakpoints is not None else set()` to avoid the falsy-empty-set trap.
+- [ ] T-R19 🟢 Replace the `# noqa: UP028` suppression on the subflow inner-step loop with
+  a comment explaining why `list()` materialisation is needed (to access `inner_steps[-1]`
+  after iteration).
+
+### Group 5 — Fix `validation/graph_validator.py`
+
+- [ ] T-R20 🔴 Assign a unique error code to the second `PFCE2102` usage (line 123,
+  "subflow references missing graph") — change it to `PFCE2103`.
+- [ ] T-R21 🟡 Mark all `_validate_*` helper methods as `@staticmethod` (none use `self`).
+- [ ] T-R22 🟡 Compute `graph.node_ids()` once in `validate()` and pass it as a parameter
+  to sub-methods, eliminating the redundant recomputation.
+
+### Group 6 — Refactor `app/canvas.py` internals
+
+- [ ] T-R23 🟡 Add named constant `_DRAG_LINE_Z = 1000` and replace the bare literal in
+  `GraphView.mousePressEvent`.
+- [ ] T-R24 🟡 Add `is_dark` property to `GraphScene`; update `NodeItem.paint` to call
+  `scene.is_dark` instead of accessing `scene._dark` directly via `hasattr`.
+- [ ] T-R25 🟡 Unify the 20 `_ico_*` icon functions to a consistent `(p, sz, bg)` signature
+  so `_ICON_DRAW` can dispatch uniformly and the `if/elif` special-case block in
+  `_paint_node_pixmap` can be removed.
+- [ ] T-R26 🟡 Extract a shared `_hit_test_port(scene_pos, port_fn, hit_r)` helper used
+  by both `_node_at_action_port` and `_node_at_input_port`.
+- [ ] T-R27 🟢 Add explicit type annotation `_edge_rubber: QGraphicsLineItem | None` in
+  `GraphView.__init__`.
+
+### Group 7 — Refactor `app/editors.py`
+
+- [ ] T-R28 🟡 Introduce `_RulesHighlighter(QSyntaxHighlighter)` base class with the
+  shared `highlightBlock` implementation; have `PythonHighlighter` and `YamlHighlighter`
+  inherit from it.
+- [ ] T-R29 🟢 Move highlight rule objects to class-level `ClassVar` attributes so they
+  are built once, not on every instantiation.
+
+### Group 8 — Model layer improvements
+
+- [ ] T-R30 🟡 Replace `position: dict[str, float]` in `NodeModel` with a typed `Position`
+  structure (`TypedDict` with keys `x`/`y`, or a small `@dataclass(slots=True)`).
+- [ ] T-R31 🟡 Add a `_node_index` cached property (or cached dict) to `GraphModel` for
+  O(1) node lookups; add an O(n) complexity comment to `find_node`.
+- [ ] T-R32 🟡 Refactor `NodeTypeDefinition.from_mapping` to build `kwargs` dynamically
+  from the dataclass field list so adding a new field requires only one change, not two.
+- [ ] T-R33 🟢 Add class-level docstrings to `NodeModel`, `EdgeModel`, `GraphModel`,
+  and `ProjectModel`.
+- [ ] T-R34 🟢 Type `ProjectModel.auto_arrange` as `dict[str, Any]` (minimum) or introduce
+  an `AutoArrangeSettings` `TypedDict`.
+- [ ] T-R35 🟢 Fix the YAML boolean coercion edge case in `NodeTypeDefinition.from_mapping`
+  so that a YAML-quoted `"false"` string is not treated as `True`.
+
+### Group 9 — I/O layer (`graph_io.py`, `project_io.py`)
+
+- [ ] T-R36 🟡 Mark `GraphLoader._parse_node`, `GraphLoader._parse_edge`,
+  `GraphSaver._node_to_dict`, and `GraphSaver._edge_to_dict` as `@staticmethod`.
+- [ ] T-R37 🟡 Decompose `ProjectLoader.load` into `@staticmethod` helper methods
+  symmetric to the `GraphLoader` pattern.
+- [ ] T-R38 🟢 Add an explanatory comment next to the schema version mismatch checks in
+  both `GraphLoader` and `ProjectLoader` noting no migration path is intentional.
+
+### Group 10 — Runtime providers (`runtime/providers.py`)
+
+- [ ] T-R39 🟡 Broaden exception handling in `OllamaProvider.complete` to also catch
+  `json.JSONDecodeError` and re-raise uniformly as `RuntimeError`.
+- [ ] T-R40 🟢 Add a one-line docstring to the `LLMProvider` Protocol `complete` method.
+
+### Group 11 — Code generation (`generation/python_generator.py`)
+
+- [ ] T-R41 🟡 Mark `PythonGenerator._class_name` and `_var_name` as `@staticmethod`.
+- [ ] T-R42 🟡 Replace the untyped `dict` return type of `_node_ctx` with a `_NodeCtx`
+  `TypedDict`.
+
+### Group 12 — Code manager (`app/code_manager.py`)
+
+- [ ] T-R43 🟡 Fix `add_node` to reuse the in-memory text string when the start marker
+  already exists, eliminating the redundant second `read_text()` call.
+- [ ] T-R44 🟢 Fix `_stem_from_rel` to use an explicit `endswith(".pfcgraph.yaml")` check
+  rather than the broad second `.replace(".yaml", "")`.
+
+### Group 13 — Public API exports
+
+- [ ] T-R45 🟡 Add `__all__` to `model/__init__.py`, `generation/__init__.py`,
+  `validation/__init__.py`, and `runtime/__init__.py`.
+
+### Group 14 — Single source of truth for node display names
+
+- [ ] T-R46 🟡 Update `PaletteWidget` and the toolbar builder in `app/main.py` to source
+  display names from `BUILTIN_NODE_TYPES` rather than the parallel `_PALETTE_ITEMS_EX`
+  list, keeping `_PALETTE_ITEMS_EX` only for colour values.
+
+### Group 15 — `app/commands.py` clarity
+
+- [ ] T-R47 🟢 Add an explanatory comment to `GraphSnapshotCommand.redo` describing why
+  the first call is skipped (Qt pushes → calls redo immediately; mutation was already
+  applied live).
+
+---
+
+### M15 Task Summary
+
+| Priority | Count |
+|----------|-------|
+| 🔴 High  | 8     |
+| 🟡 Medium | 27   |
+| 🟢 Low   | 12    |
+| **Total** | **47** |
