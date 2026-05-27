@@ -1,20 +1,27 @@
 from __future__ import annotations
 
+import ast
 import copy
+import re
 import shutil
+import subprocess
+import sys
 import tempfile
+import uuid
 from collections.abc import Sequence
 from pathlib import Path
 
 import yaml
 
 try:
-    from PySide6.QtCore import QLocale, QSettings, QSize, Qt, QTranslator, QUrl
+    from PySide6.QtCore import QLocale, QRectF, QSettings, QSize, Qt, QTranslator, QUrl
     from PySide6.QtGui import (
         QBrush,
         QColor,
         QDesktopServices,
+        QImage,
         QKeySequence,
+        QPainter,
         QUndoStack,
     )
     from PySide6.QtWidgets import (
@@ -63,6 +70,8 @@ try:
     )
     from pocketflow_creator.app.commands import GraphSnapshotCommand
     from pocketflow_creator.app.editors import PythonHighlighter, YamlHighlighter
+    from pocketflow_creator.app.help_browser import HelpBrowser
+    from pocketflow_creator.app.node_type_wizard import NodeTypeWizard
 except Exception:  # pragma: no cover - permits import in non-GUI test environments
     QApplication = None  # type: ignore[assignment,misc]
 
@@ -75,10 +84,11 @@ from pocketflow_creator.model.graph_model import EdgeModel, GraphModel, NodeMode
 from pocketflow_creator.model.node_type import NodeTypeDefinition
 from pocketflow_creator.model.project import ProjectModel
 from pocketflow_creator.project_io import ProjectLoader, ProjectSaver
-from pocketflow_creator.app import run_controller
+from pocketflow_creator.app import code_manager, run_controller
 from pocketflow_creator.app.dialogs.auto_arrange_dialog import AutoArrangeDialog
 from pocketflow_creator.app.dialogs.provider_manager_dialog import exec_provider_manager
 from pocketflow_creator.app.dialogs.shared_store_designer_dialog import open_shared_store_designer
+from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES
 from pocketflow_creator.runtime.runner import FlowRunner, RunStep, RunTrace, StepController
 from pocketflow_creator.validation.graph_validator import GraphValidator
 
@@ -1037,9 +1047,6 @@ class MainWindow(QMainWindow):
             return
         path = Path(path_str)
         try:
-            from PySide6.QtCore import QRectF
-            from PySide6.QtGui import QImage, QPainter
-
             rect: QRectF = self._graph_scene.itemsBoundingRect()
             if rect.isEmpty():
                 rect = QRectF(0, 0, 800, 600)
@@ -1092,7 +1099,6 @@ class MainWindow(QMainWindow):
             if resolved:
                 graph.start_node = resolved
         registry = self._load_node_type_registry() if self._project else {}
-        from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES
         all_types = {**BUILTIN_NODE_TYPES, **registry}
         report = generate_dataflow_report(graph, all_types)
         self._bottom_editors["Data Flow"].setPlainText(report)
@@ -1167,9 +1173,6 @@ class MainWindow(QMainWindow):
         _runner_ref.append(_run)
 
     def _on_run_tests(self) -> None:
-        import subprocess
-        import sys
-
         if self._is_temp_project:
             self._bottom_editors["Test Results"].setPlainText(
                 "No tests to run.\n\nSave the project first (File > Save As), then add a "
@@ -1269,8 +1272,6 @@ class MainWindow(QMainWindow):
     # ----------------------------------------------- help handlers
 
     def _open_help(self, page: str = "index.md") -> None:
-        from pocketflow_creator.app.help_browser import HelpBrowser
-
         dlg = HelpBrowser(page, self)
         dlg.exec()
 
@@ -1307,8 +1308,6 @@ class MainWindow(QMainWindow):
     # ----------------------------------------------- node menu handlers
 
     def _on_new_custom_node_type(self) -> None:
-        from pocketflow_creator.app.node_type_wizard import NodeTypeWizard
-
         if self._project is None:
             self.statusBar().showMessage("No project open.")
             return
@@ -1319,10 +1318,8 @@ class MainWindow(QMainWindow):
         node_types_dir = self._project.root / "node_types"
         node_types_dir.mkdir(parents=True, exist_ok=True)
         yaml_path = node_types_dir / f"{defn['node_type_id']}.yaml"
-        import yaml as _yaml
-
         yaml_path.write_text(
-            _yaml.dump(defn, default_flow_style=False, allow_unicode=True), encoding="utf-8"
+            yaml.dump(defn, default_flow_style=False, allow_unicode=True), encoding="utf-8"
         )
         skeleton_path = self._project.root / "custom" / f"{defn['node_type_id']}.py"
         skeleton_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1483,8 +1480,6 @@ class MainWindow(QMainWindow):
         if not self._graphs:
             return
         graph = next(iter(self._graphs.values()))
-        from pocketflow_creator.validation.graph_validator import GraphValidator
-
         issues = GraphValidator().validate(graph)
         error_ids = {i.object_id for i in issues if i.severity == "error"}
         self._graph_scene.apply_validation(error_ids)
@@ -1531,8 +1526,6 @@ class MainWindow(QMainWindow):
                 self._inspector_snapshot = after
 
     def _load_node_type_registry(self) -> dict[str, NodeTypeDefinition]:
-        from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES
-
         registry: dict[str, NodeTypeDefinition] = dict(BUILTIN_NODE_TYPES)
         if self._project is None:
             return registry
@@ -1541,9 +1534,7 @@ class MainWindow(QMainWindow):
             if not path.exists():
                 continue
             try:
-                import yaml as _yaml
-
-                data = _yaml.safe_load(path.read_text(encoding="utf-8"))
+                data = yaml.safe_load(path.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
                     defn = NodeTypeDefinition.from_mapping(data)
                     registry[defn.node_type_id] = defn
@@ -1650,9 +1641,6 @@ class MainWindow(QMainWindow):
     # ----------------------------------------- canvas signal handlers
 
     def _on_node_double_clicked(self, item: object) -> None:
-        from pocketflow_creator.app import code_manager
-        from pocketflow_creator.app.canvas import NodeItem
-
         if not isinstance(item, NodeItem):
             return
         if self._project is None or self._active_graph_rel is None:
@@ -1674,9 +1662,6 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Code: {code_path.name}  line {line_no}")
 
     def _on_node_created(self, item: object) -> None:
-        from pocketflow_creator.app import code_manager
-        from pocketflow_creator.app.canvas import NodeItem
-
         if not isinstance(item, NodeItem):
             return
         if not self._ensure_active_graph():
@@ -1727,7 +1712,6 @@ class MainWindow(QMainWindow):
                 if e.from_node != node_id and e.to_node != node_id
             ]
         if self._project is not None:
-            from pocketflow_creator.app import code_manager
             code_path = code_manager.get_code_file(self._active_graph_rel, self._project.root)
             if code_path.exists():
                 code_manager.remove_node(code_path, node_id)
@@ -1740,17 +1724,14 @@ class MainWindow(QMainWindow):
             graph.edges = [e for e in graph.edges if e.id != edge_id]
 
     def _on_edge_creation_requested(self, src: object, tgt: object, action: object = "default") -> None:
-        from pocketflow_creator.app.canvas import NodeItem
-
         if not isinstance(src, NodeItem) or not isinstance(tgt, NodeItem):
             return
         if not self._ensure_active_graph():
             return
         assert self._active_graph_rel is not None
         rel = self._active_graph_rel
-        import uuid as _uuid
         edge = EdgeModel(
-            id=f"edge_{_uuid.uuid4().hex[:8]}",
+            id=f"edge_{uuid.uuid4().hex[:8]}",
             from_node=src.node.id,
             to_node=tgt.node.id,
             action=str(action) if action else "default",
@@ -1766,8 +1747,6 @@ class MainWindow(QMainWindow):
             self._undo_stack.push(cmd)
 
     def _on_set_start_node(self, item: object) -> None:
-        from pocketflow_creator.app.canvas import NodeItem
-
         if not isinstance(item, NodeItem):
             return
         if self._active_graph_rel is None:
@@ -2046,10 +2025,6 @@ class MainWindow(QMainWindow):
 
     def _sync_graph_from_code(self, code_path: Path) -> None:
         """Remove canvas nodes whose NODE_START marker no longer exists in the code file."""
-        import re  # stdlib first
-
-        from pocketflow_creator.app import code_manager
-
         if self._project is None or self._active_graph_rel is None:
             return
         expected = code_manager.get_code_file(self._active_graph_rel, self._project.root)
@@ -2087,8 +2062,6 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Provider settings saved.")
 
     def _on_tool_registry(self) -> None:
-        import ast as _ast
-
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Tool Registry"))
         dlg.resize(700, 420)
@@ -2111,21 +2084,21 @@ class MainWindow(QMainWindow):
                 for py_file in sorted(tools_dir.glob("*.py")):
                     try:
                         source = py_file.read_text(encoding="utf-8")
-                        tree = _ast.parse(source, filename=str(py_file))
+                        tree = ast.parse(source, filename=str(py_file))
                     except SyntaxError:
                         continue
-                    for node in _ast.walk(tree):
-                        if not isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+                    for node in ast.walk(tree):
+                        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                             continue
                         decorator_names = []
                         for dec in node.decorator_list:
-                            if isinstance(dec, _ast.Name):
+                            if isinstance(dec, ast.Name):
                                 decorator_names.append(dec.id)
-                            elif isinstance(dec, _ast.Attribute):
+                            elif isinstance(dec, ast.Attribute):
                                 decorator_names.append(dec.attr)
                         if "tool" not in decorator_names:
                             continue
-                        docstring = _ast.get_docstring(node) or ""
+                        docstring = ast.get_docstring(node) or ""
                         first_line = docstring.splitlines()[0] if docstring else ""
                         tools_found.append((node.name, py_file.name, first_line))
 
@@ -2185,8 +2158,6 @@ class MainWindow(QMainWindow):
             )
             if not path_str:
                 return
-            import shutil
-
             dest = self._project.root / "node_types" / Path(path_str).name  # type: ignore[union-attr]
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(path_str, dest)
