@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 try:
     from PySide6.QtGui import QUndoCommand
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     QUndoCommand = object  # type: ignore[assignment,misc]
 
 if TYPE_CHECKING:

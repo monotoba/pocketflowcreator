@@ -34,7 +34,7 @@ try:
         QStyleOptionGraphicsItem,
         QWidget,
     )
-except Exception:  # pragma: no cover - permits import in non-GUI test environments
+except ImportError:  # pragma: no cover - permits import in non-GUI test environments
     def Signal(*a: Any, **kw: Any) -> Any:  # type: ignore[misc,no-redef]
         return None
 

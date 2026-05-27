@@ -5,7 +5,7 @@ from typing import Any
 try:
     from PySide6.QtCore import QRegularExpression
     from PySide6.QtGui import QColor, QFont, QSyntaxHighlighter, QTextCharFormat
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     QSyntaxHighlighter = object  # type: ignore[assignment,misc]
 
 
