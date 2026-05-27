@@ -297,7 +297,7 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
 
 ### Group 2 — Split oversized files
 
-- [ ] T-R03 🔴 Split `app/canvas.py` (1404 lines) into a `canvas/` sub-package:
+- [x] T-R03 🔴 Split `app/canvas.py` (1404 lines) into a `canvas/` sub-package:
   `canvas/icons.py`, `canvas/items.py`, `canvas/scene.py`, `canvas/view.py`,
   `canvas/palette.py`, and a `canvas/__init__.py` that re-exports all existing public
   names so no external imports need to change.
