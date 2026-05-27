@@ -1,0 +1,182 @@
+"""RunController — thread/signal wiring for FlowRunner run and debug modes.
+
+This module owns:
+  - ``build_provider``   — construct an LLM provider from QSettings
+  - ``make_input_callback`` — wire a thread-safe human-input callback to Qt signals
+  - ``start_run``        — fire a background run thread and return the signal object
+  - ``start_debug``      — fire a background debug thread and return the signal object
+"""
+from __future__ import annotations
+
+import threading
+from collections.abc import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from PySide6.QtCore import QSettings
+    from PySide6.QtWidgets import QDialog, QMainWindow
+
+from pocketflow_creator.model.graph_model import GraphModel
+from pocketflow_creator.runtime.providers import MockProvider, OllamaProvider
+from pocketflow_creator.runtime.runner import FlowRunner, RunStep, RunTrace, StepController
+
+
+def build_provider() -> MockProvider | OllamaProvider:
+    """Construct the active LLM provider from QSettings."""
+    try:
+        from PySide6.QtCore import QSettings
+    except ImportError:  # pragma: no cover
+        return MockProvider(response="mock response")
+    settings = QSettings("Monotoba", "PocketFlowCreator")
+    prov_type = str(settings.value("run/provider", "mock"))
+    if prov_type == "ollama":
+        return OllamaProvider(
+            base_url=str(settings.value("ollama/base_url", "http://localhost:11434")),
+            default_model=str(settings.value("ollama/default_model", "qwen2.5-coder:14b")),
+            timeout=int(settings.value("ollama/timeout", 120)),  # type: ignore[arg-type]
+        )
+    return MockProvider(response=str(settings.value("mock/response", "mock response")))
+
+
+def make_input_callback(
+    signals: Any,
+    parent: QMainWindow,
+) -> Callable[[dict, dict], object]:
+    """Build a thread-safe human-input callback wired to *signals*.input_requested.
+
+    The returned callable can be passed as ``input_callback`` to FlowRunner.
+    *signals* must have an ``input_requested(object, object)`` signal attribute.
+    """
+    try:
+        from PySide6.QtWidgets import QDialog
+    except ImportError:  # pragma: no cover
+        def _noop(props: dict, shared_store: dict) -> object:
+            return None
+        return _noop
+
+    _event = threading.Event()
+    _result: dict[str, object] = {"value": None}
+
+    def _on_input_requested_gui(props: object, store_snap: object) -> None:
+        from pocketflow_creator.app.human_input_dialog import create_human_input_dialog
+        p = props if isinstance(props, dict) else {}
+        s = store_snap if isinstance(store_snap, dict) else {}
+        dlg = create_human_input_dialog(str(p.get("input_type", "form")), p, s, parent)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            _result["value"] = dlg.result_data
+        else:
+            _result["value"] = None
+        _event.set()
+
+    def input_cb(props: dict, shared_store: dict) -> object:
+        _event.clear()
+        signals.input_requested.emit(props, shared_store)
+        _event.wait(timeout=600)
+        return _result["value"]
+
+    signals.input_requested.connect(_on_input_requested_gui)
+    return input_cb
+
+
+def start_run(
+    graph: GraphModel,
+    known_graphs: dict[str, GraphModel] | None,
+    project_name: str,
+    project_root: Path | None,
+    parent: QMainWindow,
+    on_complete: Callable[[object], None],
+) -> tuple[Any, FlowRunner]:
+    """Start a background run thread.
+
+    Returns ``(signals, runner)`` where *signals* is the GC-pinned QObject.
+    Caller must keep a reference to *signals* until *on_complete* fires.
+    """
+    from PySide6.QtCore import QObject, Signal as _Sig
+
+    class _RunSignals(QObject):
+        result_ready = _Sig(object)
+        input_requested = _Sig(object, object)
+
+    signals = _RunSignals()
+    runner = FlowRunner()
+    provider = build_provider()
+    input_cb = make_input_callback(signals, parent)
+
+    def _on_result(result: object) -> None:
+        on_complete(result)
+
+    signals.result_ready.connect(_on_result)
+
+    def _run_thread() -> None:
+        try:
+            trace = runner.run(
+                graph,
+                provider,
+                project_name=project_name,
+                known_graphs=known_graphs or None,
+                project_root=project_root,
+                input_callback=input_cb,
+            )
+            signals.result_ready.emit(trace)
+        except Exception as exc:
+            signals.result_ready.emit(exc)
+
+    threading.Thread(target=_run_thread, daemon=True).start()
+    return signals, runner
+
+
+def start_debug(
+    graph: GraphModel,
+    known_graphs: dict[str, GraphModel] | None,
+    project_name: str,
+    project_root: Path | None,
+    ctrl: StepController,
+    breakpoints: set[str],
+    parent: QMainWindow,
+    on_step: Callable[[RunStep], None],
+    on_finished: Callable[[], None],
+) -> Any:
+    """Start a background debug thread.
+
+    Returns the GC-pinned signals QObject.  Caller must keep a reference to
+    it until *on_finished* fires.
+    """
+    from PySide6.QtCore import QObject, Signal as _Sig
+
+    class _DbgSignals(QObject):
+        step_ready = _Sig(object)
+        run_finished = _Sig()
+        input_requested = _Sig(object, object)
+
+    signals = _DbgSignals()
+    runner = FlowRunner()
+    provider = build_provider()
+    dbg_input_cb = make_input_callback(signals, parent)
+
+    def _on_step_gui(step: object) -> None:
+        if isinstance(step, RunStep):
+            on_step(step)
+
+    def _on_finished_gui() -> None:
+        on_finished()
+
+    signals.step_ready.connect(_on_step_gui)
+    signals.run_finished.connect(_on_finished_gui)
+
+    def _run_thread() -> None:
+        runner.run_debug(
+            graph,
+            provider,
+            ctrl,
+            breakpoints=breakpoints,
+            on_step=lambda s: signals.step_ready.emit(s),
+            project_name=project_name,
+            known_graphs=known_graphs or None,
+            project_root=project_root,
+            input_callback=dbg_input_cb,
+        )
+        signals.run_finished.emit()
+
+    threading.Thread(target=_run_thread, daemon=True).start()
+    return signals

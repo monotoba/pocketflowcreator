@@ -3,8 +3,7 @@ from __future__ import annotations
 import copy
 import shutil
 import tempfile
-import threading
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 
 import yaml
@@ -76,7 +75,10 @@ from pocketflow_creator.model.graph_model import EdgeModel, GraphModel, NodeMode
 from pocketflow_creator.model.node_type import NodeTypeDefinition
 from pocketflow_creator.model.project import ProjectModel
 from pocketflow_creator.project_io import ProjectLoader, ProjectSaver
-from pocketflow_creator.runtime.providers import MockProvider, OllamaProvider
+from pocketflow_creator.app import run_controller
+from pocketflow_creator.app.dialogs.auto_arrange_dialog import AutoArrangeDialog
+from pocketflow_creator.app.dialogs.provider_manager_dialog import exec_provider_manager
+from pocketflow_creator.app.dialogs.shared_store_designer_dialog import open_shared_store_designer
 from pocketflow_creator.runtime.runner import FlowRunner, RunStep, RunTrace, StepController
 from pocketflow_creator.validation.graph_validator import GraphValidator
 
@@ -102,75 +104,6 @@ def _node_skeleton_text(type_id: str, base_class: str) -> str:
 _EDITOR_TABS: frozenset[str] = frozenset({"Python", "Markdown", "YAML"})
 _ROLE_PATH = Qt.ItemDataRole.UserRole  # type: ignore[attr-defined]
 _ROLE_KIND = Qt.ItemDataRole(Qt.ItemDataRole.UserRole.value + 1)  # type: ignore[attr-defined]
-
-
-class AutoArrangeDialog(QDialog):
-    """Settings dialog shown before running Auto Arrange."""
-
-    _ALGORITHMS = [
-        ("Layered (BFS)", "layered"),
-        ("Grid", "grid"),
-        ("Force-Directed", "force"),
-    ]
-    _STYLES = [
-        ("Straight", "straight"),
-        ("Curved (Bezier)", "curved"),
-        ("Orthogonal", "orthogonal"),
-    ]
-
-    def __init__(self, settings: dict, parent: QMainWindow | None = None) -> None:
-        super().__init__(parent)
-        self.setWindowTitle("Auto Arrange")
-        layout = QVBoxLayout(self)
-        form = QFormLayout()
-        layout.addLayout(form)
-
-        self._algo_combo = QComboBox()
-        for label, _ in self._ALGORITHMS:
-            self._algo_combo.addItem(label)
-        current_algo = settings.get("algorithm", "layered")
-        idx = next((i for i, (_, v) in enumerate(self._ALGORITHMS) if v == current_algo), 0)
-        self._algo_combo.setCurrentIndex(idx)
-        form.addRow("Algorithm:", self._algo_combo)
-
-        self._style_combo = QComboBox()
-        for label, _ in self._STYLES:
-            self._style_combo.addItem(label)
-        current_style = settings.get("connector_style", "straight")
-        sidx = next((i for i, (_, v) in enumerate(self._STYLES) if v == current_style), 0)
-        self._style_combo.setCurrentIndex(sidx)
-        form.addRow("Connector Style:", self._style_combo)
-
-        self._h_gap = QSpinBox()
-        self._h_gap.setRange(10, 400)
-        self._h_gap.setValue(int(settings.get("h_gap", 60)))
-        form.addRow("Horizontal Gap:", self._h_gap)
-
-        self._v_gap = QSpinBox()
-        self._v_gap.setRange(10, 400)
-        self._v_gap.setValue(int(settings.get("v_gap", 30)))
-        form.addRow("Vertical Gap:", self._v_gap)
-
-        self._max_cols = QSpinBox()
-        self._max_cols.setRange(1, 20)
-        self._max_cols.setValue(int(settings.get("max_cols", 4)))
-        form.addRow("Max Columns (Grid):", self._max_cols)
-
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
-
-    def get_settings(self) -> dict:
-        return {
-            "algorithm": self._ALGORITHMS[self._algo_combo.currentIndex()][1],
-            "connector_style": self._STYLES[self._style_combo.currentIndex()][1],
-            "h_gap": self._h_gap.value(),
-            "v_gap": self._v_gap.value(),
-            "max_cols": self._max_cols.value(),
-        }
 
 
 class MainWindow(QMainWindow):
@@ -1072,47 +1005,6 @@ class MainWindow(QMainWindow):
 
     # ----------------------------------------------- run menu handlers
 
-    def _build_provider(self) -> MockProvider | OllamaProvider:
-        """Construct the active LLM provider from QSettings."""
-        settings = QSettings("Monotoba", "PocketFlowCreator")
-        prov_type = str(settings.value("run/provider", "mock"))
-        if prov_type == "ollama":
-            return OllamaProvider(
-                base_url=str(settings.value("ollama/base_url", "http://localhost:11434")),
-                default_model=str(settings.value("ollama/default_model", "qwen2.5-coder:14b")),
-                timeout=int(settings.value("ollama/timeout", 120)),  # type: ignore[arg-type]
-            )
-        return MockProvider(response=str(settings.value("mock/response", "mock response")))
-
-    def _make_input_callback(self, signals: object) -> Callable[[dict, dict], object]:
-        """Build a thread-safe human-input callback wired to *signals*.input_requested.
-
-        The returned callable can be passed as ``input_callback`` to FlowRunner.
-        ``signals`` must have an ``input_requested(object, object)`` signal attribute.
-        """
-        _event = threading.Event()
-        _result: dict[str, object] = {"value": None}
-
-        def _on_input_requested_gui(props: object, store_snap: object) -> None:
-            from pocketflow_creator.app.human_input_dialog import create_human_input_dialog
-            p = props if isinstance(props, dict) else {}
-            s = store_snap if isinstance(store_snap, dict) else {}
-            dlg = create_human_input_dialog(str(p.get("input_type", "form")), p, s, self)
-            if dlg.exec() == QDialog.DialogCode.Accepted:
-                _result["value"] = dlg.result_data
-            else:
-                _result["value"] = None
-            _event.set()
-
-        def input_cb(props: dict, shared_store: dict) -> object:
-            _event.clear()
-            signals.input_requested.emit(props, shared_store)  # type: ignore[attr-defined]
-            _event.wait(timeout=600)
-            return _result["value"]
-
-        signals.input_requested.connect(_on_input_requested_gui)  # type: ignore[attr-defined]
-        return input_cb
-
     def _on_run_active_flow(self) -> None:
         if not self._graphs:
             self.statusBar().showMessage("No graphs to run.")
@@ -1129,11 +1021,6 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Add at least one node before running.")
             return
 
-        provider = self._build_provider()
-
-        import threading as _threading
-
-        runner = FlowRunner()
         known_graphs = {k: v for k, v in self._graphs.items() if k != rel}
         project_name = self._project.name if self._project else graph.title
         project_root = self._project.root if self._project else None
@@ -1142,16 +1029,7 @@ class MainWindow(QMainWindow):
         self._switch_bottom_tab("Run Log")
         self.statusBar().showMessage("Run started…")
 
-        from PySide6.QtCore import QObject, Signal as _Sig
-
-        class _RunSignals(QObject):
-            result_ready = _Sig(object)
-            input_requested = _Sig(object, object)
-
-        signals = _RunSignals()
-        self._run_signals = signals  # pin to self so GC can't collect it before the slot fires
-
-        input_cb = self._make_input_callback(signals)
+        _runner_ref: list[FlowRunner] = []  # filled after start_run returns
 
         def _on_run_complete(result: object) -> None:
             self._run_signals = None  # release the pin
@@ -1173,31 +1051,24 @@ class MainWindow(QMainWindow):
                 for k, v in (trace.steps[-1].shared_after if trace.steps else {}).items()
             )
             self._bottom_editors["Shared Store"].setPlainText(shared_text or "{}")
-            if project_root:
+            if project_root and _runner_ref:
                 try:
-                    out = runner.save_trace(trace, project_root / "run_reports")
+                    out = _runner_ref[0].save_trace(trace, project_root / "run_reports")
                     self.statusBar().showMessage(f"Run complete — trace saved: {out.name}")
                     return
                 except Exception:
                     pass
             self.statusBar().showMessage("Run complete.")
 
-        signals.result_ready.connect(_on_run_complete)
-
-        def _run_thread() -> None:
-            try:
-                trace = runner.run(
-                    graph, provider,
-                    project_name=project_name,
-                    known_graphs=known_graphs or None,
-                    project_root=project_root,
-                    input_callback=input_cb,
-                )
-                signals.result_ready.emit(trace)
-            except Exception as exc:
-                signals.result_ready.emit(exc)
-
-        _threading.Thread(target=_run_thread, daemon=True).start()
+        self._run_signals, _run = run_controller.start_run(
+            graph=graph,
+            known_graphs=known_graphs or None,
+            project_name=project_name,
+            project_root=project_root,
+            parent=self,
+            on_complete=_on_run_complete,
+        )
+        _runner_ref.append(_run)
 
     def _on_run_tests(self) -> None:
         import subprocess
@@ -1246,32 +1117,13 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Add at least one node before debugging.")
             return
         _debug_known = {k: v for k, v in self._graphs.items() if k != _debug_rel}
-        provider = self._build_provider()
-
-        import threading as _threading
 
         ctrl = StepController()
         self._debug_controller = ctrl
-        runner = FlowRunner()
         self._bottom_editors["Run Log"].setPlainText("Debug run started…\n")
         self._switch_bottom_tab("Run Log")
 
-        # Local QObject subclass — defined here so QApplication already exists (avoids segfault).
-        from PySide6.QtCore import QObject, Signal as _Sig
-
-        class _DbgSignals(QObject):
-            step_ready = _Sig(object)
-            run_finished = _Sig()
-            input_requested = _Sig(object, object)
-
-        signals = _DbgSignals()
-        self._dbg_signals = signals  # pin to self so GC can't collect it before slots fire
-
-        dbg_input_cb = self._make_input_callback(signals)
-
-        def _on_step_gui(step: object) -> None:
-            if not isinstance(step, RunStep):
-                return
+        def _on_step(step: RunStep) -> None:
             lines = self._bottom_editors["Run Log"].toPlainText()
             lines += f"  [{step.node_id}] {step.node_title} → {step.action}\n"
             if step.response:
@@ -1284,32 +1136,23 @@ class MainWindow(QMainWindow):
                     f"Paused at [{step.node_id}] — click Resume to continue."
                 )
 
-        def _on_finished_gui() -> None:
+        def _on_finished() -> None:
             self._dbg_signals = None  # release the pin
             self._stop_action.setEnabled(False)  # type: ignore[attr-defined]
             self._resume_action.setEnabled(False)  # type: ignore[attr-defined]
             self.statusBar().showMessage("Debug run finished.")
 
-        signals.step_ready.connect(_on_step_gui)
-        signals.run_finished.connect(_on_finished_gui)
-
-        def _run_thread() -> None:
-            runner.run_debug(
-                graph,
-                provider,
-                ctrl,
-                breakpoints=self._breakpoints,
-                on_step=lambda s: signals.step_ready.emit(s),
-                project_name=self._project.name if self._project else "",
-                known_graphs=_debug_known or None,
-                project_root=self._project.root if self._project else None,
-                input_callback=dbg_input_cb,
-            )
-            signals.run_finished.emit()
-
-        t = _threading.Thread(target=_run_thread, daemon=True)
-        self._debug_thread = t
-        t.start()
+        self._dbg_signals = run_controller.start_debug(
+            graph=graph,
+            known_graphs=_debug_known or None,
+            project_name=self._project.name if self._project else "",
+            project_root=self._project.root if self._project else None,
+            ctrl=ctrl,
+            breakpoints=self._breakpoints,
+            parent=self,
+            on_step=_on_step,
+            on_finished=_on_finished,
+        )
         self._stop_action.setEnabled(True)  # type: ignore[attr-defined]
         self._resume_action.setEnabled(True)  # type: ignore[attr-defined]
         self.statusBar().showMessage("Debug run started.")
@@ -2143,104 +1986,9 @@ class MainWindow(QMainWindow):
 
     # ----------------------------------------------- tools menu handlers
 
-    @staticmethod
-    def _fetch_ollama_models(base_url: str) -> list[str]:
-        import json
-        import urllib.error
-        import urllib.request
-        try:
-            url = f"{base_url.rstrip('/')}/api/tags"
-            with urllib.request.urlopen(url, timeout=5) as resp:
-                data = json.loads(resp.read())
-            return sorted(m["name"] for m in data.get("models", []))
-        except Exception:
-            return []
-
     def _on_provider_manager(self) -> None:
-        settings = QSettings("Monotoba", "PocketFlowCreator")
-        dlg = QDialog(self)
-        dlg.setWindowTitle("Provider Manager")
-        dlg.resize(440, 0)
-        layout = QVBoxLayout(dlg)
-
-        active_group = QGroupBox("Active Provider")
-        active_layout = QVBoxLayout(active_group)
-        rb_ollama = QRadioButton("Ollama")
-        rb_mock = QRadioButton("Mock (for testing)")
-        active_layout.addWidget(rb_ollama)
-        active_layout.addWidget(rb_mock)
-        current_prov = str(settings.value("run/provider", "mock"))
-        if current_prov == "ollama":
-            rb_ollama.setChecked(True)
-        else:
-            rb_mock.setChecked(True)
-        layout.addWidget(active_group)
-
-        ollama_group = QGroupBox("Ollama Provider Settings")
-        ollama_form = QFormLayout(ollama_group)
-        saved_url = str(settings.value("ollama/base_url", "http://localhost:11434"))
-        saved_model = str(settings.value("ollama/default_model", "qwen2.5-coder:14b"))
-        saved_timeout = int(settings.value("ollama/timeout", 120))  # type: ignore[arg-type]
-        ollama_url = QLineEdit(saved_url)
-        ollama_form.addRow("Base URL:", ollama_url)
-
-        model_row = QHBoxLayout()
-        ollama_model_combo = QComboBox()
-        ollama_model_combo.setEditable(True)
-        ollama_model_combo.setMinimumWidth(220)
-        refresh_btn = QPushButton("Refresh")
-        model_row.addWidget(ollama_model_combo)
-        model_row.addWidget(refresh_btn)
-        ollama_form.addRow("Default model:", model_row)
-
-        timeout_spin = QSpinBox()
-        timeout_spin.setRange(5, 3600)
-        timeout_spin.setSingleStep(15)
-        timeout_spin.setSuffix(" s")
-        timeout_spin.setValue(saved_timeout)
-        timeout_spin.setToolTip(
-            "Maximum seconds to wait for an Ollama response before raising a timeout error."
-        )
-        ollama_form.addRow("Request timeout:", timeout_spin)
-        layout.addWidget(ollama_group)
-
-        def _populate_models(select: str = "") -> None:
-            models = self._fetch_ollama_models(ollama_url.text().strip())
-            ollama_model_combo.clear()
-            if models:
-                ollama_model_combo.addItems(models)
-                target = select or ollama_model_combo.currentText()
-                idx = ollama_model_combo.findText(target)
-                ollama_model_combo.setCurrentIndex(max(idx, 0))
-            else:
-                ollama_model_combo.addItem(select or saved_model)
-                ollama_model_combo.setCurrentIndex(0)
-
-        _populate_models(saved_model)
-        refresh_btn.clicked.connect(lambda: _populate_models(ollama_model_combo.currentText()))
-
-        mock_group = QGroupBox("Mock Provider Settings")
-        mock_form = QFormLayout(mock_group)
-        mock_response = QLineEdit(str(settings.value("mock/response", "mock response")))
-        mock_form.addRow("Fixed response:", mock_response)
-        layout.addWidget(mock_group)
-
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        self._add_help_button(buttons, "provider_manager")
-        buttons.accepted.connect(dlg.accept)
-        buttons.rejected.connect(dlg.reject)
-        layout.addWidget(buttons)
-
-        if dlg.exec() != QDialog.DialogCode.Accepted:
-            return
-        settings.setValue("run/provider", "ollama" if rb_ollama.isChecked() else "mock")
-        settings.setValue("ollama/base_url", ollama_url.text().strip())
-        settings.setValue("ollama/default_model", ollama_model_combo.currentText().strip())
-        settings.setValue("ollama/timeout", timeout_spin.value())
-        settings.setValue("mock/response", mock_response.text())
-        self.statusBar().showMessage("Provider settings saved.")
+        if exec_provider_manager(self, self._open_help):
+            self.statusBar().showMessage("Provider settings saved.")
 
     def _on_tool_registry(self) -> None:
         import ast as _ast
@@ -2364,150 +2112,12 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Shared Store Inspector — populated during run.")
 
     def _open_shared_store_designer(self, path: Path) -> None:
-        raw: dict = {}
-        if path.exists():
-            try:
-                loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
-                if isinstance(loaded, dict):
-                    raw = loaded
-            except yaml.YAMLError:
-                pass
-
-        flat: list[tuple[str, str, str, str]] = []
-        for ns, keys in raw.items():
-            if not isinstance(keys, dict):
-                continue
-            for key, props in keys.items():
-                if not isinstance(props, dict):
-                    continue
-                type_str = str(props.get("type", ""))
-                default_str = str(props["default"]) if "default" in props else ""
-                flat.append((str(ns), str(key), type_str, default_str))
-
-        dlg = QDialog(self)
-        dlg.setWindowTitle(f"Shared Store Designer — {path.name}")
-        dlg.resize(640, 400)
-        main_layout = QVBoxLayout(dlg)
-
-        table = QTableWidget(len(flat), 4)
-        table.setHorizontalHeaderLabels(["Namespace", "Key", "Type", "Default"])
-        table.horizontalHeader().setStretchLastSection(True)
-        for r, (ns, key, type_str, default_str) in enumerate(flat):
-            table.setItem(r, 0, QTableWidgetItem(ns))
-            table.setItem(r, 1, QTableWidgetItem(key))
-            table.setItem(r, 2, QTableWidgetItem(type_str))
-            table.setItem(r, 3, QTableWidgetItem(default_str))
-        main_layout.addWidget(table)
-
-        btn_row = QHBoxLayout()
-        add_btn = QPushButton("Add Row")
-        remove_btn = QPushButton("Remove Row")
-        btn_row.addWidget(add_btn)
-        btn_row.addWidget(remove_btn)
-        btn_row.addStretch()
-        main_layout.addLayout(btn_row)
-
-        def _add_row() -> None:
-            r = table.rowCount()
-            table.insertRow(r)
-            for c in range(4):
-                table.setItem(r, c, QTableWidgetItem(""))
-
-        def _remove_row() -> None:
-            row = table.currentRow()
-            if row >= 0:
-                table.removeRow(row)
-
-        add_btn.clicked.connect(_add_row)
-        remove_btn.clicked.connect(_remove_row)
-
-        _VALID_TYPES = frozenset(
-            {"string", "integer", "number", "boolean", "array", "object", "null"}
+        open_shared_store_designer(
+            path=path,
+            parent=self,
+            open_help=self._open_help,
+            on_saved=self.statusBar().showMessage,
         )
-
-        validation_label = QLabel("")
-        validation_label.setWordWrap(True)
-        main_layout.addWidget(validation_label)
-
-        def _collect_schema() -> dict[str, dict[str, dict[str, object]]]:
-            result: dict[str, dict[str, dict[str, object]]] = {}
-            for r in range(table.rowCount()):
-                ns_item = table.item(r, 0)
-                key_item = table.item(r, 1)
-                type_item = table.item(r, 2)
-                default_item = table.item(r, 3)
-                ns = ns_item.text().strip() if ns_item else ""
-                key = key_item.text().strip() if key_item else ""
-                type_str = type_item.text().strip() if type_item else ""
-                default_str = default_item.text().strip() if default_item else ""
-                if not ns or not key or not type_str:
-                    continue
-                if ns not in result:
-                    result[ns] = {}
-                entry: dict[str, object] = {"type": type_str}
-                if default_str:
-                    entry["default"] = default_str
-                result[ns][key] = entry
-            return result
-
-        def _validate_schema() -> list[str]:
-            errors: list[str] = []
-            for r in range(table.rowCount()):
-                ns_item = table.item(r, 0)
-                key_item = table.item(r, 1)
-                type_item = table.item(r, 2)
-                ns = ns_item.text().strip() if ns_item else ""
-                key = key_item.text().strip() if key_item else ""
-                type_str = type_item.text().strip() if type_item else ""
-                if not ns and not key and not type_str:
-                    continue
-                if not ns:
-                    errors.append(f"Row {r + 1}: Namespace is required.")
-                if not key:
-                    errors.append(f"Row {r + 1}: Key is required.")
-                if type_str and type_str not in _VALID_TYPES:
-                    errors.append(
-                        f"Row {r + 1}: '{type_str}' is not a valid JSON Schema type. "
-                        f"Valid types: {', '.join(sorted(_VALID_TYPES))}"
-                    )
-            return errors
-
-        def _on_validate() -> None:
-            errs = _validate_schema()
-            if errs:
-                validation_label.setText("Validation errors:\n" + "\n".join(errs))
-            else:
-                validation_label.setText("Schema is valid.")
-
-        validate_btn = QPushButton("Validate")
-        validate_btn.clicked.connect(_on_validate)
-        btn_row.addWidget(validate_btn)
-
-        dialog_btns = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        self._add_help_button(dialog_btns, "shared_store")
-        dialog_btns.accepted.connect(dlg.accept)
-        dialog_btns.rejected.connect(dlg.reject)
-        main_layout.addWidget(dialog_btns)
-
-        if dlg.exec() != QDialog.DialogCode.Accepted:
-            return
-
-        errs = _validate_schema()
-        if errs:
-            QMessageBox.warning(self, "Validation Errors", "\n".join(errs))
-            return
-
-        schema = _collect_schema()
-        try:
-            path.write_text(
-                yaml.dump(schema, default_flow_style=False, allow_unicode=True),
-                encoding="utf-8",
-            )
-            self.statusBar().showMessage(f"Shared store schema saved: {path.name}")
-        except Exception as exc:
-            QMessageBox.critical(self, "Save Failed", str(exc))
 
 
 def run(argv: Sequence[str] | None = None) -> int:
