@@ -143,6 +143,7 @@ class MainWindow(QMainWindow):
         # Assigned by their respective _build_* methods:
         self._explorer_tree: QTreeWidget
         self._bottom_tab_widget: QTabWidget
+        self._bottom_dock: QDockWidget
         self._markdown_preview: QTextBrowser
         self._md_splitter: QSplitter
         self._recent_menu: QMenu
@@ -399,6 +400,7 @@ class MainWindow(QMainWindow):
 
     def _build_bottom_dock(self) -> QDockWidget:
         dock = QDockWidget(self.tr("Output"), self)
+        self._bottom_dock = dock
         self._bottom_tab_widget = QTabWidget()
         plain_tabs = [
             ("Problems", self.tr("No validation has been run.")),
@@ -523,6 +525,10 @@ class MainWindow(QMainWindow):
         root_item.setExpanded(True)
 
     def _switch_bottom_tab(self, name: str) -> None:
+        """Activate *name* tab in the Output dock, making the dock visible if closed."""
+        # Ensure the dock is open and raised (handles closed, hidden, and tabbed-behind cases)
+        self._bottom_dock.setVisible(True)
+        self._bottom_dock.raise_()
         for i in range(self._bottom_tab_widget.count()):
             if self._bottom_tab_widget.tabText(i) == name:
                 self._bottom_tab_widget.setCurrentIndex(i)
