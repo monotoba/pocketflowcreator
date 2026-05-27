@@ -144,6 +144,7 @@ class MainWindow(QMainWindow):
         self._explorer_tree: QTreeWidget
         self._bottom_tab_widget: QTabWidget
         self._markdown_preview: QTextBrowser
+        self._md_splitter: QSplitter
         self._recent_menu: QMenu
         self._inspector: QTreeWidget
         self._graph_view: GraphView
@@ -178,6 +179,7 @@ class MainWindow(QMainWindow):
         self._apply_theme()
         self._cleanup_temp_project()  # remove any leftover from a previous session
         self._create_untitled_flow()
+        self._restore_layout()  # apply saved window geometry and dock state
 
     # ------------------------------------------------------------------ menus
 
@@ -297,12 +299,13 @@ class MainWindow(QMainWindow):
         tools_menu.addAction(self.tr("Options..."), self._on_options)
 
         window_menu = self.menuBar().addMenu(self.tr("Window"))
-        for name in [
-            self.tr("Reset Layout"),
-            self.tr("Next Tab"),
-            self.tr("Previous Tab"),
-        ]:
-            window_menu.addAction(name)
+        window_menu.addAction(self.tr("Save Layout"), self._on_save_layout)
+        window_menu.addAction(self.tr("Reset Layout"), self._on_reset_layout)
+        window_menu.addSeparator()
+        _next = window_menu.addAction(self.tr("Next Tab"), self._on_next_tab)
+        _next.setShortcut(QKeySequence("Ctrl+Tab"))
+        _prev = window_menu.addAction(self.tr("Previous Tab"), self._on_prev_tab)
+        _prev.setShortcut(QKeySequence("Ctrl+Shift+Tab"))
 
         help_menu = self.menuBar().addMenu(self.tr("Help"))
         _help_act = help_menu.addAction(self.tr("PocketFlow Creator Help"), self._on_help)
@@ -416,20 +419,75 @@ class MainWindow(QMainWindow):
             self._bottom_tab_paths[name] = None
 
         # Markdown tab: editor on left, live HTML preview on right
-        md_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self._md_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self._md_splitter.setObjectName("mdSplitter")
         md_editor = QPlainTextEdit()
         md_editor.setPlainText(self.tr("Open a prompt file to edit Markdown."))
         self._markdown_preview = QTextBrowser()
         self._markdown_preview.setPlainText(self.tr("Preview appears here."))
-        md_splitter.addWidget(md_editor)
-        md_splitter.addWidget(self._markdown_preview)
-        md_splitter.setSizes([1, 1])
+        self._md_splitter.addWidget(md_editor)
+        self._md_splitter.addWidget(self._markdown_preview)
+        self._md_splitter.setSizes([1, 1])
+        md_splitter = self._md_splitter  # keep local alias for addTab below
         self._bottom_tab_widget.addTab(md_splitter, self.tr("Markdown"))
         self._bottom_editors["Markdown"] = md_editor
         self._bottom_tab_paths["Markdown"] = None
 
         dock.setWidget(self._bottom_tab_widget)
         return dock
+
+    # ------------------------------------------------------- layout persistence
+
+    _LAYOUT_GEOMETRY_KEY = "ui/layout/geometry"
+    _LAYOUT_STATE_KEY    = "ui/layout/window_state"
+    _LAYOUT_SPLITTER_KEY = "ui/layout/md_splitter"
+
+    def _save_layout(self) -> None:
+        """Persist window geometry, dock arrangement, and splitter sizes to QSettings."""
+        settings = QSettings("Monotoba", "PocketFlowCreator")
+        settings.setValue(self._LAYOUT_GEOMETRY_KEY, self.saveGeometry())
+        settings.setValue(self._LAYOUT_STATE_KEY, self.saveState())
+        settings.setValue(self._LAYOUT_SPLITTER_KEY, self._md_splitter.saveState())
+
+    def _restore_layout(self) -> None:
+        """Restore window geometry, dock arrangement, and splitter sizes from QSettings."""
+        settings = QSettings("Monotoba", "PocketFlowCreator")
+        geometry = settings.value(self._LAYOUT_GEOMETRY_KEY)
+        state = settings.value(self._LAYOUT_STATE_KEY)
+        splitter = settings.value(self._LAYOUT_SPLITTER_KEY)
+        if geometry:
+            self.restoreGeometry(geometry)
+        if state:
+            self.restoreState(state)
+        if splitter:
+            self._md_splitter.restoreState(splitter)
+
+    def _on_save_layout(self) -> None:
+        self._save_layout()
+        self.statusBar().showMessage(self.tr("Layout saved."))
+
+    def _on_reset_layout(self) -> None:
+        """Remove saved layout from QSettings and restore default window size."""
+        settings = QSettings("Monotoba", "PocketFlowCreator")
+        settings.remove(self._LAYOUT_GEOMETRY_KEY)
+        settings.remove(self._LAYOUT_STATE_KEY)
+        settings.remove(self._LAYOUT_SPLITTER_KEY)
+        self.resize(1400, 900)
+        self._md_splitter.setSizes([1, 1])
+        self.statusBar().showMessage(self.tr("Layout reset to defaults."))
+
+    def closeEvent(self, event: Any) -> None:  # type: ignore[override]
+        """Auto-save layout on close so the next session opens with the same arrangement."""
+        self._save_layout()
+        super().closeEvent(event)
+
+    def _on_next_tab(self) -> None:
+        tw = self._bottom_tab_widget
+        tw.setCurrentIndex((tw.currentIndex() + 1) % tw.count())
+
+    def _on_prev_tab(self) -> None:
+        tw = self._bottom_tab_widget
+        tw.setCurrentIndex((tw.currentIndex() - 1) % tw.count())
 
     # ------------------------------------------------------- explorer refresh
 
