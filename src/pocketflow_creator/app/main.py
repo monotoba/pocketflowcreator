@@ -3,7 +3,8 @@ from __future__ import annotations
 import copy
 import shutil
 import tempfile
-from collections.abc import Sequence
+import threading
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import yaml
@@ -1083,6 +1084,34 @@ class MainWindow(QMainWindow):
             )
         return MockProvider(response=str(settings.value("mock/response", "mock response")))
 
+    def _make_input_callback(self, signals: object) -> Callable[[dict, dict], object]:
+        """Build a thread-safe human-input callback wired to *signals*.input_requested.
+
+        The returned callable can be passed as ``input_callback`` to FlowRunner.
+        ``signals`` must have an ``input_requested(object, object)`` signal attribute.
+        """
+        _event = threading.Event()
+        _result: dict[str, object] = {"value": None}
+
+        def _on_input_requested_gui(props: object, store_snap: object) -> None:
+            from pocketflow_creator.app.human_input_dialog import create_human_input_dialog
+            p = props if isinstance(props, dict) else {}
+            s = store_snap if isinstance(store_snap, dict) else {}
+            dlg = create_human_input_dialog(str(p.get("input_type", "form")), p, s, self)
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                _result["value"] = dlg.result_data
+            else:
+                _result["value"] = None
+            _event.set()
+
+        def input_cb(props: dict, shared_store: dict) -> object:
+            _event.clear()
+            signals.input_requested.emit(props, shared_store)  # type: ignore[attr-defined]
+            _event.wait(timeout=600)
+            return _result["value"]
+
+        signals.input_requested.connect(_on_input_requested_gui)  # type: ignore[attr-defined]
+        return input_cb
 
     def _on_run_active_flow(self) -> None:
         if not self._graphs:
@@ -1113,8 +1142,6 @@ class MainWindow(QMainWindow):
         self._switch_bottom_tab("Run Log")
         self.statusBar().showMessage("Run started…")
 
-        import threading as _input_threading
-
         from PySide6.QtCore import QObject, Signal as _Sig
 
         class _RunSignals(QObject):
@@ -1124,27 +1151,7 @@ class MainWindow(QMainWindow):
         signals = _RunSignals()
         self._run_signals = signals  # pin to self so GC can't collect it before the slot fires
 
-        _input_event = _input_threading.Event()
-        _input_result: dict[str, object] = {"value": None}
-
-        def _on_input_requested_gui(props: object, store_snap: object) -> None:
-            from pocketflow_creator.app.human_input_dialog import create_human_input_dialog
-            p = props if isinstance(props, dict) else {}
-            s = store_snap if isinstance(store_snap, dict) else {}
-            dlg = create_human_input_dialog(str(p.get("input_type", "form")), p, s, self)
-            if dlg.exec() == QDialog.DialogCode.Accepted:
-                _input_result["value"] = dlg.result_data
-            else:
-                _input_result["value"] = None
-            _input_event.set()
-
-        def input_cb(props: dict, shared_store: dict) -> object:
-            _input_event.clear()
-            signals.input_requested.emit(props, shared_store)
-            _input_event.wait(timeout=600)
-            return _input_result["value"]
-
-        signals.input_requested.connect(_on_input_requested_gui)
+        input_cb = self._make_input_callback(signals)
 
         def _on_run_complete(result: object) -> None:
             self._run_signals = None  # release the pin
@@ -1250,8 +1257,6 @@ class MainWindow(QMainWindow):
         self._switch_bottom_tab("Run Log")
 
         # Local QObject subclass — defined here so QApplication already exists (avoids segfault).
-        import threading as _dbg_input_threading
-
         from PySide6.QtCore import QObject, Signal as _Sig
 
         class _DbgSignals(QObject):
@@ -1262,27 +1267,7 @@ class MainWindow(QMainWindow):
         signals = _DbgSignals()
         self._dbg_signals = signals  # pin to self so GC can't collect it before slots fire
 
-        _dbg_input_event = _dbg_input_threading.Event()
-        _dbg_input_result: dict[str, object] = {"value": None}
-
-        def _on_dbg_input_requested_gui(props: object, store_snap: object) -> None:
-            from pocketflow_creator.app.human_input_dialog import create_human_input_dialog
-            p = props if isinstance(props, dict) else {}
-            s = store_snap if isinstance(store_snap, dict) else {}
-            dlg = create_human_input_dialog(str(p.get("input_type", "form")), p, s, self)
-            if dlg.exec() == QDialog.DialogCode.Accepted:
-                _dbg_input_result["value"] = dlg.result_data
-            else:
-                _dbg_input_result["value"] = None
-            _dbg_input_event.set()
-
-        def dbg_input_cb(props: dict, shared_store: dict) -> object:
-            _dbg_input_event.clear()
-            signals.input_requested.emit(props, shared_store)
-            _dbg_input_event.wait(timeout=600)
-            return _dbg_input_result["value"]
-
-        signals.input_requested.connect(_on_dbg_input_requested_gui)
+        dbg_input_cb = self._make_input_callback(signals)
 
         def _on_step_gui(step: object) -> None:
             if not isinstance(step, RunStep):
