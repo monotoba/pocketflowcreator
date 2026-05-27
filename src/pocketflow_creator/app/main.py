@@ -1071,6 +1071,19 @@ class MainWindow(QMainWindow):
 
     # ----------------------------------------------- run menu handlers
 
+    def _build_provider(self) -> MockProvider | OllamaProvider:
+        """Construct the active LLM provider from QSettings."""
+        settings = QSettings("Monotoba", "PocketFlowCreator")
+        prov_type = str(settings.value("run/provider", "mock"))
+        if prov_type == "ollama":
+            return OllamaProvider(
+                base_url=str(settings.value("ollama/base_url", "http://localhost:11434")),
+                default_model=str(settings.value("ollama/default_model", "qwen2.5-coder:14b")),
+                timeout=int(settings.value("ollama/timeout", 120)),  # type: ignore[arg-type]
+            )
+        return MockProvider(response=str(settings.value("mock/response", "mock response")))
+
+
     def _on_run_active_flow(self) -> None:
         if not self._graphs:
             self.statusBar().showMessage("No graphs to run.")
@@ -1087,18 +1100,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Add at least one node before running.")
             return
 
-        settings = QSettings("Monotoba", "PocketFlowCreator")
-        prov_type = str(settings.value("run/provider", "mock"))
-        if prov_type == "ollama":
-            provider: MockProvider | OllamaProvider = OllamaProvider(
-                base_url=str(settings.value("ollama/base_url", "http://localhost:11434")),
-                default_model=str(settings.value("ollama/default_model", "qwen2.5-coder:14b")),
-                timeout=int(settings.value("ollama/timeout", 120)),  # type: ignore[arg-type]
-            )
-        else:
-            provider = MockProvider(
-                response=str(settings.value("mock/response", "mock response"))
-            )
+        provider = self._build_provider()
 
         import threading as _threading
 
@@ -1237,18 +1239,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Add at least one node before debugging.")
             return
         _debug_known = {k: v for k, v in self._graphs.items() if k != _debug_rel}
-        settings = QSettings("Monotoba", "PocketFlowCreator")
-        prov_type = str(settings.value("run/provider", "mock"))
-        if prov_type == "ollama":
-            provider: MockProvider | OllamaProvider = OllamaProvider(
-                base_url=str(settings.value("ollama/base_url", "http://localhost:11434")),
-                default_model=str(settings.value("ollama/default_model", "qwen2.5-coder:14b")),
-                timeout=int(settings.value("ollama/timeout", 120)),  # type: ignore[arg-type]
-            )
-        else:
-            provider = MockProvider(
-                response=str(settings.value("mock/response", "mock response"))
-            )
+        provider = self._build_provider()
 
         import threading as _threading
 
