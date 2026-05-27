@@ -1838,21 +1838,21 @@ class MainWindow(QMainWindow):
         self._apply_theme()
         self.statusBar().showMessage(self.tr("Options saved."))
 
-    def _on_undo(self) -> None:
-        self._undo_stack.undo()
+    def _clear_selection_state(self) -> None:
+        """Reset inspector and selection tracking after undo/redo."""
         self._current_node = None
         self._current_node_item = None
         self._current_edge = None
         self._inspector_snapshot = None
         self._inspector.clear()
 
+    def _on_undo(self) -> None:
+        self._undo_stack.undo()
+        self._clear_selection_state()
+
     def _on_redo(self) -> None:
         self._undo_stack.redo()
-        self._current_node = None
-        self._current_node_item = None
-        self._current_edge = None
-        self._inspector_snapshot = None
-        self._inspector.clear()
+        self._clear_selection_state()
 
     def _on_node_drag_started(self, node_id: str) -> None:
         if self._active_graph_rel is None:
