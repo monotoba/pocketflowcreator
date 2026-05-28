@@ -103,12 +103,12 @@ from pocketflow_creator.app.settings_keys import (
 )
 from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES, get_nodes_by_category
 from pocketflow_creator.node_package_loader import (
-    discover_bundled_nodes,
+    discover_addon_nodes,
     discover_user_nodes,
     get_all_user_nodes,
-    get_all_bundled_nodes,
+    get_all_addon_nodes,
     get_user_node_groups,
-    get_bundled_node_groups,
+    get_addon_node_groups,
     install_node_package,
     get_user_nodes_dir,
 )
@@ -190,8 +190,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.tr("PocketFlow Creator"))
         self.resize(1400, 900)
         self._build_menu_bar()
-        # Discover bundled and user node packages before building toolbar/palette.
-        _bundled_defns, self._bundled_node_load_errors = discover_bundled_nodes()
+        # Discover add-on and user node packages before building toolbar/palette.
+        _addon_defns, self._addon_node_load_errors = discover_addon_nodes()
         _user_defns, self._user_node_load_errors = discover_user_nodes()
         self._build_node_toolbar()
         self._build_central_area()
@@ -447,6 +447,32 @@ class MainWindow(QMainWindow):
             }}
         """
 
+    # ── Toolbar super-group definitions ──────────────────────────────────────
+    # Categories in the same super-group are separated by a thin Qt separator.
+    # Between super-groups a wider transparent spacer widget is inserted so the
+    # groups visually stand apart without cluttering the bar with extra lines.
+    _TOOLBAR_SUPER_GROUPS: list[tuple[str, set[str]]] = [
+        ("Flow / Core",  {"Flow Control", "Core"}),
+        ("AI",           {"AI", "AI/Reasoning", "AI/LLM Utilities"}),
+        ("Human",        {"Human-in-the-Loop"}),
+        ("Data",         {"Data/IO", "Data Processing", "Text/Data Processing",
+                          "Data/Vector", "Data Structures/Memory"}),
+        ("Code",         {"Code", "Code/Execution"}),
+        ("Processing",   {"Processing", "Async"}),
+        ("Integrations", {"Web/Search", "Database/SQL", "Voice/Audio",
+                          "Document/Vision", "Calendar", "MCP/Agent Protocol",
+                          "Observability/Utility", "System/Shell", "Networking",
+                          "Resilience", "Messaging", "Security"}),
+    ]
+
+    @staticmethod
+    def _toolbar_super_group(category: str) -> str:
+        """Return the super-group label for *category*, or the category itself."""
+        for label, cats in MainWindow._TOOLBAR_SUPER_GROUPS:
+            if category in cats:
+                return label
+        return category   # uncategorised built-ins get their own implicit group
+
     def _build_node_toolbar(self) -> None:
         tb = QToolBar(self.tr("Node Types"), self)
         tb.setObjectName("nodeTypeToolBar")
@@ -456,8 +482,15 @@ class MainWindow(QMainWindow):
         self.addToolBar(tb)
         self._node_toolbar = tb
 
+        # Helpers ─────────────────────────────────────────────────────────────
+        def _add_gap(width: int = 14) -> None:
+            """Insert a transparent fixed-width spacer to separate super-groups."""
+            spacer = QWidget()
+            spacer.setFixedWidth(width)
+            spacer.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            tb.addWidget(spacer)
+
         # Determine display order — saved order first, falling back to default.
-        # The default order preserves category grouping (CATEGORY_ORDER sequence).
         default_order = [
             type_id
             for _cat, nodes in get_nodes_by_category()
@@ -466,7 +499,6 @@ class MainWindow(QMainWindow):
         saved = QSettings(_ORG, _APP).value(_SKEY_TOOLBAR_ORDER, None)
         using_default_order: bool
         if isinstance(saved, list):
-            # Keep only known type_ids; append any new ones not yet in saved list
             known = set(default_order)
             order: list[str] = [t for t in saved if t in known]
             for t in default_order:
@@ -477,19 +509,26 @@ class MainWindow(QMainWindow):
             order = default_order
             using_default_order = True
 
-        # Use addAction so Qt's built-in overflow extension button (>>) works.
-        # When using the default (grouped) order, insert separators between
-        # categories so the toolbar visually mirrors the palette.
+        # ── Built-in nodes ────────────────────────────────────────────────────
+        # With the default order, insert a thin separator between categories
+        # within the same super-group and a wider gap between super-groups.
         self._toolbar_actions: dict[str, QAction] = {}
         prev_category: str | None = None
+        prev_super: str | None = None
         for type_id in order:
             nt = BUILTIN_NODE_TYPES.get(type_id)
             if nt is None:
                 continue
             if using_default_order and nt.category != prev_category:
-                if prev_category is not None:
-                    tb.addSeparator()
+                super_grp = self._toolbar_super_group(nt.category)
+                if prev_super is None:
+                    pass  # first item, no separator needed
+                elif super_grp != prev_super:
+                    _add_gap()          # wider gap between super-groups
+                else:
+                    tb.addSeparator()   # thin line within a super-group
                 prev_category = nt.category
+                prev_super = super_grp
             icon = make_node_icon(type_id, 32)
             act = tb.addAction(icon, nt.display_name)
             act.setToolTip(f"{nt.display_name}  [{nt.category}]")
@@ -498,29 +537,29 @@ class MainWindow(QMainWindow):
             )
             self._toolbar_actions[type_id] = act
 
-        # Append bundled scientific / engineering nodes to the toolbar
-        bundled_nodes_dict = get_all_bundled_nodes()
-        if bundled_nodes_dict:
-            tb.addSeparator()
-            prev_bundled_cat: str | None = None
-            for _cat, nodes_in_cat in get_bundled_node_groups():
+        # ── Add-on scientific / engineering nodes ─────────────────────────────
+        addon_nodes_dict = get_all_addon_nodes()
+        if addon_nodes_dict:
+            _add_gap(20)    # prominent break before the add-on section
+            prev_addon_cat: str | None = None
+            for _cat, nodes_in_cat in get_addon_node_groups():
                 for type_id, nt in nodes_in_cat:
-                    if nt.category != prev_bundled_cat:
-                        if prev_bundled_cat is not None:
+                    if nt.category != prev_addon_cat:
+                        if prev_addon_cat is not None:
                             tb.addSeparator()
-                        prev_bundled_cat = nt.category
+                        prev_addon_cat = nt.category
                     icon = make_node_icon(type_id, 32)
                     act = tb.addAction(icon, nt.display_name)
-                    act.setToolTip(f"{nt.display_name}  [{nt.category}] ⚗ Bundled")
+                    act.setToolTip(f"{nt.display_name}  [{nt.category}] ⚗ Add-on")
                     act.triggered.connect(
                         lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
                     )
                     self._toolbar_actions[type_id] = act
 
-        # Append user-installed node packages to the toolbar
+        # ── User-installed custom nodes ───────────────────────────────────────
         user_nodes = get_all_user_nodes()
         if user_nodes:
-            tb.addSeparator()   # visual break between built-ins and custom nodes
+            _add_gap(20)    # prominent break before the custom section
             prev_user_cat: str | None = None
             for type_id, nt in user_nodes.items():
                 if nt.category != prev_user_cat:
@@ -2456,24 +2495,24 @@ class MainWindow(QMainWindow):
         builtin_table.resizeColumnsToContents()
         tabs.addTab(builtin_table, f"Built-in ({len(BUILTIN_NODE_TYPES)})")
 
-        # ── Tab 2: bundled scientific / engineering node packages ─────────
-        bundled_nodes = get_all_bundled_nodes()
-        bundled_table = QTableWidget(len(bundled_nodes), 5)
-        bundled_table.setHorizontalHeaderLabels(
+        # ── Tab 2: add-on scientific / engineering node packages ─────────
+        addon_nodes = get_all_addon_nodes()
+        addon_table = QTableWidget(len(addon_nodes), 5)
+        addon_table.setHorizontalHeaderLabels(
             ["Display Name", "Category", "Version", "Description", "Website"]
         )
-        bundled_table.horizontalHeader().setStretchLastSection(True)
-        bundled_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        bundled_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        for r, defn in enumerate(sorted(bundled_nodes.values(), key=lambda d: (d.category, d.display_name))):
+        addon_table.horizontalHeader().setStretchLastSection(True)
+        addon_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        addon_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        for r, defn in enumerate(sorted(addon_nodes.values(), key=lambda d: (d.category, d.display_name))):
             m = get_package_meta(defn.node_type_id)
-            bundled_table.setItem(r, 0, QTableWidgetItem(defn.display_name))
-            bundled_table.setItem(r, 1, QTableWidgetItem(defn.category))
-            bundled_table.setItem(r, 2, QTableWidgetItem(m.get("version", "")))
-            bundled_table.setItem(r, 3, QTableWidgetItem(defn.description or ""))
-            bundled_table.setItem(r, 4, QTableWidgetItem(m.get("website", "")))
-        bundled_table.resizeColumnsToContents()
-        tabs.addTab(bundled_table, f"Scientific & Engineering ({len(bundled_nodes)})")
+            addon_table.setItem(r, 0, QTableWidgetItem(defn.display_name))
+            addon_table.setItem(r, 1, QTableWidgetItem(defn.category))
+            addon_table.setItem(r, 2, QTableWidgetItem(m.get("version", "")))
+            addon_table.setItem(r, 3, QTableWidgetItem(defn.description or ""))
+            addon_table.setItem(r, 4, QTableWidgetItem(m.get("website", "")))
+        addon_table.resizeColumnsToContents()
+        tabs.addTab(addon_table, f"Scientific & Engineering ({len(addon_nodes)})")
 
         # ── Tab 3: installed custom node packages ─────────────────────────
         custom_layout = QVBoxLayout()
@@ -2543,7 +2582,7 @@ class MainWindow(QMainWindow):
 
         # ── Tab 4: load errors ────────────────────────────────────────────
         errors = (
-            getattr(self, "_bundled_node_load_errors", []) +
+            getattr(self, "_addon_node_load_errors", []) +
             getattr(self, "_user_node_load_errors", [])
         )
         if errors:

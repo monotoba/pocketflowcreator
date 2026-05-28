@@ -1,11 +1,8 @@
 """Single-file node package loader for PocketFlow Creator.
 
-Bundled node packages ship with Creator under
-``pocketflow_creator/bundled_nodes/`` and are loaded at startup before user
-packages.  They appear in the palette under a "Scientific & Engineering" banner
-(or grouped by their own categories) before the user-node section.
-
-
+Add-on node packages ship with Creator under ``pocketflow_creator/addon_nodes/``
+and are loaded at startup before user packages.  They appear in the palette
+under a "Scientific & Engineering" section before the user-node section.
 
 A **node package** is a single ``.py`` file.  All metadata is declared in a
 module-level ``__node_meta__`` dict so it is plain Python — no parsing, no
@@ -158,24 +155,24 @@ def _register_icon(type_id: str, color: str, draw_fn: Any | None) -> None:
 
 
 # ── In-process registry ───────────────────────────────────────────────────────
-# Populated by discover_user_nodes() / discover_bundled_nodes().
+# Populated by discover_user_nodes() / discover_addon_nodes().
 # _PACKAGE_META holds extended metadata keyed by type_id.
 # NodeTypeDefinition uses slots=True so we cannot attach extra attributes.
 #
-# Two separate registries so the palette can show bundled nodes in their own
+# Two separate registries so the palette can show add-on nodes in their own
 # section, distinct from the user's custom nodes.
 
 _USER_NODE_REGISTRY: dict[str, NodeTypeDefinition] = {}
-_BUNDLED_NODE_REGISTRY: dict[str, NodeTypeDefinition] = {}
+_ADDON_NODE_REGISTRY: dict[str, NodeTypeDefinition] = {}
 _PACKAGE_META: dict[str, dict[str, Any]] = {}
 
 
 def register_user_node(
     defn: NodeTypeDefinition,
     meta: dict[str, Any] | None = None,
-    bundled: bool = False,
+    addon: bool = False,
 ) -> None:
-    """Add *defn* to the user (or bundled) registry.
+    """Add *defn* to the user (or add-on) registry.
 
     Parameters
     ----------
@@ -183,12 +180,12 @@ def register_user_node(
         Node type definition to register.
     meta:
         Optional extended metadata dict (version, author, etc.).
-    bundled:
-        If ``True``, register in ``_BUNDLED_NODE_REGISTRY`` instead of
+    addon:
+        If ``True``, register in ``_ADDON_NODE_REGISTRY`` instead of
         ``_USER_NODE_REGISTRY``.
     """
-    if bundled:
-        _BUNDLED_NODE_REGISTRY[defn.node_type_id] = defn
+    if addon:
+        _ADDON_NODE_REGISTRY[defn.node_type_id] = defn
     else:
         _USER_NODE_REGISTRY[defn.node_type_id] = defn
     if meta is not None:
@@ -205,9 +202,9 @@ def get_all_user_nodes() -> dict[str, NodeTypeDefinition]:
     return dict(_USER_NODE_REGISTRY)
 
 
-def get_all_bundled_nodes() -> dict[str, NodeTypeDefinition]:
-    """Return a shallow copy of the bundled-node registry."""
-    return dict(_BUNDLED_NODE_REGISTRY)
+def get_all_addon_nodes() -> dict[str, NodeTypeDefinition]:
+    """Return a shallow copy of the add-on node registry."""
+    return dict(_ADDON_NODE_REGISTRY)
 
 
 def get_user_node_groups() -> list[tuple[str, list[tuple[str, NodeTypeDefinition]]]]:
@@ -220,12 +217,12 @@ def get_user_node_groups() -> list[tuple[str, list[tuple[str, NodeTypeDefinition
     return [(cat, items) for cat, items in sorted(groups.items())]
 
 
-def get_bundled_node_groups() -> list[tuple[str, list[tuple[str, NodeTypeDefinition]]]]:
-    """Return bundled nodes grouped by category, sorted by category name."""
+def get_addon_node_groups() -> list[tuple[str, list[tuple[str, NodeTypeDefinition]]]]:
+    """Return add-on nodes grouped by category, in the preferred display order."""
     from collections import defaultdict
 
-    # Preferred display order for bundled categories
-    _BUNDLED_CATEGORY_ORDER = [
+    # Preferred display order for add-on categories
+    _ADDON_CATEGORY_ORDER = [
         "Scientific Computing",
         "Aerospace",
         "Wind Energy",
@@ -237,12 +234,12 @@ def get_bundled_node_groups() -> list[tuple[str, list[tuple[str, NodeTypeDefinit
     ]
 
     groups: dict[str, list[tuple[str, NodeTypeDefinition]]] = defaultdict(list)
-    for type_id, defn in _BUNDLED_NODE_REGISTRY.items():
+    for type_id, defn in _ADDON_NODE_REGISTRY.items():
         groups[defn.category].append((type_id, defn))
 
     result = []
     seen: set[str] = set()
-    for cat in _BUNDLED_CATEGORY_ORDER:
+    for cat in _ADDON_CATEGORY_ORDER:
         if cat in groups:
             result.append((cat, sorted(groups[cat], key=lambda x: x[1].display_name)))
             seen.add(cat)
@@ -386,7 +383,7 @@ def load_node_package(path: Path) -> NodeTypeDefinition:
 
 def _scan_directory(
     directory: Path,
-    bundled: bool = False,
+    addon: bool = False,
 ) -> tuple[list[NodeTypeDefinition], list[tuple[str, str]]]:
     """Internal: scan *directory* for node packages and register them."""
     definitions: list[NodeTypeDefinition] = []
@@ -401,8 +398,8 @@ def _scan_directory(
         try:
             defn = load_node_package(py_file)  # also populates _PACKAGE_META
             definitions.append(defn)
-            register_user_node(defn, bundled=bundled)
-            label = "bundled" if bundled else "user"
+            register_user_node(defn, addon=addon)
+            label = "addon" if addon else "user"
             _log.info("Loaded %s node package: %s (%s)", label, defn.display_name, py_file.name)
         except PackageLoadError as exc:
             errors.append((py_file.name, str(exc)))
@@ -411,19 +408,19 @@ def _scan_directory(
     return definitions, errors
 
 
-def discover_bundled_nodes() -> tuple[list[NodeTypeDefinition], list[tuple[str, str]]]:
-    """Load the node packages that ship with PocketFlow Creator.
+def discover_addon_nodes() -> tuple[list[NodeTypeDefinition], list[tuple[str, str]]]:
+    """Load the add-on node packages that ship with PocketFlow Creator.
 
-    Packages live in ``pocketflow_creator/bundled_nodes/`` inside the installed
-    package.  They are registered in ``_BUNDLED_NODE_REGISTRY`` so the palette
+    Packages live in ``pocketflow_creator/addon_nodes/`` inside the installed
+    package.  They are registered in ``_ADDON_NODE_REGISTRY`` so the palette
     can show them in a dedicated section separate from the user's own nodes.
 
     Returns
     -------
     (definitions, errors)
     """
-    bundled_dir = Path(__file__).parent / "bundled_nodes"
-    return _scan_directory(bundled_dir, bundled=True)
+    addon_dir = Path(__file__).parent / "addon_nodes"
+    return _scan_directory(addon_dir, addon=True)
 
 
 def discover_user_nodes(
@@ -443,7 +440,7 @@ def discover_user_nodes(
         *errors* — list of ``(filename, error_message)`` pairs for failures.
     """
     directory = nodes_dir or get_user_nodes_dir()
-    return _scan_directory(directory, bundled=False)
+    return _scan_directory(directory, addon=False)
 
 
 # ── Install helper ────────────────────────────────────────────────────────────

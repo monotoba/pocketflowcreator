@@ -10,7 +10,7 @@ from pocketflow_creator.node_package_loader import (
     PackageLoadError,
     _PACKAGE_META,
     _to_type_id,
-    discover_bundled_nodes,
+    discover_addon_nodes,
     discover_user_nodes,
     load_node_package,
 )
@@ -161,21 +161,21 @@ def test_discover_nonexistent_dir(tmp_path):
     assert errors == []
 
 
-# ── discover_bundled_nodes ────────────────────────────────────────────────────
+# ── discover_addon_nodes ────────────────────────────────────────────────────
 
-def test_discover_bundled_nodes_finds_all():
-    """Bundled node packages should all load without errors."""
-    defns, errors = discover_bundled_nodes()
-    # Verify all 34 bundled packages loaded
+def test_discover_addon_nodes_finds_all():
+    """Add-on node packages should all load without errors."""
+    defns, errors = discover_addon_nodes()
+    # Verify all 34 addon packages loaded
     assert len(defns) == 34, (
-        f"Expected 34 bundled nodes, got {len(defns)}. "
+        f"Expected 34 addon nodes, got {len(defns)}. "
         f"Errors: {errors}"
     )
     assert errors == [], f"Unexpected load errors: {errors}"
 
 
-def test_discover_bundled_nodes_categories():
-    """Bundled nodes should span the expected scientific / engineering categories."""
+def test_discover_addon_nodes_categories():
+    """Add-on nodes should span the expected scientific / engineering categories."""
     expected_categories = {
         "Scientific Computing",
         "Aerospace",
@@ -186,7 +186,7 @@ def test_discover_bundled_nodes_categories():
         "Geospatial",
         "Data Catalog",
     }
-    defns, _ = discover_bundled_nodes()
+    defns, _ = discover_addon_nodes()
     actual_categories = {d.category for d in defns}
     assert expected_categories == actual_categories, (
         f"Category mismatch.\n"

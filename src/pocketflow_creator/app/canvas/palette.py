@@ -29,7 +29,7 @@ else:
 
 from pocketflow_creator.app.canvas.icons import make_node_icon
 from pocketflow_creator.builtin_node_types import get_nodes_by_category
-from pocketflow_creator.node_package_loader import get_bundled_node_groups, get_user_node_groups
+from pocketflow_creator.node_package_loader import get_addon_node_groups, get_user_node_groups
 
 _MIME_NODE_TYPE = "application/x-pocketflow-node-type"
 _MIME_NODE_SNIPPET = "application/x-pocketflow-node-snippet"
@@ -77,17 +77,17 @@ class PaletteWidget(QListWidget):
                 item.setData(Qt.ItemDataRole.UserRole, type_id)
                 self.addItem(item)
 
-        # Bundled scientific & engineering node packages
-        bundled_groups = get_bundled_node_groups()
-        if bundled_groups:
-            bundled_div = QListWidgetItem("─── Scientific & Engineering ───")
-            bundled_div.setFlags(
-                bundled_div.flags()
+        # Add-on scientific & engineering node packages
+        addon_groups = get_addon_node_groups()
+        if addon_groups:
+            addon_div = QListWidgetItem("─── Scientific & Engineering ───")
+            addon_div.setFlags(
+                addon_div.flags()
                 & ~Qt.ItemFlag.ItemIsEnabled  # type: ignore[attr-defined]
                 & ~Qt.ItemFlag.ItemIsSelectable  # type: ignore[attr-defined]
             )
-            self.addItem(bundled_div)
-            for category, nodes in bundled_groups:
+            self.addItem(addon_div)
+            for category, nodes in addon_groups:
                 self.addItem(_make_category_header(category))
                 for type_id, nt in nodes:
                     item = QListWidgetItem(make_node_icon(type_id, 28), nt.display_name)
