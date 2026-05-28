@@ -16,14 +16,21 @@ class ProjectLoader:
             data: dict[str, Any] = yaml.safe_load(f)
         version = str(data.get("schema_version", ""))
         if version != PROJECT_SCHEMA_VERSION:
+            # No automatic migration: the user must re-export from the version
+            # that produced the file, or hand-edit schema_version if safe to do so.
             raise ValueError(
                 f"Unsupported project schema version {version!r};"
                 f" expected {PROJECT_SCHEMA_VERSION!r}"
             )
+        return self._parse_project(data, path.parent)
+
+    @staticmethod
+    def _parse_project(data: dict[str, Any], root: Path) -> ProjectModel:
+        """Construct a ProjectModel from a loaded YAML mapping and project root path."""
         return ProjectModel(
             name=str(data["name"]),
             package_name=str(data["package_name"]),
-            root=path.parent,
+            root=root,
             default_provider=str(data.get("default_provider", "ollama_local")),
             default_model=str(data.get("default_model", "qwen2.5-coder:14b")),
             graphs=list(data.get("graphs", [])),

@@ -16,6 +16,8 @@ class GraphLoader:
             data: dict[str, Any] = yaml.safe_load(f)
         version = str(data.get("schema_version", ""))
         if version != GRAPH_SCHEMA_VERSION:
+            # No automatic migration: the user must re-export from the version
+            # that produced the file, or hand-edit schema_version if safe to do so.
             raise ValueError(
                 f"Unsupported graph schema version {version!r}; expected {GRAPH_SCHEMA_VERSION!r}"
             )
@@ -28,7 +30,8 @@ class GraphLoader:
             edges=[self._parse_edge(e) for e in data.get("edges", [])],
         )
 
-    def _parse_node(self, data: dict[str, Any]) -> NodeModel:
+    @staticmethod
+    def _parse_node(data: dict[str, Any]) -> NodeModel:
         raw = data.get("position", {})
         return NodeModel(
             id=str(data["id"]),
@@ -41,7 +44,8 @@ class GraphLoader:
             writes=list(data.get("writes", [])),
         )
 
-    def _parse_edge(self, data: dict[str, Any]) -> EdgeModel:
+    @staticmethod
+    def _parse_edge(data: dict[str, Any]) -> EdgeModel:
         return EdgeModel(
             id=str(data["id"]),
             from_node=str(data["from_node"]),
@@ -65,7 +69,8 @@ class GraphSaver:
         with path.open("w", encoding="utf-8") as f:
             yaml.safe_dump(data, f, sort_keys=False, default_flow_style=False)
 
-    def _node_to_dict(self, node: NodeModel) -> dict[str, Any]:
+    @staticmethod
+    def _node_to_dict(node: NodeModel) -> dict[str, Any]:
         d: dict[str, Any] = {
             "id": node.id,
             "type_id": node.type_id,
@@ -82,7 +87,8 @@ class GraphSaver:
             d["writes"] = node.writes
         return d
 
-    def _edge_to_dict(self, edge: EdgeModel) -> dict[str, Any]:
+    @staticmethod
+    def _edge_to_dict(edge: EdgeModel) -> dict[str, Any]:
         return {
             "id": edge.id,
             "from_node": edge.from_node,
