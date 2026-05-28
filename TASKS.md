@@ -361,16 +361,16 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
 
 ### Group 6 — Refactor `app/canvas.py` internals
 
-- [ ] T-R23 🟡 Add named constant `_DRAG_LINE_Z = 1000` and replace the bare literal in
+- [x] T-R23 🟡 Add named constant `_DRAG_LINE_Z = 1000` and replace the bare literal in
   `GraphView.mousePressEvent`.
-- [ ] T-R24 🟡 Add `is_dark` property to `GraphScene`; update `NodeItem.paint` to call
+- [x] T-R24 🟡 Add `is_dark` property to `GraphScene`; update `NodeItem.paint` to call
   `scene.is_dark` instead of accessing `scene._dark` directly via `hasattr`.
 - [ ] T-R25 🟡 Unify the 20 `_ico_*` icon functions to a consistent `(p, sz, bg)` signature
   so `_ICON_DRAW` can dispatch uniformly and the `if/elif` special-case block in
   `_paint_node_pixmap` can be removed.
 - [ ] T-R26 🟡 Extract a shared `_hit_test_port(scene_pos, port_fn, hit_r)` helper used
   by both `_node_at_action_port` and `_node_at_input_port`.
-- [ ] T-R27 🟢 Add explicit type annotation `_edge_rubber: QGraphicsLineItem | None` in
+- [x] T-R27 🟢 Add explicit type annotation `_edge_rubber: QGraphicsLineItem | None` in
   `GraphView.__init__`.
 
 ### Group 7 — Refactor `app/editors.py`

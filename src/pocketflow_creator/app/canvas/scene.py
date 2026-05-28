@@ -60,6 +60,11 @@ class GraphScene(QGraphicsScene):
         self._connector_style = style
         self.update_edges()
 
+    @property
+    def is_dark(self) -> bool:
+        """Return True when the scene is rendering in dark mode."""
+        return self._dark
+
     def set_dark(self, dark: bool) -> None:
         self._dark = dark
         edge_color = _DARK_COLORS["edge"] if dark else _LIGHT_COLORS["edge"]

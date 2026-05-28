@@ -137,7 +137,8 @@ class NodeItem(QGraphicsItem):
         widget: QWidget | None = None,
     ) -> None:
         scene = self.scene()
-        dark = scene._dark if hasattr(scene, "_dark") else True  # type: ignore[union-attr]
+        from pocketflow_creator.app.canvas.scene import GraphScene  # lazy – avoids circular import
+        dark = scene.is_dark if isinstance(scene, GraphScene) else True
         colors = _DARK_COLORS if dark else _LIGHT_COLORS
 
         actions = self._node.actions or ["default"]

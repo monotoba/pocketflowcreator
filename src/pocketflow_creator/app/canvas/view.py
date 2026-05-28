@@ -33,6 +33,8 @@ from pocketflow_creator.app.canvas.items import NodeItem, EdgeItem, _PORT_R, _WI
 from pocketflow_creator.app.canvas.scene import GraphScene
 from pocketflow_creator.app.canvas.palette import _MIME_NODE_TYPE, _MIME_NODE_SNIPPET
 
+_DRAG_LINE_Z = 1000  # connector rubber-band drawn above all nodes while dragging
+
 
 class GraphView(QGraphicsView):
     zoom_changed = Signal(float)  # emits current scale factor (1.0 = 100%)
@@ -128,7 +130,7 @@ class GraphView(QGraphicsView):
                 sp = src.action_port_scene_pos(action)
                 rubber = QGraphicsLineItem(sp.x(), sp.y(), scene_pos.x(), scene_pos.y())
                 rubber.setPen(QPen(QColor("#4a9eff"), 1.5, Qt.PenStyle.DashLine))
-                rubber.setZValue(1000)  # draw above all nodes while dragging
+                rubber.setZValue(_DRAG_LINE_Z)
                 self.scene().addItem(rubber)
                 self._edge_rubber = rubber
                 self.setCursor(Qt.CursorShape.CrossCursor)
