@@ -355,7 +355,7 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
 
 - [x] T-R20 🔴 Assign a unique error code to the second `PFCE2102` usage (line 123,
   "subflow references missing graph") — change it to `PFCE2103`.
-- [ ] T-R21 🟡 Mark all `_validate_*` helper methods as `@staticmethod` (none use `self`).
+- [x] T-R21 🟡 Mark all `_validate_*` helper methods as `@staticmethod` (none use `self`).
 - [ ] T-R22 🟡 Compute `graph.node_ids()` once in `validate()` and pass it as a parameter
   to sub-methods, eliminating the redundant recomputation.
 

@@ -30,7 +30,8 @@ class GraphValidator:
         issues.extend(self._validate_subflow_refs(graph, known_graph_paths or set()))
         return issues
 
-    def _validate_unique_node_ids(self, graph: GraphModel) -> list[ValidationIssue]:
+    @staticmethod
+    def _validate_unique_node_ids(graph: GraphModel) -> list[ValidationIssue]:
         seen: set[str] = set()
         issues: list[ValidationIssue] = []
         for node in graph.nodes:
@@ -41,7 +42,8 @@ class GraphValidator:
             seen.add(node.id)
         return issues
 
-    def _validate_start_node(self, graph: GraphModel) -> list[ValidationIssue]:
+    @staticmethod
+    def _validate_start_node(graph: GraphModel) -> list[ValidationIssue]:
         if not graph.start_node:
             return [ValidationIssue("error", "PFCE1001", graph.id, "No start node selected.")]
         if graph.start_node not in graph.node_ids():
@@ -55,7 +57,8 @@ class GraphValidator:
             ]
         return []
 
-    def _validate_edges(self, graph: GraphModel) -> list[ValidationIssue]:
+    @staticmethod
+    def _validate_edges(graph: GraphModel) -> list[ValidationIssue]:
         node_ids = graph.node_ids()
         issues: list[ValidationIssue] = []
         for edge in graph.edges:
@@ -83,7 +86,8 @@ class GraphValidator:
                 )
         return issues
 
-    def _validate_declared_actions(self, graph: GraphModel) -> list[ValidationIssue]:
+    @staticmethod
+    def _validate_declared_actions(graph: GraphModel) -> list[ValidationIssue]:
         issues: list[ValidationIssue] = []
         for edge in graph.edges:
             source = graph.find_node(edge.from_node)
@@ -100,8 +104,9 @@ class GraphValidator:
                 )
         return issues
 
+    @staticmethod
     def _validate_subflow_refs(
-        self, graph: GraphModel, known_graph_paths: set[str]
+        graph: GraphModel, known_graph_paths: set[str]
     ) -> list[ValidationIssue]:
         issues: list[ValidationIssue] = []
         for node in graph.nodes:
