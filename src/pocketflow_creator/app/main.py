@@ -362,27 +362,94 @@ class MainWindow(QMainWindow):
 
     # --------------------------------------------------------------- layout
 
+    # ------------------------------------------------------------------
+    # Toolbar stylesheet — regenerated on every theme change so colours
+    # are always correct for dark, light, and system colour schemes.
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _node_toolbar_stylesheet(dark: bool) -> str:
+        """Return a QSS string for the node-type toolbar.
+
+        Regular node buttons
+        --------------------
+        - Normal  : transparent border (icon-only look)
+        - Hover   : subtle tinted border + background
+        - Pressed : brighter tinted border + background
+
+        Overflow extension button  (``QToolButton#qt_toolbar_ext_button``)
+        -------------------------------------------------------------------
+        Always visible so the user knows there are more nodes off-screen.
+        Uses a permanently drawn border and a ``▸▸`` label so it is obvious
+        even before the pointer moves near it.
+        """
+        if dark:
+            btn_hover_border   = "rgba(255, 255, 255, 0.55)"
+            btn_hover_bg       = "rgba(255, 255, 255, 0.12)"
+            btn_pressed_border = "rgba(255, 255, 255, 0.80)"
+            btn_pressed_bg     = "rgba(255, 255, 255, 0.25)"
+            ext_border         = "rgba(255, 255, 255, 0.35)"
+            ext_bg             = "rgba(255, 255, 255, 0.08)"
+            ext_hover_border   = "rgba(255, 255, 255, 0.65)"
+            ext_hover_bg       = "rgba(255, 255, 255, 0.18)"
+            ext_color          = "rgba(255, 255, 255, 0.85)"
+        else:
+            btn_hover_border   = "rgba(0, 0, 0, 0.30)"
+            btn_hover_bg       = "rgba(0, 0, 0, 0.08)"
+            btn_pressed_border = "rgba(0, 0, 0, 0.50)"
+            btn_pressed_bg     = "rgba(0, 0, 0, 0.15)"
+            ext_border         = "rgba(0, 0, 0, 0.28)"
+            ext_bg             = "rgba(0, 0, 0, 0.06)"
+            ext_hover_border   = "rgba(0, 0, 0, 0.50)"
+            ext_hover_bg       = "rgba(0, 0, 0, 0.12)"
+            ext_color          = "rgba(0, 0, 0, 0.75)"
+
+        return f"""
+            QToolButton {{
+                border: 2px solid transparent;
+                border-radius: 7px;
+                padding: 3px;
+                margin: 1px;
+            }}
+            QToolButton:hover {{
+                border: 2px solid {btn_hover_border};
+                background: {btn_hover_bg};
+            }}
+            QToolButton:pressed {{
+                border: 2px solid {btn_pressed_border};
+                background: {btn_pressed_bg};
+            }}
+
+            /* ── Overflow / extension button ──────────────────────────── */
+            /* objectName set by Qt: "qt_toolbar_ext_button"               */
+            QToolButton#qt_toolbar_ext_button {{
+                border: 1px solid {ext_border};
+                border-radius: 5px;
+                background: {ext_bg};
+                color: {ext_color};
+                font-size: 9px;
+                font-weight: bold;
+                min-width: 16px;
+                padding: 2px 3px;
+                margin: 2px 1px;
+                qproperty-text: "▸▸";
+            }}
+            QToolButton#qt_toolbar_ext_button:hover {{
+                border: 1px solid {ext_hover_border};
+                background: {ext_hover_bg};
+            }}
+            QToolButton#qt_toolbar_ext_button:pressed {{
+                border: 1px solid {btn_pressed_border};
+                background: {btn_pressed_bg};
+            }}
+        """
+
     def _build_node_toolbar(self) -> None:
         tb = QToolBar(self.tr("Node Types"), self)
         tb.setObjectName("nodeTypeToolBar")
         tb.setMovable(False)
         tb.setIconSize(QSize(28, 28))
-        tb.setStyleSheet("""
-            QToolButton {
-                border: 2px solid transparent;
-                border-radius: 7px;
-                padding: 3px;
-                margin: 1px;
-            }
-            QToolButton:hover {
-                border: 2px solid rgba(255, 255, 255, 0.55);
-                background: rgba(255, 255, 255, 0.12);
-            }
-            QToolButton:pressed {
-                border: 2px solid rgba(255, 255, 255, 0.80);
-                background: rgba(255, 255, 255, 0.25);
-            }
-        """)
+        tb.setStyleSheet(self._node_toolbar_stylesheet(self._dark_mode))
         self.addToolBar(tb)
         self._node_toolbar = tb
 
@@ -2031,6 +2098,11 @@ class MainWindow(QMainWindow):
         else:
             self._graph_view.setStyleSheet("")
         self._graph_view.viewport().update()
+        # Re-apply the toolbar stylesheet so extension-button colours stay correct
+        if hasattr(self, "_node_toolbar"):
+            self._node_toolbar.setStyleSheet(
+                self._node_toolbar_stylesheet(self._dark_mode)
+            )
 
     # Ordered (locale_code, display_name) pairs for the language selector.
     _LANGUAGES: list[tuple[str, str]] = [
