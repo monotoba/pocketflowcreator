@@ -1672,8 +1672,8 @@ class MainWindow(QMainWindow):
         if not isinstance(item, NodeItem):
             return
         self._ensure_active_graph()
-        assert self._active_graph_rel is not None
-        assert self._project is not None  # _create_untitled_flow always sets _project
+        if self._active_graph_rel is None or self._project is None:
+            return
         rel = self._active_graph_rel
         graph = self._graphs.get(rel)
         before = copy.deepcopy(graph) if graph is not None else None
@@ -1733,7 +1733,8 @@ class MainWindow(QMainWindow):
         if not isinstance(src, NodeItem) or not isinstance(tgt, NodeItem):
             return
         self._ensure_active_graph()
-        assert self._active_graph_rel is not None
+        if self._active_graph_rel is None:
+            return
         rel = self._active_graph_rel
         edge = EdgeModel(
             id=f"edge_{uuid.uuid4().hex[:8]}",

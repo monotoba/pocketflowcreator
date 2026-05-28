@@ -330,7 +330,7 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
 - [x] T-R12 🟡 Change `_ensure_active_graph` return type from `bool` to `None`, remove
   the `return True` statements, and clean up the now-dead
   `if not self._ensure_active_graph(): return` guards in callers.
-- [ ] T-R13 🟡 Replace `assert self._active_graph_rel is not None` (lines 1769, 1834)
+- [x] T-R13 🟡 Replace `assert self._active_graph_rel is not None` (lines 1769, 1834)
   with explicit `if … is None: return` guards that are safe under `python -O`.
 - [ ] T-R14 🟢 Add named constant `_PNG_BACKGROUND_DARK = 0xFF1A1A1A` for the PNG export
   background fill colour (line 1028).
