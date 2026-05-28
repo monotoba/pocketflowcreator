@@ -66,6 +66,62 @@ _PALETTE_ITEMS_EX: list[tuple[str, str, str]] = [
     ("RAG Node",                 "rag_node",                 "#006064"),
     ("Judge Node",               "judge_node",               "#880e4f"),
     ("Subflow Node",             "subflow_node",             "#7f8c8d"),
+    # ── AI / Reasoning ────────────────────────────────────────────────────────
+    ("Chain of Thought Node",    "chain_of_thought_node",    "#4527a0"),
+    ("Majority Vote Node",       "majority_vote_node",       "#00796b"),
+    ("Supervisor Node",          "supervisor_node",          "#2e7d32"),
+    ("Debate Advocate Node",     "debate_advocate_node",     "#e64a19"),
+    ("Debate Judge Node",        "debate_judge_node",        "#6d4c41"),
+    # ── Web / Search ──────────────────────────────────────────────────────────
+    ("Web Search Node",          "web_search_node",          "#0277bd"),
+    ("Web Scrape Node",          "web_scrape_node",          "#01579b"),
+    ("API Call Node",            "api_call_node",            "#311b92"),
+    # ── Data / Vector / Embeddings ────────────────────────────────────────────
+    ("Text Chunk Node",          "text_chunk_node",          "#558b2f"),
+    ("Embed Node",               "embed_node",               "#e65100"),
+    ("Vector Index Node",        "vector_index_node",        "#283593"),
+    ("Vector Retrieve Node",     "vector_retrieve_node",     "#0d47a1"),
+    # ── Database / SQL ────────────────────────────────────────────────────────
+    ("DB Schema Node",           "db_schema_node",           "#4e342e"),
+    ("NL to SQL Node",           "nl_to_sql_node",           "#827717"),
+    ("SQL Execute Node",         "sql_execute_node",         "#1b5e20"),
+    # ── Voice / Audio ─────────────────────────────────────────────────────────
+    ("Speech to Text Node",      "speech_to_text_node",      "#ad1457"),
+    ("Text to Speech Node",      "text_to_speech_node",      "#c2185b"),
+    # ── Document / Vision ─────────────────────────────────────────────────────
+    ("PDF Extract Node",         "pdf_extract_node",         "#0e4757"),
+    ("Image Vision Node",        "image_vision_node",        "#0097a7"),
+    ("Data Validate Node",       "data_validate_node",       "#b71c1c"),
+    # ── Code / Execution ──────────────────────────────────────────────────────
+    ("Code Gen Node",            "code_gen_node",            "#33691e"),
+    ("Code Exec Node",           "code_exec_node",           "#004d40"),
+    ("Test Gen Node",            "test_gen_node",            "#388e3c"),
+    # ── Data Processing ───────────────────────────────────────────────────────
+    ("Map Node",                 "map_node",                 "#455a64"),
+    ("Reduce Node",              "reduce_node",              "#37474f"),
+    ("Condition Node",           "condition_node",           "#ff8f00"),
+    ("Loop Counter Node",        "loop_counter_node",        "#5d4037"),
+    ("Transform Node",           "transform_node",           "#546e7a"),
+    ("Merge Node",               "merge_node",               "#004d61"),
+    # ── Calendar ──────────────────────────────────────────────────────────────
+    ("Calendar Read Node",       "calendar_read_node",       "#1976d2"),
+    ("Calendar Write Node",      "calendar_write_node",      "#1e88e5"),
+    # ── MCP / Agent Protocol ──────────────────────────────────────────────────
+    ("MCP Tool Node",            "mcp_tool_node",            "#4a148c"),
+    ("A2A Send Node",            "a2a_send_node",            "#7b1fa2"),
+    ("A2A Receive Node",         "a2a_receive_node",         "#8e24aa"),
+    # ── Observability / Utility ───────────────────────────────────────────────
+    ("Log Node",                 "log_node",                 "#607d8b"),
+    ("Timer Node",               "timer_node",               "#00897b"),
+    ("Cache Node",               "cache_node",               "#bf360c"),
+    ("Trace Node",               "trace_node",               "#263238"),
+    # ── Data Structures / Memory ──────────────────────────────────────────────
+    ("Registry Node",            "registry_node",            "#c62828"),
+    ("Stack Push Node",          "stack_push_node",          "#8d6e63"),
+    ("Stack Pop Node",           "stack_pop_node",           "#795548"),
+    ("Queue Enqueue Node",       "queue_enqueue_node",       "#26a69a"),
+    ("Queue Dequeue Node",       "queue_dequeue_node",       "#009688"),
+    ("Local Memory Node",        "local_memory_node",        "#3949ab"),
 ]
 
 # Map type_id → bg hex (used by NodeItem paint and icon generator)
