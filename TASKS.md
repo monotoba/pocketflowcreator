@@ -437,7 +437,7 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
 
 ### Group 15 — `app/commands.py` clarity
 
-- [ ] T-R47 🟢 Add an explanatory comment to `GraphSnapshotCommand.redo` describing why
+- [x] T-R47 🟢 Add an explanatory comment to `GraphSnapshotCommand.redo` describing why
   the first call is skipped (Qt pushes → calls redo immediately; mutation was already
   applied live).
 

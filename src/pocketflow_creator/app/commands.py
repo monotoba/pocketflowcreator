@@ -45,6 +45,10 @@ class GraphSnapshotCommand(QUndoCommand):
         self._scene.load_graph(self._graphs[self._rel])
 
     def redo(self) -> None:
+        # Qt calls redo() immediately when a command is pushed onto the stack.
+        # By that point the mutation has already been applied live (the user
+        # just performed the action), so we skip the first call to avoid a
+        # redundant reload of the canvas.
         if self._first_redo:
             self._first_redo = False
             return
