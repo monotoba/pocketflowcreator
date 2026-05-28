@@ -1728,6 +1728,543 @@ def _ico_local_memory(p: QPainter, sz: float, bg: QColor) -> None:
     p.drawArc(QRectF(sz * 0.62, sz * 0.36, sz * 0.22, sz * 0.20), 0, 180 * 16)
 
 
+# ── System / Shell / Hardware icon functions ──────────────────────────────────
+
+def _ico_shell_command(p: QPainter, sz: float, bg: QColor) -> None:
+    """Terminal window with $ prompt — means 'execute shell command'."""
+    w = max(1.2, sz * 0.07)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Terminal outer rect
+    p.drawRoundedRect(QRectF(sz * 0.08, sz * 0.14, sz * 0.84, sz * 0.62),
+                      sz * 0.06, sz * 0.06)
+    # Title bar divider
+    p.drawLine(QPointF(sz * 0.08, sz * 0.28), QPointF(sz * 0.92, sz * 0.28))
+    # Three traffic-light dots in title bar
+    p.setBrush(QBrush(QColor("white")))
+    p.setPen(Qt.PenStyle.NoPen)
+    for dot_x in [sz * 0.18, sz * 0.27, sz * 0.36]:
+        p.drawEllipse(QPointF(dot_x, sz * 0.21), sz * 0.03, sz * 0.03)
+    # Prompt: $ symbol
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawLine(QPointF(sz * 0.16, sz * 0.42), QPointF(sz * 0.22, sz * 0.42))
+    p.drawLine(QPointF(sz * 0.22, sz * 0.42), QPointF(sz * 0.28, sz * 0.48))
+    p.drawLine(QPointF(sz * 0.28, sz * 0.48), QPointF(sz * 0.22, sz * 0.54))
+    p.drawLine(QPointF(sz * 0.22, sz * 0.54), QPointF(sz * 0.16, sz * 0.54))
+    # Cursor line after prompt
+    p.drawLine(QPointF(sz * 0.32, sz * 0.48), QPointF(sz * 0.60, sz * 0.48))
+    # Blinking cursor
+    p.setBrush(QBrush(QColor("white")))
+    p.setPen(Qt.PenStyle.NoPen)
+    p.drawRect(QRectF(sz * 0.61, sz * 0.42, sz * 0.06, sz * 0.12))
+    # Second cmd line (dimmer — partial)
+    p.setPen(QPen(QColor(255, 255, 255, 140), w))
+    p.drawLine(QPointF(sz * 0.16, sz * 0.62), QPointF(sz * 0.46, sz * 0.62))
+
+
+def _ico_tty_serial(p: QPainter, sz: float, bg: QColor) -> None:
+    """D-sub / DB9 serial connector — means 'serial port / TTY / Arduino'."""
+    w = max(1.2, sz * 0.07)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Connector trapezoidal shell
+    shell = QPolygonF([
+        QPointF(sz * 0.14, sz * 0.26),
+        QPointF(sz * 0.86, sz * 0.26),
+        QPointF(sz * 0.78, sz * 0.74),
+        QPointF(sz * 0.22, sz * 0.74),
+    ])
+    p.drawPolygon(shell)
+    # 5 top-row pins
+    p.setBrush(QBrush(QColor("white")))
+    p.setPen(Qt.PenStyle.NoPen)
+    for i in range(5):
+        cx = sz * (0.24 + i * 0.13)
+        p.drawEllipse(QPointF(cx, sz * 0.38), sz * 0.04, sz * 0.04)
+    # 4 bottom-row pins (offset)
+    for i in range(4):
+        cx = sz * (0.305 + i * 0.13)
+        p.drawEllipse(QPointF(cx, sz * 0.58), sz * 0.04, sz * 0.04)
+    # Cable line below connector
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawLine(QPointF(sz * 0.50, sz * 0.74), QPointF(sz * 0.50, sz * 0.90))
+
+
+def _ico_spreadsheet(p: QPainter, sz: float, bg: QColor) -> None:
+    """Spreadsheet grid with column header row — means 'CSV/Excel/TSV data'."""
+    w = max(1.1, sz * 0.06)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Outer rect
+    ox, oy, ow, oh = sz * 0.10, sz * 0.12, sz * 0.80, sz * 0.76
+    p.drawRect(QRectF(ox, oy, ow, oh))
+    # Header row fill
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    p.drawRect(QRectF(ox, oy, ow, sz * 0.16))
+    # Column separators (3 vertical lines → 4 columns)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    for i in range(1, 4):
+        cx = ox + ow * i / 4
+        p.drawLine(QPointF(cx, oy), QPointF(cx, oy + oh))
+    # Row separators (3 horizontal lines)
+    for j in range(1, 4):
+        ry = oy + sz * 0.16 + (oh - sz * 0.16) * j / 4
+        p.drawLine(QPointF(ox, ry), QPointF(ox + ow, ry))
+    # Header letter labels (A B C D) — tiny squares standing in as letters
+    p.setPen(QPen(bg, w))
+    col_labels = ["A", "B", "C", "D"]
+    font = QFont()
+    font.setPixelSize(max(5, int(sz * 0.13)))
+    font.setBold(True)
+    p.setFont(font)
+    for i, lbl in enumerate(col_labels):
+        cx = ox + ow * i / 4
+        p.drawText(QRectF(cx + 1, oy + 1, ow / 4 - 2, sz * 0.14),
+                   Qt.AlignmentFlag.AlignCenter, lbl)
+
+
+# ── Networking / Sockets icon functions ───────────────────────────────────────
+
+def _ico_socket_node(p: QPainter, sz: float, bg: QColor) -> None:
+    """RJ45 network plug — means 'TCP/UDP socket connection'."""
+    w = max(1.3, sz * 0.07)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Plug body
+    px1, py1, pw, ph = sz * 0.22, sz * 0.30, sz * 0.56, sz * 0.34
+    p.drawRoundedRect(QRectF(px1, py1, pw, ph), sz * 0.04, sz * 0.04)
+    # Latch tab on top
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    p.drawRoundedRect(QRectF(sz * 0.36, sz * 0.22, sz * 0.28, sz * 0.10),
+                      sz * 0.03, sz * 0.03)
+    # 4 contact pins at bottom of plug
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    for i in range(4):
+        cx = sz * (0.30 + i * 0.13)
+        p.drawLine(QPointF(cx, py1 + ph - sz * 0.06), QPointF(cx, py1 + ph))
+    # Cable cord below plug
+    p.drawLine(QPointF(sz * 0.50, py1 + ph), QPointF(sz * 0.50, sz * 0.88))
+    p.drawLine(QPointF(sz * 0.38, sz * 0.88), QPointF(sz * 0.62, sz * 0.88))
+
+
+def _ico_websocket(p: QPainter, sz: float, bg: QColor) -> None:
+    """Bidirectional streaming arrows with WS label — means 'WebSocket real-time'."""
+    w = max(1.5, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Up arrow (send)
+    p.drawLine(QPointF(sz * 0.30, sz * 0.66), QPointF(sz * 0.30, sz * 0.22))
+    p.drawLine(QPointF(sz * 0.20, sz * 0.34), QPointF(sz * 0.30, sz * 0.22))
+    p.drawLine(QPointF(sz * 0.40, sz * 0.34), QPointF(sz * 0.30, sz * 0.22))
+    # Down arrow (receive)
+    p.drawLine(QPointF(sz * 0.70, sz * 0.34), QPointF(sz * 0.70, sz * 0.78))
+    p.drawLine(QPointF(sz * 0.60, sz * 0.66), QPointF(sz * 0.70, sz * 0.78))
+    p.drawLine(QPointF(sz * 0.80, sz * 0.66), QPointF(sz * 0.70, sz * 0.78))
+    # Lightning bolt (real-time indicator) between arrows
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    bolt = QPolygonF([
+        QPointF(sz * 0.54, sz * 0.30),
+        QPointF(sz * 0.46, sz * 0.50),
+        QPointF(sz * 0.52, sz * 0.50),
+        QPointF(sz * 0.44, sz * 0.72),
+        QPointF(sz * 0.56, sz * 0.48),
+        QPointF(sz * 0.50, sz * 0.48),
+    ])
+    p.drawPolygon(bolt)
+
+
+def _ico_webhook_trigger(p: QPainter, sz: float, bg: QColor) -> None:
+    """Inbound lightning bolt striking a target — means 'triggered by external event'."""
+    w = max(1.5, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    # Target rings
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    cx, cy = sz * 0.66, sz * 0.62
+    for r_mult in [0.22, 0.14, 0.07]:
+        p.drawEllipse(QPointF(cx, cy), sz * r_mult, sz * r_mult)
+    # Center dot
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    p.drawEllipse(QPointF(cx, cy), sz * 0.04, sz * 0.04)
+    # Lightning bolt coming from upper-left
+    p.setBrush(QBrush(QColor("white")))
+    bolt = QPolygonF([
+        QPointF(sz * 0.28, sz * 0.12),
+        QPointF(sz * 0.14, sz * 0.38),
+        QPointF(sz * 0.24, sz * 0.38),
+        QPointF(sz * 0.10, sz * 0.64),
+        QPointF(sz * 0.32, sz * 0.36),
+        QPointF(sz * 0.22, sz * 0.36),
+    ])
+    p.setPen(Qt.PenStyle.NoPen)
+    p.drawPolygon(bolt)
+
+
+# ── AI / LLM Utilities icon functions ────────────────────────────────────────
+
+def _ico_context_compact(p: QPainter, sz: float, bg: QColor) -> None:
+    """Tall text block squeezed through a funnel to a short block — means 'compact context'."""
+    w = max(1.3, sz * 0.07)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Input text lines (tall block, left)
+    for ly in [sz * 0.18, sz * 0.28, sz * 0.38, sz * 0.48, sz * 0.58]:
+        p.drawLine(QPointF(sz * 0.10, ly), QPointF(sz * 0.38, ly))
+    # Compression funnel (V-shape pointing right)
+    p.drawLine(QPointF(sz * 0.38, sz * 0.18), QPointF(sz * 0.58, sz * 0.38))
+    p.drawLine(QPointF(sz * 0.38, sz * 0.58), QPointF(sz * 0.58, sz * 0.38))
+    # Output text lines (short block, right)
+    for ly in [sz * 0.30, sz * 0.42, sz * 0.54]:
+        p.drawLine(QPointF(sz * 0.62, ly), QPointF(sz * 0.88, ly))
+    # Arrow from funnel to output
+    p.drawLine(QPointF(sz * 0.58, sz * 0.38), QPointF(sz * 0.62, sz * 0.38))
+
+
+def _ico_conversation_history(p: QPainter, sz: float, bg: QColor) -> None:
+    """Alternating left and right speech bubbles — means 'conversation thread'."""
+    w = max(1.2, sz * 0.07)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Top bubble (user — left-aligned)
+    bx1, by1, bw, bh = sz * 0.10, sz * 0.10, sz * 0.54, sz * 0.24
+    p.drawRoundedRect(QRectF(bx1, by1, bw, bh), sz * 0.06, sz * 0.06)
+    p.drawLine(QPointF(bx1 + sz * 0.08, by1 + bh), QPointF(bx1 + sz * 0.02, by1 + bh + sz * 0.08))
+    # Top bubble content lines
+    p.drawLine(QPointF(bx1 + sz * 0.06, by1 + sz * 0.07), QPointF(bx1 + bw - sz * 0.06, by1 + sz * 0.07))
+    p.drawLine(QPointF(bx1 + sz * 0.06, by1 + sz * 0.14), QPointF(bx1 + bw - sz * 0.10, by1 + sz * 0.14))
+    # Bottom bubble (assistant — right-aligned)
+    bx2, by2 = sz * 0.36, sz * 0.54
+    p.drawRoundedRect(QRectF(bx2, by2, bw, bh), sz * 0.06, sz * 0.06)
+    p.drawLine(QPointF(bx2 + bw - sz * 0.08, by2 + bh), QPointF(bx2 + bw + sz * 0.02, by2 + bh + sz * 0.08))
+    p.drawLine(QPointF(bx2 + sz * 0.06, by2 + sz * 0.07), QPointF(bx2 + bw - sz * 0.06, by2 + sz * 0.07))
+    p.drawLine(QPointF(bx2 + sz * 0.06, by2 + sz * 0.14), QPointF(bx2 + bw - sz * 0.10, by2 + sz * 0.14))
+
+
+# ── Text / Data Processing icon functions ─────────────────────────────────────
+
+def _ico_regex(p: QPainter, sz: float, bg: QColor) -> None:
+    """Regex slashes /.*/ with dot and star — means 'pattern match / regex'."""
+    w = max(1.8, sz * 0.10)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Left slash /
+    p.drawLine(QPointF(sz * 0.22, sz * 0.76), QPointF(sz * 0.36, sz * 0.24))
+    # Right slash /
+    p.drawLine(QPointF(sz * 0.64, sz * 0.76), QPointF(sz * 0.78, sz * 0.24))
+    # Dot . between slashes (bottom-left area)
+    p.setBrush(QBrush(QColor("white")))
+    p.setPen(Qt.PenStyle.NoPen)
+    p.drawEllipse(QPointF(sz * 0.44, sz * 0.66), sz * 0.05, sz * 0.05)
+    # Star * between slashes (top area)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    star_cx, star_cy = sz * 0.50, sz * 0.34
+    for angle in range(0, 360, 60):
+        a = math.radians(angle)
+        p.drawLine(
+            QPointF(star_cx + sz * 0.04 * math.cos(a), star_cy + sz * 0.04 * math.sin(a)),
+            QPointF(star_cx + sz * 0.10 * math.cos(a), star_cy + sz * 0.10 * math.sin(a)),
+        )
+
+
+def _ico_template_render(p: QPainter, sz: float, bg: QColor) -> None:
+    """{{ }} mustache braces with arrow to rendered output — means 'Jinja2 template'."""
+    w = max(1.5, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Left {{ brace pair
+    for ox in [sz * 0.06, sz * 0.14]:
+        p.drawLine(QPointF(ox + sz * 0.06, sz * 0.22), QPointF(ox, sz * 0.32))
+        p.drawLine(QPointF(ox, sz * 0.32), QPointF(ox + sz * 0.06, sz * 0.42))
+    # Right }} brace pair
+    for ox in [sz * 0.44, sz * 0.36]:
+        p.drawLine(QPointF(ox, sz * 0.22), QPointF(ox + sz * 0.06, sz * 0.32))
+        p.drawLine(QPointF(ox + sz * 0.06, sz * 0.32), QPointF(ox, sz * 0.42))
+    # Content placeholder line inside braces
+    p.drawLine(QPointF(sz * 0.22, sz * 0.32), QPointF(sz * 0.34, sz * 0.32))
+    # Arrow →
+    p.drawLine(QPointF(sz * 0.52, sz * 0.32), QPointF(sz * 0.64, sz * 0.32))
+    p.drawLine(QPointF(sz * 0.56, sz * 0.26), QPointF(sz * 0.64, sz * 0.32))
+    p.drawLine(QPointF(sz * 0.56, sz * 0.38), QPointF(sz * 0.64, sz * 0.32))
+    # Rendered output (text lines)
+    for ly in [sz * 0.54, sz * 0.66, sz * 0.78]:
+        p.drawLine(QPointF(sz * 0.12, ly), QPointF(sz * 0.88, ly))
+
+
+def _ico_json_parse(p: QPainter, sz: float, bg: QColor) -> None:
+    """{ } curly braces with parse arrows — means 'JSON parse / serialize'."""
+    w = max(1.8, sz * 0.10)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Left { brace
+    p.drawLine(QPointF(sz * 0.34, sz * 0.20), QPointF(sz * 0.26, sz * 0.28))
+    p.drawLine(QPointF(sz * 0.26, sz * 0.28), QPointF(sz * 0.20, sz * 0.34))
+    p.drawLine(QPointF(sz * 0.20, sz * 0.34), QPointF(sz * 0.26, sz * 0.40))
+    p.drawLine(QPointF(sz * 0.26, sz * 0.40), QPointF(sz * 0.34, sz * 0.48))
+    # Right } brace
+    p.drawLine(QPointF(sz * 0.66, sz * 0.20), QPointF(sz * 0.74, sz * 0.28))
+    p.drawLine(QPointF(sz * 0.74, sz * 0.28), QPointF(sz * 0.80, sz * 0.34))
+    p.drawLine(QPointF(sz * 0.80, sz * 0.34), QPointF(sz * 0.74, sz * 0.40))
+    p.drawLine(QPointF(sz * 0.74, sz * 0.40), QPointF(sz * 0.66, sz * 0.48))
+    # Two-way arrow below braces (parse ↔ serialize)
+    p.drawLine(QPointF(sz * 0.20, sz * 0.66), QPointF(sz * 0.80, sz * 0.66))
+    p.drawLine(QPointF(sz * 0.20, sz * 0.66), QPointF(sz * 0.28, sz * 0.60))
+    p.drawLine(QPointF(sz * 0.20, sz * 0.66), QPointF(sz * 0.28, sz * 0.72))
+    p.drawLine(QPointF(sz * 0.80, sz * 0.66), QPointF(sz * 0.72, sz * 0.60))
+    p.drawLine(QPointF(sz * 0.80, sz * 0.66), QPointF(sz * 0.72, sz * 0.72))
+
+
+def _ico_list_ops(p: QPainter, sz: float, bg: QColor) -> None:
+    """Sorted list lines with filter funnel — means 'filter / sort / slice list'."""
+    w = max(1.3, sz * 0.07)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Funnel (filter) on the left
+    p.drawLine(QPointF(sz * 0.10, sz * 0.20), QPointF(sz * 0.42, sz * 0.20))
+    p.drawLine(QPointF(sz * 0.10, sz * 0.20), QPointF(sz * 0.22, sz * 0.40))
+    p.drawLine(QPointF(sz * 0.42, sz * 0.20), QPointF(sz * 0.30, sz * 0.40))
+    p.drawLine(QPointF(sz * 0.22, sz * 0.40), QPointF(sz * 0.30, sz * 0.40))
+    p.drawLine(QPointF(sz * 0.26, sz * 0.40), QPointF(sz * 0.26, sz * 0.56))
+    # Sort arrows on right (ascending indicator)
+    p.drawLine(QPointF(sz * 0.58, sz * 0.28), QPointF(sz * 0.58, sz * 0.72))
+    p.drawLine(QPointF(sz * 0.50, sz * 0.36), QPointF(sz * 0.58, sz * 0.28))
+    p.drawLine(QPointF(sz * 0.66, sz * 0.36), QPointF(sz * 0.58, sz * 0.28))
+    # Three descending-length list lines
+    for i, line_w in enumerate([0.30, 0.22, 0.14]):
+        ly = sz * (0.52 + i * 0.14)
+        p.drawLine(QPointF(sz * 0.12, ly), QPointF(sz * (0.12 + line_w * 2.2), ly))
+
+
+def _ico_string_ops(p: QPainter, sz: float, bg: QColor) -> None:
+    """Quoted string "Aa" with scissors — means 'string operations / transform'."""
+    w = max(1.5, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Opening quote mark
+    p.drawLine(QPointF(sz * 0.12, sz * 0.18), QPointF(sz * 0.12, sz * 0.28))
+    p.drawLine(QPointF(sz * 0.12, sz * 0.28), QPointF(sz * 0.18, sz * 0.34))
+    # "Aa" text representation (two capital A shapes)
+    # Large A
+    p.drawLine(QPointF(sz * 0.22, sz * 0.62), QPointF(sz * 0.32, sz * 0.28))
+    p.drawLine(QPointF(sz * 0.32, sz * 0.28), QPointF(sz * 0.42, sz * 0.62))
+    p.drawLine(QPointF(sz * 0.25, sz * 0.50), QPointF(sz * 0.39, sz * 0.50))
+    # Small a (circle + stem)
+    p.drawEllipse(QPointF(sz * 0.55, sz * 0.52), sz * 0.08, sz * 0.08)
+    p.drawLine(QPointF(sz * 0.63, sz * 0.44), QPointF(sz * 0.63, sz * 0.60))
+    # Closing quote mark
+    p.drawLine(QPointF(sz * 0.76, sz * 0.34), QPointF(sz * 0.82, sz * 0.28))
+    p.drawLine(QPointF(sz * 0.82, sz * 0.28), QPointF(sz * 0.82, sz * 0.18))
+    # Scissors blades (bottom)
+    p.drawLine(QPointF(sz * 0.24, sz * 0.80), QPointF(sz * 0.50, sz * 0.72))
+    p.drawLine(QPointF(sz * 0.24, sz * 0.68), QPointF(sz * 0.50, sz * 0.76))
+    p.setBrush(QBrush(QColor("white")))
+    p.setPen(Qt.PenStyle.NoPen)
+    p.drawEllipse(QPointF(sz * 0.20, sz * 0.74), sz * 0.06, sz * 0.06)
+
+
+# ── Resilience / Flow Utilities icon functions ────────────────────────────────
+
+def _ico_retry(p: QPainter, sz: float, bg: QColor) -> None:
+    """Circular arrow with warning triangle — means 'retry on failure'."""
+    w = max(1.5, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Circular retry arrow (open at top-right, smaller to leave room for warning)
+    p.drawArc(QRectF(sz * 0.10, sz * 0.10, sz * 0.48, sz * 0.48),
+              45 * 16, 270 * 16)
+    # Arrow tip
+    tip_x, tip_y = sz * 0.52, sz * 0.20
+    p.drawLine(QPointF(tip_x, tip_y), QPointF(tip_x + sz * 0.08, tip_y - sz * 0.06))
+    p.drawLine(QPointF(tip_x, tip_y), QPointF(tip_x + sz * 0.10, tip_y + sz * 0.04))
+    # Warning triangle (bottom-right)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    tri = QPolygonF([
+        QPointF(sz * 0.74, sz * 0.56),
+        QPointF(sz * 0.54, sz * 0.90),
+        QPointF(sz * 0.94, sz * 0.90),
+    ])
+    p.drawPolygon(tri)
+    # ! inside warning triangle
+    p.setPen(QPen(bg, w * 0.9, Qt.PenStyle.SolidLine,
+                  Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+    p.drawLine(QPointF(sz * 0.74, sz * 0.64), QPointF(sz * 0.74, sz * 0.76))
+    p.setBrush(QBrush(bg))
+    p.setPen(Qt.PenStyle.NoPen)
+    p.drawEllipse(QPointF(sz * 0.74, sz * 0.83), sz * 0.03, sz * 0.03)
+
+
+def _ico_rate_limiter(p: QPainter, sz: float, bg: QColor) -> None:
+    """Speedometer dial with needle — means 'rate limit / throttle'."""
+    w = max(1.5, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    cx, cy, r = sz * 0.50, sz * 0.58, sz * 0.38
+    # Dial arc (220 degrees: from ~200° to ~-20° = left to right across bottom)
+    p.drawArc(QRectF(cx - r, cy - r, r * 2, r * 2), 200 * 16, -240 * 16)
+    # Tick marks at 7 positions along the arc
+    for i in range(7):
+        angle_deg = 200 - i * 40
+        a = math.radians(angle_deg)
+        tick_outer = r
+        tick_inner = r - sz * 0.08
+        p.drawLine(
+            QPointF(cx + tick_inner * math.cos(a), cy - tick_inner * math.sin(a)),
+            QPointF(cx + tick_outer * math.cos(a), cy - tick_outer * math.sin(a)),
+        )
+    # Needle pointing to ~2/3 (warning zone)
+    needle_angle = math.radians(200 - 160)  # 160/240 of the arc
+    nx = cx + (r - sz * 0.08) * math.cos(needle_angle)
+    ny = cy - (r - sz * 0.08) * math.sin(needle_angle)
+    p.setPen(QPen(QColor("white"), w * 1.3, Qt.PenStyle.SolidLine,
+                  Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+    p.drawLine(QPointF(cx, cy), QPointF(nx, ny))
+    # Center pivot
+    p.setBrush(QBrush(QColor("white")))
+    p.setPen(Qt.PenStyle.NoPen)
+    p.drawEllipse(QPointF(cx, cy), sz * 0.05, sz * 0.05)
+
+
+# ── Messaging / Notifications icon functions ──────────────────────────────────
+
+def _ico_email_send(p: QPainter, sz: float, bg: QColor) -> None:
+    """Envelope with outbound arrow — means 'send email'."""
+    w = max(1.3, sz * 0.07)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Envelope body
+    ex, ey, ew, eh = sz * 0.10, sz * 0.26, sz * 0.60, sz * 0.44
+    p.drawRect(QRectF(ex, ey, ew, eh))
+    # Envelope flap (V-fold)
+    p.drawLine(QPointF(ex, ey), QPointF(ex + ew / 2, ey + eh * 0.52))
+    p.drawLine(QPointF(ex + ew, ey), QPointF(ex + ew / 2, ey + eh * 0.52))
+    # Outbound arrow (right of envelope)
+    p.drawLine(QPointF(sz * 0.74, sz * 0.48), QPointF(sz * 0.92, sz * 0.48))
+    p.drawLine(QPointF(sz * 0.84, sz * 0.40), QPointF(sz * 0.92, sz * 0.48))
+    p.drawLine(QPointF(sz * 0.84, sz * 0.56), QPointF(sz * 0.92, sz * 0.48))
+
+
+def _ico_email_read(p: QPainter, sz: float, bg: QColor) -> None:
+    """Open envelope with letter rising out — means 'read / receive email'."""
+    w = max(1.3, sz * 0.07)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Envelope body
+    ex, ey, ew, eh = sz * 0.12, sz * 0.44, sz * 0.70, sz * 0.44
+    p.drawRect(QRectF(ex, ey, ew, eh))
+    # Open flap (flipped up)
+    p.drawLine(QPointF(ex, ey), QPointF(ex + ew / 2, ey - eh * 0.40))
+    p.drawLine(QPointF(ex + ew, ey), QPointF(ex + ew / 2, ey - eh * 0.40))
+    # Letter / paper sticking up out of envelope
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    p.drawRect(QRectF(ex + ew * 0.24, sz * 0.18, ew * 0.52, sz * 0.30))
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Lines on the letter
+    for ly in [sz * 0.24, sz * 0.31, sz * 0.38]:
+        p.drawLine(QPointF(ex + ew * 0.32, ly), QPointF(ex + ew * 0.68, ly))
+
+
+def _ico_notification(p: QPainter, sz: float, bg: QColor) -> None:
+    """Bell with notification badge dot — means 'send notification'."""
+    w = max(1.5, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Bell body (dome shape)
+    bell = QPainterPath()
+    bell.moveTo(sz * 0.26, sz * 0.74)
+    bell.lineTo(sz * 0.18, sz * 0.74)
+    bell.cubicTo(sz * 0.18, sz * 0.30, sz * 0.30, sz * 0.20, sz * 0.50, sz * 0.20)
+    bell.cubicTo(sz * 0.70, sz * 0.20, sz * 0.82, sz * 0.30, sz * 0.82, sz * 0.74)
+    bell.lineTo(sz * 0.74, sz * 0.74)
+    p.drawPath(bell)
+    # Bell base line
+    p.drawLine(QPointF(sz * 0.18, sz * 0.74), QPointF(sz * 0.82, sz * 0.74))
+    # Bell clapper
+    p.drawArc(QRectF(sz * 0.40, sz * 0.74, sz * 0.20, sz * 0.12), 0, -180 * 16)
+    # Stem at top
+    p.drawLine(QPointF(sz * 0.50, sz * 0.10), QPointF(sz * 0.50, sz * 0.20))
+    # Notification badge (filled circle, top-right)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    p.drawEllipse(QPointF(sz * 0.76, sz * 0.24), sz * 0.12, sz * 0.12)
+
+
+# ── Security / Configuration icon functions ───────────────────────────────────
+
+def _ico_secret(p: QPainter, sz: float, bg: QColor) -> None:
+    """Closed padlock — means 'secret / credential / secure value'."""
+    w = max(1.5, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
+               Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Lock body
+    bx, by, bw, bh = sz * 0.22, sz * 0.46, sz * 0.56, sz * 0.44
+    p.drawRoundedRect(QRectF(bx, by, bw, bh), sz * 0.07, sz * 0.07)
+    # Shackle (arc)
+    shackle_r = sz * 0.18
+    p.drawArc(QRectF(bx + bw / 2 - shackle_r, by - shackle_r * 1.2,
+                     shackle_r * 2, shackle_r * 2),
+              0, 180 * 16)
+    # Keyhole
+    p.setBrush(QBrush(QColor("white")))
+    p.setPen(Qt.PenStyle.NoPen)
+    p.drawEllipse(QPointF(bx + bw / 2, by + bh * 0.38), sz * 0.07, sz * 0.07)
+    p.setPen(Qt.PenStyle.NoPen)
+    kh = QPolygonF([
+        QPointF(bx + bw / 2 - sz * 0.04, by + bh * 0.46),
+        QPointF(bx + bw / 2 + sz * 0.04, by + bh * 0.46),
+        QPointF(bx + bw / 2 + sz * 0.02, by + bh * 0.68),
+        QPointF(bx + bw / 2 - sz * 0.02, by + bh * 0.68),
+    ])
+    p.drawPolygon(kh)
+
+
 # Dispatch map: type_id → drawing function (p, sz, bg) → None
 _ICON_DRAW: dict[str, Callable[..., None]] = {
     "start_node":                _ico_start,
@@ -1806,6 +2343,32 @@ _ICON_DRAW: dict[str, Callable[..., None]] = {
     "queue_enqueue_node":        _ico_queue_enqueue,
     "queue_dequeue_node":        _ico_queue_dequeue,
     "local_memory_node":         _ico_local_memory,
+    # ── System / Shell / Hardware ─────────────────────────────────────────────
+    "shell_command_node":        _ico_shell_command,
+    "tty_serial_node":           _ico_tty_serial,
+    "spreadsheet_node":          _ico_spreadsheet,
+    # ── Networking / Sockets ──────────────────────────────────────────────────
+    "socket_node":               _ico_socket_node,
+    "websocket_node":            _ico_websocket,
+    "webhook_trigger_node":      _ico_webhook_trigger,
+    # ── AI / LLM Utilities ────────────────────────────────────────────────────
+    "context_compact_node":      _ico_context_compact,
+    "conversation_history_node": _ico_conversation_history,
+    # ── Text / Data Processing ────────────────────────────────────────────────
+    "regex_node":                _ico_regex,
+    "template_render_node":      _ico_template_render,
+    "json_parse_node":           _ico_json_parse,
+    "list_ops_node":             _ico_list_ops,
+    "string_ops_node":           _ico_string_ops,
+    # ── Resilience / Flow Utilities ───────────────────────────────────────────
+    "retry_node":                _ico_retry,
+    "rate_limiter_node":         _ico_rate_limiter,
+    # ── Messaging / Notifications ─────────────────────────────────────────────
+    "email_send_node":           _ico_email_send,
+    "email_read_node":           _ico_email_read,
+    "notification_node":         _ico_notification,
+    # ── Security / Configuration ──────────────────────────────────────────────
+    "secret_node":               _ico_secret,
 }
 
 
