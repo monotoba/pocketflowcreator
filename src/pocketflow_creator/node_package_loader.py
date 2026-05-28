@@ -1,46 +1,56 @@
 """Single-file node package loader for PocketFlow Creator.
 
-A **node package** is a single ``.py`` file that follows the documented
-convention:
+A **node package** is a single ``.py`` file.  All metadata is declared in a
+module-level ``__node_meta__`` dict so it is plain Python — no parsing, no
+special syntax, easy to write and validate in any editor:
 
-1. **Module docstring** — RFC-822-style key/value pairs that carry human-
-   readable metadata:
+.. code-block:: python
 
-   .. code-block:: text
+    __node_meta__ = {
+        # ── Identity ──────────────────────────────────────────────────────
+        "node":               "Weather Fetch",
+        "category":           "Web / Search",
+        # ── Package info ──────────────────────────────────────────────────
+        "version":            "1.0.0",
+        "author":             "Jane Dev",
+        "website":            "https://janedev.com",
+        "repo":               "https://github.com/janedev/weather-node",
+        "description":        "Fetches current weather conditions for a city.",
+        "tags":               ["weather", "api", "http"],
+        "license":            "MIT",
+        "min_creator_version": "0.2.0",
+        # ── Node behaviour ────────────────────────────────────────────────
+        "actions":    ["default", "error"],
+        "properties": {
+            "city_key": {
+                "type": "string",
+                "default": "city",
+                "description": "Shared-store key for the target city name",
+            },
+        },
+        # ── Visual ────────────────────────────────────────────────────────
+        "color": "#0277bd",   # hex background colour for the palette icon
+    }
 
-       Node: Weather Fetch
-       Category: Web / Search
-       Version: 1.0.0
-       Author: Jane Dev
-       Website: https://janedev.com
-       Repo: https://github.com/janedev/weather-node
-       Description: Fetches current weather conditions for a city.
-       Tags: weather, api, http
-       Min-Creator-Version: 0.2.0
-       License: MIT
+    # Optional: provide a custom icon draw-function.
+    # Signature must be (p: QPainter, sz: float, bg: QColor) -> None.
+    # Omit (or set to None) to use the auto-generated two-letter initials icon.
+    __node_icon__ = None
 
-2. **Optional dunders** — machine-readable metadata at module scope:
+    class WeatherFetchNode:
+        def prep(self, shared): ...
+        def exec(self, prep_res): ...
+        def post(self, shared, prep_res, exec_res): ...
 
-   .. code-block:: python
+The module docstring is free for human-readable documentation.
 
-       __node_actions__: list[str] = ["default", "error"]
-       __node_properties__: dict = {
-           "city_key": {"type": "string", "default": "city", "description": "..."},
-       }
-       __node_color__: str = "#0277bd"        # hex bg colour for the icon
-       __node_icon__ = None                   # or a (p, sz, bg) -> None callable
-
-3. **A Node subclass** — exactly one class that either inherits from
-   ``pocketflow.Node`` or has ``prep`` / ``exec`` / ``post`` methods. The
-   class name becomes the node's ``type_id`` (snake_cased).
-
-Loader behaviour:
-
+Loader behaviour
+----------------
 - Files are loaded from ``~/.pocketflow_creator/nodes/`` by default.
 - Each file is wrapped in a ``try/except`` so a bad package never crashes
   the application; errors are collected and returned.
-- The loader registers the background colour in ``NODE_TYPE_COLOR`` and
-  an optional draw-function in ``_ICON_DRAW`` so ``make_node_icon`` works
+- The loader registers the background colour in ``NODE_TYPE_COLOR`` and the
+  optional draw-function in ``_ICON_DRAW`` so ``make_node_icon`` works
   immediately for every loaded type.
 """
 from __future__ import annotations
@@ -69,46 +79,26 @@ def get_user_nodes_dir() -> Path:
     return _USER_NODES_DIR
 
 
-# ── Docstring metadata parser ─────────────────────────────────────────────────
-
-_RFC822_RE = re.compile(r"^([A-Za-z][A-Za-z0-9 _-]*):\s*(.+)$")
-
-
-def _parse_docstring(doc: str) -> dict[str, str]:
-    """Extract RFC-822-style key/value pairs from a module docstring.
-
-    Only lines of the form ``Key: value`` are extracted; blank lines and
-    plain prose are ignored.  Keys are normalised to lower-case with spaces
-    replaced by underscores (e.g. ``Min-Creator-Version`` → ``min_creator_version``).
-    """
-    meta: dict[str, str] = {}
-    for line in doc.splitlines():
-        m = _RFC822_RE.match(line.strip())
-        if m:
-            key = m.group(1).strip().lower().replace(" ", "_").replace("-", "_")
-            meta[key] = m.group(2).strip()
-    return meta
-
-
 # ── type_id derivation ────────────────────────────────────────────────────────
 
 def _to_type_id(display_name: str) -> str:
-    """Convert a display name to a snake_case type_id.
+    """Convert a display name or class name to a snake_case ``type_id``.
 
     Examples::
 
         "Weather Fetch"  → "weather_fetch_node"
         "MyCustomNode"   → "my_custom_node"
+        "SQLRunner"      → "sql_runner_node"
         "sql_runner"     → "sql_runner_node"
         "rag_node"       → "rag_node"          (already ends with _node)
     """
-    # Insert underscores before upper-case runs (CamelCase → snake_case)
+    # CamelCase → snake_case: insert _ before UpperLower boundary inside runs
     s = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", display_name)
     s = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", "_", s)
-    # Replace spaces/hyphens/dots with underscores
+    # Spaces, hyphens, dots → underscore
     s = re.sub(r"[ \-\.]+", "_", s)
     s = s.lower()
-    # Collapse multiple underscores
+    # Collapse repeated underscores
     s = re.sub(r"_+", "_", s).strip("_")
     if not s.endswith("_node"):
         s = s + "_node"
@@ -118,28 +108,25 @@ def _to_type_id(display_name: str) -> str:
 # ── Node subclass detection ───────────────────────────────────────────────────
 
 def _find_node_class(module: types.ModuleType) -> type | None:
-    """Return the first Node subclass defined in the module, or None.
+    """Return the first Node subclass defined in *module*, or ``None``.
 
     Heuristics (tried in order):
-    1. A class that subclasses ``pocketflow.Node`` (or any class named ``Node``
-       from any module).
-    2. A class that has ``prep``, ``exec``, and ``post`` methods.
 
-    Built-in classes (defined outside the loaded file) are skipped.
+    1. A class that subclasses any class named ``Node`` (covers
+       ``pocketflow.Node`` and any other base named Node).
+    2. Duck-type: a class with ``prep``, ``exec``, and ``post`` methods.
+
+    Classes not defined in this module (imported helpers, etc.) are skipped.
     """
-    source_file = getattr(module, "__file__", None)
     candidates: list[type] = []
     for _name, obj in inspect.getmembers(module, inspect.isclass):
-        # Skip classes not defined in this module
         if getattr(obj, "__module__", None) != module.__name__:
             continue
-        # Accept if it looks like a PocketFlow Node subclass
         for base in inspect.getmro(obj)[1:]:
             if base.__name__ == "Node":
                 candidates.append(obj)
                 break
         else:
-            # Fallback: duck-type check for prep/exec/post
             if all(hasattr(obj, m) for m in ("prep", "exec", "post")):
                 candidates.append(obj)
     return candidates[0] if candidates else None
@@ -151,11 +138,7 @@ _DEFAULT_CUSTOM_COLOR = "#555555"
 
 
 def _register_icon(type_id: str, color: str, draw_fn: Any | None) -> None:
-    """Register ``type_id`` in the icons module's lookup tables.
-
-    This is intentionally done at the module level of ``icons.py`` so that
-    ``make_node_icon(type_id)`` works without any additional plumbing.
-    """
+    """Register *type_id* colour and optional draw-fn in the icons module."""
     try:
         from pocketflow_creator.app.canvas import icons as _icons
 
@@ -167,117 +150,10 @@ def _register_icon(type_id: str, color: str, draw_fn: Any | None) -> None:
         pass
 
 
-# ── Core loader ───────────────────────────────────────────────────────────────
-
-class PackageLoadError(Exception):
-    """Raised when a node package file cannot be loaded."""
-
-
-def load_node_package(path: Path) -> NodeTypeDefinition:
-    """Load a single ``.py`` node package file.
-
-    Parameters
-    ----------
-    path:
-        Absolute path to the ``.py`` file.
-
-    Returns
-    -------
-    NodeTypeDefinition
-        Ready-to-use definition with ``source_file`` set to *path*.
-
-    Raises
-    ------
-    PackageLoadError
-        On any error (import failure, no Node subclass found, etc.).
-    """
-    if not path.is_file():
-        raise PackageLoadError(f"File not found: {path}")
-    if path.suffix != ".py":
-        raise PackageLoadError(f"Expected a .py file, got: {path.name}")
-
-    # Build a unique module name to avoid collisions
-    module_name = f"_pfc_node_pkg_{path.stem}"
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    if spec is None or spec.loader is None:
-        raise PackageLoadError(f"Cannot create module spec for: {path}")
-
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    try:
-        spec.loader.exec_module(module)  # type: ignore[union-attr]
-    except Exception as exc:
-        del sys.modules[module_name]
-        raise PackageLoadError(f"Import error in {path.name}: {exc}") from exc
-
-    # ── Parse docstring metadata ──────────────────────────────────────────
-    doc = inspect.getdoc(module) or ""
-    meta = _parse_docstring(doc)
-
-    display_name: str = meta.get("node", "").strip() or path.stem.replace("_", " ").title()
-    category: str = meta.get("category", "Custom").strip()
-    version: str = meta.get("version", "0.0.0").strip()
-    author: str = meta.get("author", "").strip()
-    website: str = meta.get("website", "").strip()
-    repo: str = meta.get("repo", "").strip()
-    description: str = meta.get("description", "").strip()
-    tags_raw: str = meta.get("tags", "").strip()
-    tags: list[str] = [t.strip() for t in tags_raw.split(",") if t.strip()]
-    license_: str = meta.get("license", "").strip()
-    min_creator: str = meta.get("min_creator_version", "").strip()
-
-    # ── Read dunders ──────────────────────────────────────────────────────
-    actions: list[str] = list(getattr(module, "__node_actions__", ["default"]))
-    properties: dict[str, Any] = dict(getattr(module, "__node_properties__", {}))
-    color: str = str(getattr(module, "__node_color__", _DEFAULT_CUSTOM_COLOR)).strip()
-    icon_draw = getattr(module, "__node_icon__", None)
-
-    # ── Locate the Node subclass to derive type_id ────────────────────────
-    node_cls = _find_node_class(module)
-    if node_cls is None:
-        del sys.modules[module_name]
-        raise PackageLoadError(
-            f"No Node subclass found in {path.name}. "
-            "Define a class that extends pocketflow.Node."
-        )
-
-    type_id = _to_type_id(node_cls.__name__)
-
-    # ── Register icon ─────────────────────────────────────────────────────
-    _register_icon(type_id, color, icon_draw)
-
-    # ── Build NodeTypeDefinition ──────────────────────────────────────────
-    defn = NodeTypeDefinition(
-        node_type_id=type_id,
-        display_name=display_name,
-        category=category,
-        base_class="Node",
-        description=description,
-        actions=actions,
-        properties=properties,
-    )
-
-    # Extended metadata lives in the separate _PACKAGE_META dict because
-    # NodeTypeDefinition uses slots=True and cannot hold extra attributes.
-    meta: dict[str, Any] = {
-        "source_file": str(path),
-        "version": version,
-        "author": author,
-        "website": website,
-        "repo": repo,
-        "tags": tags,
-        "license": license_,
-        "min_creator_version": min_creator,
-    }
-    _PACKAGE_META[type_id] = meta
-
-    return defn
-
-
 # ── In-process registry ───────────────────────────────────────────────────────
 # Populated by discover_user_nodes(); queried by the palette and toolbar.
-# _PACKAGE_META holds the extended metadata (version, author, etc.) keyed by
-# type_id, since NodeTypeDefinition uses slots=True and can't store extras.
+# _PACKAGE_META holds extended metadata keyed by type_id.
+# NodeTypeDefinition uses slots=True so we cannot attach extra attributes.
 
 _USER_NODE_REGISTRY: dict[str, NodeTypeDefinition] = {}
 _PACKAGE_META: dict[str, dict[str, Any]] = {}
@@ -308,6 +184,136 @@ def get_user_node_groups() -> list[tuple[str, list[tuple[str, NodeTypeDefinition
     for type_id, defn in _USER_NODE_REGISTRY.items():
         groups[defn.category].append((type_id, defn))
     return [(cat, items) for cat, items in sorted(groups.items())]
+
+
+# ── Core loader ───────────────────────────────────────────────────────────────
+
+class PackageLoadError(Exception):
+    """Raised when a node package file cannot be loaded."""
+
+
+def load_node_package(path: Path) -> NodeTypeDefinition:
+    """Load a single ``.py`` node package file.
+
+    Reads all metadata from the module-level ``__node_meta__`` dict and the
+    optional ``__node_icon__`` dunder.  See the module docstring for the full
+    key reference.
+
+    Parameters
+    ----------
+    path:
+        Absolute path to the ``.py`` file.
+
+    Returns
+    -------
+    NodeTypeDefinition
+        Ready-to-use definition.  Extended metadata (version, author, etc.)
+        is stored in ``_PACKAGE_META[type_id]`` and accessible via
+        :func:`get_package_meta`.
+
+    Raises
+    ------
+    PackageLoadError
+        On any error (import failure, missing ``__node_meta__``, no Node
+        subclass found, etc.).
+    """
+    if not path.is_file():
+        raise PackageLoadError(f"File not found: {path}")
+    if path.suffix != ".py":
+        raise PackageLoadError(f"Expected a .py file, got: {path.name}")
+
+    # ── Import the module ─────────────────────────────────────────────────
+    module_name = f"_pfc_node_pkg_{path.stem}"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise PackageLoadError(f"Cannot create module spec for: {path}")
+
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)  # type: ignore[union-attr]
+    except Exception as exc:
+        del sys.modules[module_name]
+        raise PackageLoadError(f"Import error in {path.name}: {exc}") from exc
+
+    # ── Read __node_meta__ ────────────────────────────────────────────────
+    raw_meta = getattr(module, "__node_meta__", None)
+    if raw_meta is None:
+        del sys.modules[module_name]
+        raise PackageLoadError(
+            f"No __node_meta__ dict found in {path.name}. "
+            "Add a module-level __node_meta__ = {...} declaration."
+        )
+    if not isinstance(raw_meta, dict):
+        del sys.modules[module_name]
+        raise PackageLoadError(
+            f"__node_meta__ in {path.name} must be a dict, "
+            f"got {type(raw_meta).__name__}."
+        )
+
+    # ── Extract fields with defaults ──────────────────────────────────────
+    display_name: str = str(raw_meta.get("node", "")).strip() or path.stem.replace("_", " ").title()
+    category: str     = str(raw_meta.get("category", "Custom")).strip()
+    version: str      = str(raw_meta.get("version", "0.0.0")).strip()
+    author: str       = str(raw_meta.get("author", "")).strip()
+    website: str      = str(raw_meta.get("website", "")).strip()
+    repo: str         = str(raw_meta.get("repo", "")).strip()
+    description: str  = str(raw_meta.get("description", "")).strip()
+    license_: str     = str(raw_meta.get("license", "")).strip()
+    min_creator: str  = str(raw_meta.get("min_creator_version", "")).strip()
+    color: str        = str(raw_meta.get("color", _DEFAULT_CUSTOM_COLOR)).strip()
+
+    # tags may be a list or a comma-separated string
+    raw_tags = raw_meta.get("tags", [])
+    if isinstance(raw_tags, str):
+        tags: list[str] = [t.strip() for t in raw_tags.split(",") if t.strip()]
+    else:
+        tags = [str(t).strip() for t in raw_tags if str(t).strip()]
+
+    actions: list[str]      = list(raw_meta.get("actions", ["default"]))
+    properties: dict[str, Any] = dict(raw_meta.get("properties", {}))
+
+    # __node_icon__ stays as a separate dunder since it's a callable
+    icon_draw = getattr(module, "__node_icon__", None)
+
+    # ── Locate the Node subclass to derive type_id ────────────────────────
+    node_cls = _find_node_class(module)
+    if node_cls is None:
+        del sys.modules[module_name]
+        raise PackageLoadError(
+            f"No Node subclass found in {path.name}. "
+            "Define a class that extends pocketflow.Node."
+        )
+
+    type_id = _to_type_id(node_cls.__name__)
+
+    # ── Register icon ─────────────────────────────────────────────────────
+    _register_icon(type_id, color, icon_draw)
+
+    # ── Build NodeTypeDefinition ──────────────────────────────────────────
+    defn = NodeTypeDefinition(
+        node_type_id=type_id,
+        display_name=display_name,
+        category=category,
+        base_class="Node",
+        description=description,
+        actions=actions,
+        properties=properties,
+    )
+
+    # Store extended metadata separately (NodeTypeDefinition is slotted)
+    _PACKAGE_META[type_id] = {
+        "source_file":        str(path),
+        "version":            version,
+        "author":             author,
+        "website":            website,
+        "repo":               repo,
+        "tags":               tags,
+        "license":            license_,
+        "min_creator_version": min_creator,
+    }
+
+    return defn
 
 
 # ── Discovery ─────────────────────────────────────────────────────────────────

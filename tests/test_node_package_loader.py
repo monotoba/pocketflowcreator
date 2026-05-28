@@ -9,58 +9,10 @@ import pytest
 from pocketflow_creator.node_package_loader import (
     PackageLoadError,
     _PACKAGE_META,
-    _parse_docstring,
     _to_type_id,
     discover_user_nodes,
     load_node_package,
 )
-
-
-# ── _parse_docstring ──────────────────────────────────────────────────────────
-
-def test_parse_docstring_basic():
-    doc = textwrap.dedent("""\
-        Node: Weather Fetch
-        Category: Web / Search
-        Version: 1.2.3
-        Author: Jane Dev
-        Website: https://janedev.com
-        Repo: https://github.com/janedev/weather-node
-        Description: Fetches current conditions.
-        Tags: weather, api, http
-        Min-Creator-Version: 0.2.0
-        License: MIT
-    """)
-    meta = _parse_docstring(doc)
-    assert meta["node"] == "Weather Fetch"
-    assert meta["category"] == "Web / Search"
-    assert meta["version"] == "1.2.3"
-    assert meta["author"] == "Jane Dev"
-    assert meta["website"] == "https://janedev.com"
-    assert meta["repo"] == "https://github.com/janedev/weather-node"
-    assert meta["description"] == "Fetches current conditions."
-    assert meta["tags"] == "weather, api, http"
-    assert meta["min_creator_version"] == "0.2.0"
-    assert meta["license"] == "MIT"
-
-
-def test_parse_docstring_ignores_prose():
-    doc = textwrap.dedent("""\
-        This is some prose that should be ignored.
-
-        Node: My Node
-        This line has no colon-key structure.
-        Category: Custom
-    """)
-    meta = _parse_docstring(doc)
-    assert meta["node"] == "My Node"
-    assert meta["category"] == "Custom"
-    assert len(meta) == 2
-
-
-def test_parse_docstring_empty():
-    assert _parse_docstring("") == {}
-    assert _parse_docstring("   \n   ") == {}
 
 
 # ── _to_type_id ───────────────────────────────────────────────────────────────
@@ -82,23 +34,22 @@ def test_to_type_id(name, expected):
 # ── load_node_package ─────────────────────────────────────────────────────────
 
 _GOOD_PACKAGE = textwrap.dedent("""\
-    \"\"\"
-    Node: Ping
-    Category: Networking
-    Version: 0.1.0
-    Author: Test Author
-    Website: https://example.com
-    Repo: https://github.com/example/ping-node
-    Description: Sends a ping.
-    Tags: net, ping
-    License: MIT
-    \"\"\"
-
-    __node_actions__ = ["success", "timeout"]
-    __node_properties__ = {
-        "host_key": {"type": "string", "default": "host", "description": "Target host"},
+    __node_meta__ = {
+        "node":        "Ping",
+        "category":    "Networking",
+        "version":     "0.1.0",
+        "author":      "Test Author",
+        "website":     "https://example.com",
+        "repo":        "https://github.com/example/ping-node",
+        "description": "Sends a ping.",
+        "tags":        ["net", "ping"],
+        "license":     "MIT",
+        "actions":     ["success", "timeout"],
+        "properties":  {
+            "host_key": {"type": "string", "default": "host", "description": "Target host"},
+        },
+        "color":       "#0277bd",
     }
-    __node_color__ = "#0277bd"
 
     class PingNode:
         def prep(self, shared):
@@ -113,10 +64,7 @@ _GOOD_PACKAGE = textwrap.dedent("""\
 """)
 
 _NO_CLASS_PACKAGE = textwrap.dedent("""\
-    \"\"\"
-    Node: Broken
-    Category: Custom
-    \"\"\"
+    __node_meta__ = {"node": "Broken", "category": "Custom"}
 
     def some_function():
         pass
@@ -145,6 +93,13 @@ def test_load_good_package(tmp_path):
     assert meta["tags"] == ["net", "ping"]
     assert meta["license"] == "MIT"
     assert meta["source_file"] == str(f)
+
+
+def test_load_no_meta_raises(tmp_path):
+    f = tmp_path / "no_meta.py"
+    f.write_text("class MyNode:\n    def prep(self,s): pass\n    def exec(self,p): pass\n    def post(self,s,p,e): pass\n", encoding="utf-8")
+    with pytest.raises(PackageLoadError, match="__node_meta__"):
+        load_node_package(f)
 
 
 def test_load_no_class_raises(tmp_path):
