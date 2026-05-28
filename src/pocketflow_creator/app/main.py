@@ -101,7 +101,7 @@ from pocketflow_creator.app.settings_keys import (
     _SKEY_THEME,
     _SKEY_TOOLBAR_ORDER,
 )
-from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES
+from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES, get_nodes_by_category
 from pocketflow_creator.runtime.runner import FlowRunner, RunStep, RunTrace, StepController
 from pocketflow_creator.validation.graph_validator import GraphValidator
 
@@ -376,9 +376,15 @@ class MainWindow(QMainWindow):
         self.addToolBar(tb)
         self._node_toolbar = tb
 
-        # Determine display order — saved order first, falling back to default
-        default_order = list(BUILTIN_NODE_TYPES.keys())
+        # Determine display order — saved order first, falling back to default.
+        # The default order preserves category grouping (CATEGORY_ORDER sequence).
+        default_order = [
+            type_id
+            for _cat, nodes in get_nodes_by_category()
+            for type_id, _nt in nodes
+        ]
         saved = QSettings(_ORG, _APP).value(_SKEY_TOOLBAR_ORDER, None)
+        using_default_order: bool
         if isinstance(saved, list):
             # Keep only known type_ids; append any new ones not yet in saved list
             known = set(default_order)
@@ -386,18 +392,27 @@ class MainWindow(QMainWindow):
             for t in default_order:
                 if t not in order:
                     order.append(t)
+            using_default_order = False
         else:
             order = default_order
+            using_default_order = True
 
-        # Use addAction so Qt's built-in overflow extension button (>>) works
+        # Use addAction so Qt's built-in overflow extension button (>>) works.
+        # When using the default (grouped) order, insert separators between
+        # categories so the toolbar visually mirrors the palette.
         self._toolbar_actions: dict[str, QAction] = {}
+        prev_category: str | None = None
         for type_id in order:
             nt = BUILTIN_NODE_TYPES.get(type_id)
             if nt is None:
                 continue
+            if using_default_order and nt.category != prev_category:
+                if prev_category is not None:
+                    tb.addSeparator()
+                prev_category = nt.category
             icon = make_node_icon(type_id, 32)
             act = tb.addAction(icon, nt.display_name)
-            act.setToolTip(nt.display_name)
+            act.setToolTip(f"{nt.display_name}  [{nt.category}]")
             act.triggered.connect(
                 lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
             )

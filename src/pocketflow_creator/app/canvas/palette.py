@@ -28,7 +28,7 @@ else:
         QListWidget = object
 
 from pocketflow_creator.app.canvas.icons import make_node_icon
-from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES
+from pocketflow_creator.builtin_node_types import get_nodes_by_category
 
 _MIME_NODE_TYPE = "application/x-pocketflow-node-type"
 _MIME_NODE_SNIPPET = "application/x-pocketflow-node-snippet"
@@ -48,15 +48,33 @@ def _load_snippets() -> list[dict[str, Any]]:
         return []
 
 
+def _make_category_header(label: str) -> "QListWidgetItem":
+    """Return a non-interactive category-header item."""
+    item = QListWidgetItem(f"  {label}")
+    item.setFlags(
+        item.flags()
+        & ~Qt.ItemFlag.ItemIsEnabled  # type: ignore[attr-defined]
+        & ~Qt.ItemFlag.ItemIsSelectable  # type: ignore[attr-defined]
+    )
+    font = item.font()
+    font.setBold(True)
+    font.setPointSizeF(font.pointSizeF() * 0.85)
+    item.setFont(font)
+    return item
+
+
 class PaletteWidget(QListWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setDragDropMode(QAbstractItemView.DragDropMode.DragOnly)
         self.setIconSize(QSize(28, 28))
-        for type_id, nt in BUILTIN_NODE_TYPES.items():
-            item = QListWidgetItem(make_node_icon(type_id, 28), nt.display_name)
-            item.setData(Qt.ItemDataRole.UserRole, type_id)
-            self.addItem(item)
+
+        for category, nodes in get_nodes_by_category():
+            self.addItem(_make_category_header(category))
+            for type_id, nt in nodes:
+                item = QListWidgetItem(make_node_icon(type_id, 28), nt.display_name)
+                item.setData(Qt.ItemDataRole.UserRole, type_id)
+                self.addItem(item)
 
         snippets = _load_snippets()
         if snippets:

@@ -1359,3 +1359,63 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
         ),
     ]
 }
+
+# ---------------------------------------------------------------------------
+# Category ordering — controls the display order in the palette and toolbar.
+# Categories not listed here are appended alphabetically after these.
+# ---------------------------------------------------------------------------
+CATEGORY_ORDER: list[str] = [
+    "Flow Control",
+    "Core",
+    "AI",
+    "AI/Reasoning",
+    "AI/LLM Utilities",
+    "Human-in-the-Loop",
+    "Data/IO",
+    "Data Processing",
+    "Text/Data Processing",
+    "Data/Vector",
+    "Data Structures/Memory",
+    "Code",
+    "Code/Execution",
+    "Processing",
+    "Async",
+    "Web/Search",
+    "Database/SQL",
+    "Voice/Audio",
+    "Document/Vision",
+    "Calendar",
+    "MCP/Agent Protocol",
+    "Observability/Utility",
+    "System/Shell",
+    "Networking",
+    "Resilience",
+    "Messaging",
+    "Security",
+]
+
+
+def get_nodes_by_category() -> list[tuple[str, list[tuple[str, "NodeTypeDefinition"]]]]:
+    """Return all built-in nodes grouped by category in CATEGORY_ORDER.
+
+    Returns a list of ``(category_label, [(type_id, NodeTypeDefinition), ...])``
+    pairs.  Any category not present in CATEGORY_ORDER is appended at the end,
+    sorted alphabetically.
+    """
+    from collections import defaultdict
+
+    groups: dict[str, list[tuple[str, NodeTypeDefinition]]] = defaultdict(list)
+    for type_id, nt in BUILTIN_NODE_TYPES.items():
+        groups[nt.category].append((type_id, nt))
+
+    result: list[tuple[str, list[tuple[str, NodeTypeDefinition]]]] = []
+    seen: set[str] = set()
+    for cat in CATEGORY_ORDER:
+        if cat in groups:
+            result.append((cat, groups[cat]))
+            seen.add(cat)
+    # Append unrecognised categories alphabetically
+    for cat in sorted(groups):
+        if cat not in seen:
+            result.append((cat, groups[cat]))
+    return result
