@@ -9,6 +9,42 @@ Entries are ordered newest-first within each version.
 
 ---
 
+## [0.2.0] — 2026-05-28 (node expansion II)
+
+### Added — 19 new node types with custom icons (2026-05-28)
+- 19 `NodeTypeDefinition` entries added, growing the palette from 64 to **83 node types**
+- Custom QPainter icon for every new type; zero fallback-initials in the palette
+- `quick_ref.md` extended with full property tables and usage guidance for all 19 new types
+- README node-type list updated to reflect all 83 types across all 19 categories
+
+#### New node types by category
+
+**System / Shell / Hardware** — Shell Command (bash/sh/zsh/powershell/cmd + `auto`
+platform detection), TTY Serial (Arduino/MCU serial port), Spreadsheet
+(CSV/TSV/Excel with delimiter, quoting, sheet name, header row, and encoding controls)
+
+**Networking / Sockets** — Socket (TCP/UDP, stateful object in shared store),
+WebSocket (async ws:// / wss://), Webhook Trigger (wait for inbound HTTP POST)
+
+**AI / LLM Utilities** — Context Compact (strategy pattern: truncate / sliding_window
+/ summarize / extractive / semantic_dedup), Conversation History (append/trim/clear/format)
+
+**Text / Data Processing** — Regex (match/search/findall/replace/split), Template Render
+(Jinja2 inline or file), JSON Parse (parse ↔ serialize), List Operations
+(filter/sort/slice/unique/flatten/reverse/count), String Operations
+(split/join/strip/upper/lower/replace/format/truncate)
+
+**Resilience / Flow Utilities** — Retry (exponential backoff + jitter, configurable
+max attempts), Rate Limiter (per-minute throttle, labelled for multi-endpoint flows)
+
+**Messaging / Notifications** — Email Send (SMTP/SendGrid/Mailgun), Email Read (IMAP/Gmail),
+Notification (Slack/Discord/Teams/Telegram via webhook)
+
+**Security / Configuration** — Secret (env variable, .env file, AWS Secrets Manager,
+HashiCorp Vault)
+
+---
+
 ## [0.2.0] — 2026-05-28 (node expansion)
 
 ### Added — 44 new node types with custom icons (2026-05-28)

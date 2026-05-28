@@ -1009,6 +1009,391 @@ any pattern that needs to remember a value across multiple flow runs within a se
 | Queue Enqueue Node | `Node` | FIFO queue enqueue |
 | Queue Dequeue Node | `Node` | FIFO queue dequeue |
 | Local Memory Node | `Node` | Slot-based session memory |
+| Shell Command Node | `Node` | Execute bash/sh/zsh/powershell/cmd |
+| TTY Serial Node | `Node` | Serial port / Arduino / MCU I/O |
+| Spreadsheet Node | `Node` | Read/write CSV, TSV, Excel |
+| Socket Node | `Node` | TCP/UDP socket I/O |
+| WebSocket Node | `AsyncNode` | Async WebSocket client |
+| Webhook Trigger Node | `Node` | Wait for incoming HTTP POST |
+| Context Compact Node | `Node` | Compact LLM context (strategy pattern) |
+| Conversation History Node | `Node` | Manage multi-turn message list |
+| Regex Node | `Node` | Pattern match / extract / replace |
+| Template Render Node | `Node` | Jinja2 template rendering |
+| JSON Parse Node | `Node` | Parse / serialize JSON |
+| List Operations Node | `Node` | Filter / sort / slice / unique list |
+| String Operations Node | `Node` | Split / join / strip / replace string |
+| Retry Node | `Node` | Retry with exponential backoff |
+| Rate Limiter Node | `Node` | Throttle call rate |
+| Email Send Node | `Node` | Send email (SMTP / SendGrid) |
+| Email Read Node | `Node` | Fetch email from IMAP |
+| Notification Node | `Node` | Slack / Discord / Teams / Telegram |
+| Secret Node | `Node` | Read secret from env / vault |
+
+---
+
+## System / Shell / Hardware
+
+### Shell Command Node
+**Base class:** `Node`
+
+Executes a shell command string in a subprocess. The `shell` property selects the
+interpreter: `auto` detects the platform (bash on Linux, zsh on macOS, PowerShell on
+Windows), or you can pin to `bash`, `sh`, `zsh`, `powershell`, or `cmd`. Reads the
+command from `command_key`, writes stdout and stderr to separate keys, and routes
+`error` on non-zero exit code.
+
+| Property | Default | Description |
+|---|---|---|
+| `shell` | `auto` | Shell interpreter: `auto`, `bash`, `sh`, `zsh`, `powershell`, `cmd` |
+| `command_key` | `command` | Shared-store key for the command string |
+| `timeout` | `30` | Execution timeout in seconds |
+| `stdout_key` | `stdout` | Shared-store key for captured stdout |
+| `stderr_key` | `stderr` | Shared-store key for captured stderr |
+| `env_key` | _(empty)_ | Shared-store key for extra environment variables dict |
+
+### TTY Serial Node
+**Base class:** `Node`
+
+Reads or writes data over a serial (TTY/COM) port. Use for Arduino, Raspberry Pi,
+microcontrollers, instruments, and any device that communicates over a serial
+connection. The port path lives in the shared store so it can be configured at
+runtime. `operation: open` and `close` manage the connection; `readline` reads until
+a newline (most MCU sketches send newline-terminated sensor data); `read` reads up to
+a buffer; `write` sends data. Routes `timeout` on read timeout, `error` on port failure.
+
+| Property | Default | Description |
+|---|---|---|
+| `operation` | `readline` | Operation: `open`, `close`, `read`, `readline`, `write` |
+| `port_key` | `serial_port` | Shared-store key for port path (`/dev/ttyUSB0`, `COM3`, `/dev/tty.usbmodem1`) |
+| `baud_rate` | `9600` | Serial baud rate |
+| `timeout` | `1.0` | Read timeout in seconds (0 = non-blocking) |
+| `encoding` | `utf-8` | Decode encoding: `utf-8`, `ascii`, `bytes` (raw bytearray) |
+| `data_key` | `serial_data` | Shared-store key for data to write (`write` operation) |
+| `output_key` | `serial_read` | Shared-store key for received data (`read`/`readline`) |
+
+### Spreadsheet Node
+**Base class:** `Node`
+
+Reads or writes tabular data in CSV, TSV, or Excel (`.xlsx`/`.xls`) format. `format:
+auto` detects the format from the file extension. Supports configurable delimiters and
+four quoting styles that map directly to Python's `csv.QUOTE_*` constants. For Excel,
+`sheet_name` selects the worksheet. Reads produce a list of dicts (header mode) or a
+list of lists (no-header mode), which feeds naturally into Map Node, Reduce Node, or
+any LLM Batch Node.
+
+| Property | Default | Description |
+|---|---|---|
+| `operation` | `read` | Operation: `read`, `write`, `append` |
+| `file_key` | `file_path` | Shared-store key for the file path |
+| `format` | `auto` | Format: `auto` (from extension), `csv`, `tsv`, `excel` |
+| `delimiter` | `,` | Field delimiter (CSV/TSV only) |
+| `quoting` | `minimal` | Quoting: `minimal`, `all`, `non_numeric`, `none` |
+| `sheet_name` | `Sheet1` | Excel sheet name (Excel only) |
+| `has_header` | `true` | Treat first row as column headers |
+| `encoding` | `utf-8` | File encoding (CSV/TSV only) |
+| `data_key` | `table_data` | Shared-store key for data to write |
+| `output_key` | `table_data` | Shared-store key for read data |
+
+---
+
+## Networking / Sockets
+
+### Socket Node
+**Base class:** `Node`
+
+Low-level TCP/UDP socket operations. The socket object is created on `connect` and
+stored in the shared store under `socket_key` so subsequent Send/Receive/Close calls
+in the same flow can share it. Use for custom protocols, legacy system integration,
+instrument control, and any scenario where HTTP is not the right transport.
+
+| Property | Default | Description |
+|---|---|---|
+| `operation` | `connect` | Operation: `connect`, `send`, `receive`, `close` |
+| `host_key` | `socket_host` | Shared-store key for hostname or IP |
+| `port_key` | `socket_port` | Shared-store key for port number |
+| `proto` | `tcp` | Protocol: `tcp` or `udp` |
+| `socket_key` | `socket` | Shared-store key holding the socket object between operations |
+| `data_key` | `socket_data` | Shared-store key for data to send |
+| `output_key` | `socket_recv` | Shared-store key for received data |
+| `timeout` | `5.0` | Operation timeout in seconds |
+| `buffer_size` | `4096` | Receive buffer size in bytes |
+
+### WebSocket Node
+**Base class:** `AsyncNode`
+
+Async WebSocket client for `ws://` and `wss://` connections. Like Socket Node but
+built on `asyncio` for non-blocking I/O — use this when you need streaming LLM
+responses, live data feeds, or real-time agent-to-agent communication over WebSocket.
+The connection object is stored in the shared store between operations.
+
+| Property | Default | Description |
+|---|---|---|
+| `operation` | `connect` | Operation: `connect`, `send`, `receive`, `close` |
+| `url_key` | `ws_url` | Shared-store key for the WebSocket URL (`ws://` or `wss://`) |
+| `ws_key` | `ws_conn` | Shared-store key holding the WebSocket connection object |
+| `data_key` | `ws_send` | Shared-store key for message to send |
+| `output_key` | `ws_recv` | Shared-store key for received message |
+| `timeout` | `10.0` | Receive timeout in seconds |
+
+### Webhook Trigger Node
+**Base class:** `Node`
+
+Starts a lightweight HTTP server on the configured `port` and `path` and blocks until
+a single incoming POST request arrives. Writes the request body to `output_key` and
+headers to `headers_key`, then routes `triggered`. Routes `timeout` if no request
+arrives within the configured window. Use as the entry node for event-driven flows —
+CI/CD hooks, payment notifications, IoT push events, or any external system that calls
+back into a flow.
+
+| Property | Default | Description |
+|---|---|---|
+| `port` | `8080` | HTTP port to listen on |
+| `path` | `/webhook` | URL path to listen on |
+| `timeout` | `60` | Maximum seconds to wait for a POST request |
+| `output_key` | `webhook_payload` | Shared-store key for the received request body |
+| `headers_key` | `webhook_headers` | Shared-store key for the received request headers |
+
+---
+
+## AI / LLM Utilities
+
+### Context Compact Node
+**Base class:** `Node`
+
+Reduces the size of a message list or text block before sending to an LLM, preventing
+context window overflow. Uses a strategy pattern — swap the algorithm by changing the
+`strategy` property without rewiring the graph.
+
+| Strategy | Description |
+|---|---|
+| `truncate` | Keep the first or last N tokens; fast and deterministic |
+| `sliding_window` | Keep the most recent N messages; preserves recency |
+| `summarize` | LLM call that distills older content into a compact summary |
+| `extractive` | Key-sentence extraction via TF-IDF / KeyBERT; no LLM needed |
+| `semantic_dedup` | Embed all chunks and drop near-duplicates above a cosine threshold |
+
+| Property | Default | Description |
+|---|---|---|
+| `strategy` | `sliding_window` | Compaction algorithm (see table above) |
+| `input_key` | `messages` | Shared-store key for the message list or text to compact |
+| `output_key` | `messages` | Shared-store key to write the compacted result |
+| `max_tokens` | `2000` | Target maximum tokens after compaction |
+| `model` | _(empty)_ | LLM model for `summarize` strategy (empty = project default) |
+| `similarity_threshold` | `0.92` | Cosine similarity cutoff for `semantic_dedup` |
+
+### Conversation History Node
+**Base class:** `Node`
+
+Manages a `messages` list (role + content dicts) in the shared store for multi-turn
+chat flows. Supports four operations: `append` adds a new message with the specified
+role; `trim` enforces a maximum message count; `clear` resets the list; `format`
+renders the list to a plain string for LLM APIs that take a single prompt rather than
+a message list.
+
+| Property | Default | Description |
+|---|---|---|
+| `operation` | `append` | Operation: `append`, `trim`, `clear`, `format` |
+| `history_key` | `messages` | Shared-store key for the message list |
+| `role` | `user` | Role for `append`: `user`, `assistant`, `system` |
+| `content_key` | `content` | Shared-store key for the message content to append |
+| `max_messages` | `20` | Maximum messages to keep on `trim` |
+| `output_key` | `chat_str` | Shared-store key for formatted string output (`format` operation) |
+
+---
+
+## Text / Data Processing
+
+### Regex Node
+**Base class:** `Node`
+
+Applies a regular expression to a string in the shared store. `findall` returns a
+list of all matches. `match` / `search` return the first match object and route
+`matched` or `no_match`. `replace` returns the substituted string. `split` returns
+a list of segments. All results are written to `output_key`.
+
+| Property | Default | Description |
+|---|---|---|
+| `operation` | `findall` | Operation: `match`, `search`, `findall`, `replace`, `split` |
+| `pattern` | _(empty)_ | Regular expression pattern string |
+| `flags` | _(empty)_ | Regex flags: `i` (ignore case), `m` (multiline), `s` (dot-all) |
+| `input_key` | `text` | Shared-store key for the input string |
+| `replacement` | _(empty)_ | Replacement string for `replace` (supports `\1` groups) |
+| `output_key` | `regex_result` | Shared-store key for the result |
+
+### Template Render Node
+**Base class:** `Node`
+
+Renders a Jinja2 template using shared store values as context. Set `template_type =
+string` for an inline template; set `template_type = path` and provide a path to a
+`.j2` or `.md` file for larger templates. Every key in the shared store is available
+as a template variable. Use for generating prompts, reports, emails, and any text
+that varies by run-time data.
+
+| Property | Default | Description |
+|---|---|---|
+| `template_type` | `string` | Template source: `string` (inline) or `path` (file) |
+| `template` | _(empty)_ | Inline Jinja2 template or path to `.j2`/`.md` file |
+| `output_key` | `rendered` | Shared-store key to write the rendered string |
+
+### JSON Parse Node
+**Base class:** `Node`
+
+Parses a JSON string to a Python dict/list, or serializes a dict/list back to a JSON
+string. Routes `error` on malformed input. Use after API Call Node (response body is
+a JSON string) or before a node that needs a structured object. `indent > 0` produces
+pretty-printed output; `indent = 0` produces compact output.
+
+| Property | Default | Description |
+|---|---|---|
+| `operation` | `parse` | Operation: `parse` (string→dict) or `serialize` (dict→string) |
+| `input_key` | `json_str` | Shared-store key for JSON string (parse) or object (serialize) |
+| `output_key` | `json_obj` | Shared-store key for the result |
+| `indent` | `0` | JSON indentation for `serialize` (0 = compact) |
+
+### List Operations Node
+**Base class:** `Node`
+
+Performs collection operations on a list in the shared store. `filter` and `sort`
+accept a Python expression with an `item` variable. `slice` uses `start`/`stop`
+indices. `unique` removes duplicates (preserves order). `flatten` unpacks nested lists
+one level deep. `reverse` reverses in place. `count` writes the list length to
+`output_key`. Routes `empty` when the result is an empty list.
+
+| Property | Default | Description |
+|---|---|---|
+| `operation` | `filter` | Operation: `filter`, `sort`, `slice`, `unique`, `flatten`, `reverse`, `count` |
+| `input_key` | `items` | Shared-store key for the input list |
+| `output_key` | `items` | Shared-store key for the result |
+| `expression` | _(empty)_ | Python expression for `filter`/`sort` (`item` variable) |
+| `start` | `0` | Start index for `slice` |
+| `stop` | `-1` | Stop index for `slice` (-1 = end) |
+
+### String Operations Node
+**Base class:** `Node`
+
+Applies string transformations to a value in the shared store. All operations read
+from `input_key` and write to `output_key`. `split` produces a list; `join` expects
+a list as input and produces a string. `format` uses `{key}` placeholders resolved
+from the shared store. `truncate` appends `…` if the string exceeds `max_length`.
+
+| Property | Default | Description |
+|---|---|---|
+| `operation` | `strip` | Operation: `split`, `join`, `strip`, `upper`, `lower`, `replace`, `format`, `truncate` |
+| `input_key` | `text` | Shared-store key for the input string (or list for `join`) |
+| `output_key` | `text` | Shared-store key for the result |
+| `separator` | ` ` | Separator for `split` and `join` |
+| `find` | _(empty)_ | Find string for `replace` |
+| `replacement` | _(empty)_ | Replacement string for `replace` |
+| `max_length` | `200` | Maximum length for `truncate` |
+| `template` | _(empty)_ | Format template string (`{key}` placeholders) for `format` |
+
+---
+
+## Resilience / Flow Utilities
+
+### Retry Node
+**Base class:** `Node`
+
+Implements retry-with-exponential-backoff for a section of the flow. Place this node
+before the operation that might fail; wire its `retry` action back to the start of the
+fallible section and its `done` action to the success path. The node reads a status
+key to decide whether to retry or declare success; `status_key = "ok"` signals done.
+Routes `give_up` when `max_attempts` is exhausted.
+
+| Property | Default | Description |
+|---|---|---|
+| `max_attempts` | `3` | Maximum retry attempts before routing `give_up` |
+| `backoff_base` | `1.0` | Base delay in seconds (doubles each retry) |
+| `jitter` | `true` | Add random jitter to backoff delay |
+| `attempt_key` | `retry_attempt` | Shared-store key for the current attempt counter |
+| `status_key` | `retry_status` | Shared-store key read to decide `retry` vs `done` (`ok` = done) |
+
+### Rate Limiter Node
+**Base class:** `Node`
+
+Enforces a per-minute rate limit by sleeping between calls when the last call was too
+recent. Reads a timestamp from `timestamp_key`, computes the required sleep duration,
+and writes the updated timestamp before routing `default`. Use `label` to maintain
+independent rate limiters for different API endpoints in the same flow.
+
+| Property | Default | Description |
+|---|---|---|
+| `calls_per_min` | `60` | Maximum calls allowed per minute |
+| `timestamp_key` | `last_call_time` | Shared-store key for the last-call Unix timestamp |
+| `label` | `default` | Rate limiter label (allows multiple independent limiters) |
+
+---
+
+## Messaging / Notifications
+
+### Email Send Node
+**Base class:** `Node`
+
+Sends an email via SMTP or a transactional email API (SendGrid, Mailgun). Reads
+subject, body, and recipients from the shared store. Set `html = true` to send HTML
+email. The `output_key` receives the server's message ID or delivery receipt on
+`sent`, or an error description on `error`.
+
+| Property | Default | Description |
+|---|---|---|
+| `provider` | `smtp` | Email provider: `smtp`, `sendgrid`, `mailgun` |
+| `to_key` | `email_to` | Shared-store key for recipient address(es) (string or list) |
+| `subject_key` | `email_subject` | Shared-store key for the email subject |
+| `body_key` | `email_body` | Shared-store key for the email body (plain text or HTML) |
+| `html` | `false` | Treat body as HTML |
+| `output_key` | `email_result` | Shared-store key for send result / message ID |
+
+### Email Read Node
+**Base class:** `Node`
+
+Fetches emails from an IMAP mailbox (or Gmail via Gmail API) and writes a list of
+message dicts to the shared store. Each dict contains `subject`, `from`, `body`,
+`date`, and `message_id` fields. Routes `no_mail` when the inbox is empty. Use to
+build flows that process inbound email — automated replies, ticket routing, data
+extraction from email reports.
+
+| Property | Default | Description |
+|---|---|---|
+| `provider` | `imap` | Mail provider: `imap`, `gmail` |
+| `folder` | `INBOX` | Mailbox folder to check |
+| `max_messages` | `10` | Maximum messages to fetch |
+| `unread_only` | `true` | Fetch only unread messages |
+| `output_key` | `emails` | Shared-store key for the list of message dicts |
+
+### Notification Node
+**Base class:** `Node`
+
+Sends a notification to a messaging platform via webhook. Supports Slack (Incoming
+Webhooks), Discord (Webhook URLs), Microsoft Teams (Connector cards), and Telegram
+(Bot API). Reads the platform webhook URL from the shared store. Set `title` for
+platforms that support rich message formatting (Slack blocks, Teams cards).
+
+| Property | Default | Description |
+|---|---|---|
+| `channel` | `slack` | Platform: `slack`, `discord`, `teams`, `telegram` |
+| `webhook_url_key` | `webhook_url` | Shared-store key for the platform webhook URL |
+| `message_key` | `notification` | Shared-store key for the message text |
+| `title` | _(empty)_ | Optional title / header for rich message formats |
+
+---
+
+## Security / Configuration
+
+### Secret Node
+**Base class:** `Node`
+
+Reads a secret or configuration value from an environment variable, `.env` file,
+AWS Secrets Manager, or HashiCorp Vault, and writes it to the shared store. Use this
+at the start of a flow to load credentials that should not be hard-coded in the
+Inspector or exported code. Routes `not_found` when `required = true` and the secret
+is missing; writes `None` when `required = false`.
+
+| Property | Default | Description |
+|---|---|---|
+| `source` | `env` | Secret source: `env`, `dotenv`, `aws_secrets`, `vault` |
+| `secret_name` | _(empty)_ | Environment variable name or secret path/name |
+| `output_key` | `secret` | Shared-store key to write the retrieved secret value |
+| `required` | `true` | Route `not_found` when missing; write `None` when false |
 
 ---
 

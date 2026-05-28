@@ -21,7 +21,7 @@ Milestones M0–M15 complete. 106 tests, all passing.
 ### Visual Graph Designer
 - Drag nodes from the Component Palette onto the canvas
 - Wire action ports to create directed edges between nodes
-- 64 built-in node types with purpose-drawn icons across 12 categories:
+- 83 built-in node types with purpose-drawn icons across 19 categories:
   - **Flow Control:** Start, Stop, Basic, Router, Subflow
   - **LLM / AI:** LLM Prompt, JSON LLM, Classifier, Agent, RAG, Judge
   - **AI / Reasoning:** Chain of Thought, Majority Vote, Supervisor, Debate Advocate, Debate Judge
@@ -39,6 +39,13 @@ Milestones M0–M15 complete. 106 tests, all passing.
   - **Human-in-the-Loop:** Human Review, Human Input
   - **Batch / Async:** Batch, Async, Async Batch, Async Parallel Batch
   - **I/O:** File Reader, File Writer, Python Tool
+  - **System / Shell:** Shell Command (bash/sh/zsh/PowerShell/cmd), TTY Serial, Spreadsheet (CSV/TSV/Excel)
+  - **Networking:** Socket (TCP/UDP), WebSocket, Webhook Trigger
+  - **AI / LLM Utilities:** Context Compact (5 strategies), Conversation History
+  - **Text / Data Processing:** Regex, Template Render, JSON Parse, List Operations, String Operations
+  - **Resilience:** Retry (exponential backoff), Rate Limiter
+  - **Messaging:** Email Send, Email Read, Notification (Slack/Discord/Teams/Telegram)
+  - **Security:** Secret (env/dotenv/AWS/Vault)
 - Multi-action output ports — one port per action, node height grows dynamically
 - Input port label shows `input_key` property; action labels rendered inside the node body
 
