@@ -426,7 +426,7 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
 
 ### Group 13 — Public API exports
 
-- [ ] T-R45 🟡 Add `__all__` to `model/__init__.py`, `generation/__init__.py`,
+- [x] T-R45 🟡 Add `__all__` to `model/__init__.py`, `generation/__init__.py`,
   `validation/__init__.py`, and `runtime/__init__.py`.
 
 ### Group 14 — Single source of truth for node display names
