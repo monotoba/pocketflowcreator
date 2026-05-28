@@ -5,6 +5,79 @@ Each node generates a class that inherits from the named PocketFlow base class.
 
 ---
 
+## The Node Data Contract: Actions, Reads, and Writes
+
+Every node has three Inspector fields that together describe its **data contract** — the
+formal agreement between the node and the rest of the flow.
+
+### Actions — the routing outputs
+
+When a node finishes, its `post()` method returns a **string**. PocketFlow follows the
+outgoing edge whose label matches that string to reach the next node. The **Actions**
+field in the Inspector is the comma-separated list of strings `post()` might return.
+
+```
+post() returns "approved"  →  graph follows the "approved" edge  →  next node runs
+```
+
+Every outgoing edge label must match one of the node's declared actions. The validator
+enforces this — undeclared actions produce error PFCE2101. Declaring all actions before
+drawing edges causes the canvas to create a labelled output port for each one, making
+the routing structure visible without opening any code.
+
+| Pattern | Actions declaration |
+|---|---|
+| Simple linear step | `default` |
+| Binary gate | `approved, rejected` |
+| Multi-way classifier | `positive, negative, neutral` |
+| Self-looping agent | `done, continue` |
+
+### Reads — what the node takes from the shared store
+
+The **shared store** is the `dict` that flows through every node in the graph. It is the
+only channel through which nodes pass data to each other. A node's `prep()` method pulls
+the inputs it needs:
+
+```python
+def prep(self, shared: dict) -> str:
+    return shared["user_input"]   # reads "user_input" from the shared store
+```
+
+The **Reads** field documents which keys `prep()` consumes. It is not enforced at
+runtime, but it powers the **Data Flow Report** and makes dependencies visible on the
+canvas without reading code.
+
+### Writes — what the node puts back into the shared store
+
+After doing its work, `post()` stores results for downstream nodes:
+
+```python
+def post(self, shared: dict, prep_res, exec_res: str) -> str:
+    shared["llm_response"] = exec_res   # writes "llm_response" for downstream nodes
+    return "default"
+```
+
+The **Writes** field documents which keys `post()` produces. Combined with Reads across
+all nodes, the **Data Flow Report** (Project > Data Flow Report) can show the full key
+lifecycle: who writes each key, who reads it, and whether any key is read before it is
+written.
+
+### Summary table
+
+```
+Inspector field  Maps to        Role
+───────────────  ─────────────  ─────────────────────────────────────────────
+Reads            prep(shared)   Pull inputs from the shared store
+Writes           post(shared)   Push outputs into the shared store
+Actions          return value   Choose which outgoing edge to follow
+                 of post()
+```
+
+> Reads and Writes are **documentation** — not runtime enforcement. Fill them in
+> carefully and the Data Flow Report becomes a live audit of your graph's data flow.
+
+---
+
 ## Flow Control
 
 ### Start Node

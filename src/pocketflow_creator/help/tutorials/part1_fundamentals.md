@@ -562,6 +562,101 @@ clearly in the Inspector before writing code, you have a spec to code against. O
 nodes in the graph can see what you declared, and the validator can check that your
 edges are consistent with your actions.
 
+### The Three Most Important Fields: Actions, Reads, Writes
+
+These three fields are worth understanding deeply because they appear on every node and
+control both how the flow routes and how data moves between nodes.
+
+#### Actions — controlling which path the flow takes
+
+After a node finishes its work, its `post()` method returns a **string**. PocketFlow
+looks up the outgoing edge whose label matches that string and follows it to the next
+node. The edge label is the **action**.
+
+```
+[NodeA]  --"approved"-->  [HandleApproved]
+         --"rejected"-->  [HandleRejected]
+
+NodeA.post() returns "approved"  →  graph follows the "approved" edge
+```
+
+The **Actions** field in the Inspector is the comma-separated list of all strings
+`post()` might return. Declaring them before drawing edges creates a labelled output
+port on the canvas for each one — one port per possible route.
+
+The validator enforces that every outgoing edge label matches a declared action. This
+means the graph structure *cannot* become inconsistent with the code routing without
+the validator telling you immediately.
+
+**Rule of thumb:** Declare actions first, then draw edges from the named ports.
+
+#### Reads — documenting what the node pulls from the shared store
+
+The **shared store** is the `dict` (`shared`) that every node can see. It is the only
+channel through which nodes pass data to each other. A node's `prep()` method reads
+the inputs it needs:
+
+```python
+def prep(self, shared: dict) -> str:
+    # Pull the user's question from the store before calling the LLM.
+    return shared["user_input"]
+```
+
+The **Reads** field documents which keys `prep()` consumes — for example, `user_input`.
+
+**Important:** Reads is documentation, not enforcement. You could read `shared["anything"]`
+in `prep()` without declaring it. But if you *do* declare it, the Data Flow Report can
+verify that some upstream node actually writes that key. An undeclared read is a silent
+assumption; a declared read is a checkable contract.
+
+#### Writes — documenting what the node pushes into the shared store
+
+After doing its work, `post()` stores results for downstream nodes:
+
+```python
+def post(self, shared: dict, prep_res, exec_res: str) -> str:
+    shared["llm_response"] = exec_res   # downstream nodes can now read "llm_response"
+    return "default"
+```
+
+The **Writes** field documents which keys `post()` produces — for example,
+`llm_response`. Combined with Reads declarations across all nodes, the Data Flow Report
+can show the complete lifecycle of every key: which node writes it first, which nodes
+read it, and whether any node reads a key that nobody writes.
+
+#### How they map to the three-method lifecycle
+
+```
+Inspector field  Node method      What happens
+───────────────  ───────────────  ───────────────────────────────────────────
+Reads            prep(shared)     Pull inputs from the shared store
+                                  (documents what this node depends on)
+
+                 exec(prep_res)   Do the work — no shared store access
+                                  (no Inspector field; this is pure computation)
+
+Writes           post(shared)     Push outputs into the shared store
+                                  (documents what this node produces)
+
+Actions          return value     Choose which outgoing edge to follow
+                 of post()        (validated against edge labels)
+```
+
+This three-phase design means every node has a single, clear responsibility at each
+step: *read → work → write/route*. The Inspector fields make that responsibility
+explicit and visible on the canvas.
+
+#### Filling them in: a practical rule
+
+Before writing any code for a new node, fill in:
+1. **Actions** — what `post()` will return (determines how many output ports appear)
+2. **Reads** — what shared-store keys `prep()` will need
+3. **Writes** — what shared-store keys `post()` will produce
+
+You now have a spec. The validator enforces Actions. The Data Flow Report checks Reads
+and Writes. You can hand this spec to a teammate or come back to it six months later
+and understand the node without reading any Python.
+
 ### Node Properties
 
 Click any node on the canvas to see its properties:
@@ -573,14 +668,8 @@ Click any node on the canvas to see its properties:
 | **Title** | Yes | The name shown on the canvas tile |
 | **Position X/Y** | No | Canvas coordinates — drag the node to reposition |
 | **Actions** | Yes | Comma-separated list of action strings this node's `post()` can return |
-| **Reads** | Yes | Shared-store keys this node reads (documentation only — not enforced) |
-| **Writes** | Yes | Shared-store keys this node writes (documentation only) |
-
-**Why document Reads and Writes if they are not enforced?** Because they make the data
-flow visible without opening the code. When you look at a graph with eight nodes, being
-able to click any node and see "this reads `user_input` and writes `llm_response`" tells
-you immediately what the data flow is. It also helps the Shared Store Designer know
-which keys to expect.
+| **Reads** | Yes | Shared-store keys this node reads in `prep()` (documented contract) |
+| **Writes** | Yes | Shared-store keys this node writes in `post()` (documented contract) |
 
 ### Live Sync in Practice
 

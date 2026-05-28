@@ -63,6 +63,17 @@ It is automatically set as the flow's start node.
 2. Click and drag from that port to the LLM Node's input port (left edge)
 3. Release — an edge labelled **default** appears
 
+> **What does "default" mean?**
+>
+> Every node's `post()` method returns a **string** called an **action**. PocketFlow
+> uses that string to look up the matching outgoing edge and decide which node to run
+> next. The edge you just drew is labelled `"default"` because the Start Node declares
+> `default` as its only action — it always returns `"default"` from `post()`.
+>
+> The **Actions** field in the Inspector is where you declare which strings `post()` can
+> return. A linear flow only needs `default`. A branching flow (e.g. approve/reject)
+> needs multiple actions — one outgoing edge per possible return value.
+
 ---
 
 ## Step 6 — Add a Stop Node
@@ -134,6 +145,30 @@ cd exports/HelloWorld
 pip install -e .
 python main.py
 ```
+
+---
+
+## What the Shared Store, Reads, and Writes Mean
+
+When you watched the Run Log in Step 9 you saw "shared store state before and after"
+for each node. That store is the **only channel** through which nodes pass data to each
+other — it is just a Python `dict` that every node can read from and write to.
+
+- A node's `prep()` method **reads** from the store (pulling in what it needs).
+- A node's `post()` method **writes** back into the store (leaving results for downstream nodes).
+
+In the Object Inspector the **Reads** and **Writes** fields let you document which keys
+a node uses. They are not enforced at runtime, but they are the foundation of the
+**Data Flow Report** (Project > Data Flow Report), which shows the entire key lifecycle
+across every node in the graph.
+
+**The three Inspector fields to always fill in for each node:**
+
+| Field | What it declares |
+|---|---|
+| **Actions** | Which strings `post()` can return (controls edge routing) |
+| **Reads** | Which shared-store keys `prep()` pulls in (documents dependencies) |
+| **Writes** | Which shared-store keys `post()` pushes out (documents outputs) |
 
 ---
 

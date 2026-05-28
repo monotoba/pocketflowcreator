@@ -84,6 +84,18 @@ most menu items are greyed out until a project is opened or created.
 
 For a detailed walkthrough see [Your First Flow](your_first_flow.md).
 
+> **Three fields to know in the Object Inspector:**
+>
+> - **Actions** — comma-separated strings that `post()` can return; each becomes a
+>   labelled output port. Every outgoing edge label must match a declared action.
+> - **Reads** — shared-store keys that `prep()` pulls in. Documents what this node
+>   depends on (not enforced at runtime, but used by the Data Flow Report).
+> - **Writes** — shared-store keys that `post()` pushes out. Documents what this node
+>   produces for downstream nodes.
+>
+> These three fields are the node's data contract. Fill them in before writing code and
+> the validator and Data Flow Report will catch mismatches for you.
+
 ---
 
 ## Keyboard Shortcuts
