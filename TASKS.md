@@ -325,7 +325,7 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
   and replace the ~9 scattered string literals.
 - [x] T-R10 🟡 Fix f-strings passed into `self.tr()` at lines 603, 861, 1861, and 2020 —
   format the string *after* translation using `% name` or `.format(name)`.
-- [ ] T-R11 🟡 Change `_stop_action` and `_resume_action` type annotations from `object`
+- [x] T-R11 🟡 Change `_stop_action` and `_resume_action` type annotations from `object`
   to `QAction` and remove all `# type: ignore[attr-defined]` comments on their usage.
 - [ ] T-R12 🟡 Change `_ensure_active_graph` return type from `bool` to `None`, remove
   the `return True` statements, and clean up the now-dead

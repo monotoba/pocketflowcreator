@@ -16,6 +16,7 @@ import yaml
 try:
     from PySide6.QtCore import QLocale, QRectF, QSettings, QSize, Qt, QTranslator, QUrl
     from PySide6.QtGui import (
+        QAction,
         QBrush,
         QColor,
         QDesktopServices,
@@ -159,8 +160,8 @@ class MainWindow(QMainWindow):
             )
         self._theme_mode: str = str(_stored)
         self._dark_mode: bool = self._resolve_dark()
-        self._stop_action: object  # QAction — assigned in _build_menu_bar
-        self._resume_action: object  # QAction — assigned in _build_menu_bar
+        self._stop_action: QAction  # assigned in _build_menu_bar
+        self._resume_action: QAction  # assigned in _build_menu_bar
         # Assigned by their respective _build_* methods:
         self._explorer_tree: QTreeWidget
         self._bottom_tab_widget: QTabWidget
@@ -1244,8 +1245,8 @@ class MainWindow(QMainWindow):
 
         def _on_finished() -> None:
             self._dbg_signals = None  # release the pin
-            self._stop_action.setEnabled(False)  # type: ignore[attr-defined]
-            self._resume_action.setEnabled(False)  # type: ignore[attr-defined]
+            self._stop_action.setEnabled(False)
+            self._resume_action.setEnabled(False)
             self.statusBar().showMessage("Debug run finished.")
 
         self._dbg_signals = run_controller.start_debug(
@@ -1259,16 +1260,16 @@ class MainWindow(QMainWindow):
             on_step=_on_step,
             on_finished=_on_finished,
         )
-        self._stop_action.setEnabled(True)  # type: ignore[attr-defined]
-        self._resume_action.setEnabled(True)  # type: ignore[attr-defined]
+        self._stop_action.setEnabled(True)
+        self._resume_action.setEnabled(True)
         self.statusBar().showMessage("Debug run started.")
 
     def _on_stop_debug(self) -> None:
         if self._debug_controller is not None:
             self._debug_controller.stop()
             self._debug_controller = None
-        self._stop_action.setEnabled(False)  # type: ignore[attr-defined]
-        self._resume_action.setEnabled(False)  # type: ignore[attr-defined]
+        self._stop_action.setEnabled(False)
+        self._resume_action.setEnabled(False)
         self.statusBar().showMessage("Debug run stopped.")
 
     def _on_resume_debug(self) -> None:
