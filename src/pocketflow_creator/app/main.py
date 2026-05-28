@@ -290,7 +290,6 @@ class MainWindow(QMainWindow):
         flow_menu.addAction(self.tr("New Flow..."), self._create_untitled_flow)
         for name in [
             self.tr("New Subflow..."),
-            self.tr("Set Start Node"),
             self.tr("Validate Active Flow"),
         ]:
             flow_menu.addAction(name)
