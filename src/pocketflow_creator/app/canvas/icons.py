@@ -462,19 +462,34 @@ def _ico_async_batch(p: QPainter, sz: float, bg: QColor) -> None:
 
 
 def _ico_parallel_arrows(p: QPainter, sz: float, bg: QColor) -> None:
-    """Three parallel right-pointing arrows — means 'concurrent async batch'."""
+    """Three parallel arrows + lightning bolt — means 'concurrent async batch'."""
     w = max(2.0, sz * 0.10)
     pen = QPen(
         QColor("white"), w, Qt.PenStyle.SolidLine,
         Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin,
     )
     p.setPen(pen)
-    ah = sz * 0.14
+    # Arrows shortened to leave room for the bolt on the right
+    ah = sz * 0.11
     for cy in (sz * 0.28, sz * 0.50, sz * 0.72):
-        x1, x2 = sz * 0.12, sz * 0.82
+        x1, x2 = sz * 0.10, sz * 0.58
         p.drawLine(QPointF(x1, cy), QPointF(x2, cy))
         p.drawLine(QPointF(x2 - ah, cy - ah * 0.65), QPointF(x2, cy))
         p.drawLine(QPointF(x2 - ah, cy + ah * 0.65), QPointF(x2, cy))
+    # Lightning bolt in the bottom-right — same proportions as _ico_async_batch
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QBrush(QColor("white")))
+    s = sz * 0.34
+    bx, by = sz * 0.60, sz * 0.52
+    bolt = QPolygonF([
+        QPointF(bx + s * 0.60, by),
+        QPointF(bx + s * 0.25, by + s * 0.48),
+        QPointF(bx + s * 0.48, by + s * 0.48),
+        QPointF(bx + s * 0.35, by + s * 1.00),
+        QPointF(bx + s * 0.75, by + s * 0.52),
+        QPointF(bx + s * 0.52, by + s * 0.52),
+    ])
+    p.drawPolygon(bolt)
 
 
 def _ico_agent(p: QPainter, sz: float, bg: QColor) -> None:
