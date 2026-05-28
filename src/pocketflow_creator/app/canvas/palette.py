@@ -29,6 +29,7 @@ else:
 
 from pocketflow_creator.app.canvas.icons import make_node_icon
 from pocketflow_creator.builtin_node_types import get_nodes_by_category
+from pocketflow_creator.node_package_loader import get_user_node_groups
 
 _MIME_NODE_TYPE = "application/x-pocketflow-node-type"
 _MIME_NODE_SNIPPET = "application/x-pocketflow-node-snippet"
@@ -75,6 +76,23 @@ class PaletteWidget(QListWidget):
                 item = QListWidgetItem(make_node_icon(type_id, 28), nt.display_name)
                 item.setData(Qt.ItemDataRole.UserRole, type_id)
                 self.addItem(item)
+
+        # User-installed node packages — grouped by category, separated from built-ins
+        user_groups = get_user_node_groups()
+        if user_groups:
+            divider = QListWidgetItem("─── Custom Nodes ───")
+            divider.setFlags(
+                divider.flags()
+                & ~Qt.ItemFlag.ItemIsEnabled  # type: ignore[attr-defined]
+                & ~Qt.ItemFlag.ItemIsSelectable  # type: ignore[attr-defined]
+            )
+            self.addItem(divider)
+            for category, nodes in user_groups:
+                self.addItem(_make_category_header(category))
+                for type_id, nt in nodes:
+                    item = QListWidgetItem(make_node_icon(type_id, 28), nt.display_name)
+                    item.setData(Qt.ItemDataRole.UserRole, type_id)
+                    self.addItem(item)
 
         snippets = _load_snippets()
         if snippets:

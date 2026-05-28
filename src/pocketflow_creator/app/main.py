@@ -102,6 +102,13 @@ from pocketflow_creator.app.settings_keys import (
     _SKEY_TOOLBAR_ORDER,
 )
 from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES, get_nodes_by_category
+from pocketflow_creator.node_package_loader import (
+    discover_user_nodes,
+    get_all_user_nodes,
+    get_user_node_groups,
+    install_node_package,
+    get_user_nodes_dir,
+)
 from pocketflow_creator.runtime.runner import FlowRunner, RunStep, RunTrace, StepController
 from pocketflow_creator.validation.graph_validator import GraphValidator
 
@@ -180,6 +187,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.tr("PocketFlow Creator"))
         self.resize(1400, 900)
         self._build_menu_bar()
+        # Discover user node packages before building the toolbar and palette
+        # so they appear in both.
+        _user_defns, self._user_node_load_errors = discover_user_nodes()
         self._build_node_toolbar()
         self._build_central_area()
         self._build_docks()
@@ -417,6 +427,24 @@ class MainWindow(QMainWindow):
                 lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
             )
             self._toolbar_actions[type_id] = act
+
+        # Append user-installed node packages to the toolbar
+        user_nodes = get_all_user_nodes()
+        if user_nodes:
+            tb.addSeparator()   # visual break between built-ins and custom nodes
+            prev_user_cat: str | None = None
+            for type_id, nt in user_nodes.items():
+                if nt.category != prev_user_cat:
+                    if prev_user_cat is not None:
+                        tb.addSeparator()
+                    prev_user_cat = nt.category
+                icon = make_node_icon(type_id, 32)
+                act = tb.addAction(icon, nt.display_name)
+                act.setToolTip(f"{nt.display_name}  [{nt.category}] ★ Custom")
+                act.triggered.connect(
+                    lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
+                )
+                self._toolbar_actions[type_id] = act
 
         # Right-click on the toolbar → "Customize Toolbar…"
         tb.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -2297,47 +2325,180 @@ class MainWindow(QMainWindow):
         dlg.exec()
 
     def _on_node_type_library(self) -> None:
-        if self._project is None:
-            self.statusBar().showMessage("No project open.")
-            return
-        registry = self._load_node_type_registry()
+        """Open the Node Type Library dialog.
+
+        Shows all built-in and installed custom nodes.  Allows importing a
+        single-file ``.py`` node package into ``~/.pocketflow_creator/nodes/``
+        so it is available immediately (palette refresh) and on every future
+        launch.  Also supports the legacy YAML import for project-local types.
+        """
+        from pocketflow_creator.node_package_loader import (
+            PackageLoadError,
+            get_package_meta,
+            load_node_package,
+            register_user_node,
+        )
+
+        # ── Build the dialog ──────────────────────────────────────────────
         dlg = QDialog(self)
         dlg.setWindowTitle("Node Type Library")
-        dlg.resize(640, 400)
+        dlg.resize(820, 520)
         layout = QVBoxLayout(dlg)
-        table = QTableWidget(len(registry), 4)
-        table.setHorizontalHeaderLabels(["ID", "Display Name", "Category", "Base Class"])
-        table.horizontalHeader().setStretchLastSection(True)
-        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        for r, defn in enumerate(registry.values()):
-            table.setItem(r, 0, QTableWidgetItem(defn.node_type_id))
-            table.setItem(r, 1, QTableWidgetItem(defn.display_name))
-            table.setItem(r, 2, QTableWidgetItem(defn.category))
-            table.setItem(r, 3, QTableWidgetItem(defn.base_class))
-        layout.addWidget(table)
-        btn_row = QHBoxLayout()
-        import_btn = QPushButton("Import from file…")
-        btn_row.addWidget(import_btn)
-        btn_row.addStretch()
-        layout.addLayout(btn_row)
 
-        def _import() -> None:
+        # Tab widget: Built-ins | Installed Custom | Load Errors
+        tabs = QTabWidget()
+        layout.addWidget(tabs)
+
+        # ── Tab 1: built-in nodes ─────────────────────────────────────────
+        builtin_table = QTableWidget(len(BUILTIN_NODE_TYPES), 3)
+        builtin_table.setHorizontalHeaderLabels(["Node Type ID", "Display Name", "Category"])
+        builtin_table.horizontalHeader().setStretchLastSection(True)
+        builtin_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        builtin_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        for r, defn in enumerate(BUILTIN_NODE_TYPES.values()):
+            builtin_table.setItem(r, 0, QTableWidgetItem(defn.node_type_id))
+            builtin_table.setItem(r, 1, QTableWidgetItem(defn.display_name))
+            builtin_table.setItem(r, 2, QTableWidgetItem(defn.category))
+        builtin_table.resizeColumnsToContents()
+        tabs.addTab(builtin_table, f"Built-in ({len(BUILTIN_NODE_TYPES)})")
+
+        # ── Tab 2: installed custom node packages ─────────────────────────
+        custom_layout = QVBoxLayout()
+        custom_widget = QWidget()
+        custom_widget.setLayout(custom_layout)
+
+        user_nodes = get_all_user_nodes()
+        custom_table = QTableWidget(len(user_nodes), 6)
+        custom_table.setHorizontalHeaderLabels(
+            ["Display Name", "Category", "Version", "Author", "License", "File"]
+        )
+        custom_table.horizontalHeader().setStretchLastSection(True)
+        custom_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        custom_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        for r, defn in enumerate(user_nodes.values()):
+            m = get_package_meta(defn.node_type_id)
+            custom_table.setItem(r, 0, QTableWidgetItem(defn.display_name))
+            custom_table.setItem(r, 1, QTableWidgetItem(defn.category))
+            custom_table.setItem(r, 2, QTableWidgetItem(m.get("version", "")))
+            custom_table.setItem(r, 3, QTableWidgetItem(m.get("author", "")))
+            custom_table.setItem(r, 4, QTableWidgetItem(m.get("license", "")))
+            src = Path(m.get("source_file", "")).name
+            custom_table.setItem(r, 5, QTableWidgetItem(src))
+        custom_table.resizeColumnsToContents()
+        custom_layout.addWidget(custom_table)
+
+        # Detail panel shown when a row is selected
+        detail_label = QLabel("")
+        detail_label.setWordWrap(True)
+        detail_label.setStyleSheet("font-size: 11px; color: grey;")
+        custom_layout.addWidget(detail_label)
+
+        def _on_custom_row_selected() -> None:
+            rows = custom_table.selectedItems()
+            if not rows:
+                detail_label.setText("")
+                return
+            r = custom_table.currentRow()
+            defn = list(user_nodes.values())[r]
+            m = get_package_meta(defn.node_type_id)
+            desc = defn.description
+            tags = ", ".join(m.get("tags", []))
+            website = m.get("website", "")
+            repo = m.get("repo", "")
+            parts = []
+            if desc:
+                parts.append(desc)
+            if tags:
+                parts.append(f"Tags: {tags}")
+            if website:
+                parts.append(f"Website: {website}")
+            if repo:
+                parts.append(f"Repo: {repo}")
+            detail_label.setText("  ·  ".join(parts))
+
+        custom_table.itemSelectionChanged.connect(_on_custom_row_selected)
+
+        # Button row for custom tab
+        custom_btn_row = QHBoxLayout()
+        install_py_btn = QPushButton("Install node package (.py)…")
+        open_dir_btn = QPushButton("Open nodes folder")
+        custom_btn_row.addWidget(install_py_btn)
+        custom_btn_row.addWidget(open_dir_btn)
+        custom_btn_row.addStretch()
+        custom_layout.addLayout(custom_btn_row)
+        tabs.addTab(custom_widget, f"Installed Custom ({len(user_nodes)})")
+
+        # ── Tab 3: load errors ────────────────────────────────────────────
+        errors = getattr(self, "_user_node_load_errors", [])
+        if errors:
+            err_table = QTableWidget(len(errors), 2)
+            err_table.setHorizontalHeaderLabels(["File", "Error"])
+            err_table.horizontalHeader().setStretchLastSection(True)
+            err_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            for r, (fname, msg) in enumerate(errors):
+                err_table.setItem(r, 0, QTableWidgetItem(fname))
+                err_table.setItem(r, 1, QTableWidgetItem(msg))
+            err_table.resizeColumnsToContents()
+            tabs.addTab(err_table, f"⚠ Errors ({len(errors)})")
+            tabs.setCurrentIndex(2)  # draw attention to errors
+
+        # ── Button actions ────────────────────────────────────────────────
+        def _install_py() -> None:
+            nodes_dir = get_user_nodes_dir()
             path_str, _ = QFileDialog.getOpenFileName(
-                dlg, "Import Node Type", "", "YAML (*.yaml *.yml)"
+                dlg,
+                "Install Node Package",
+                str(Path.home()),
+                "Python Node Package (*.py)",
             )
             if not path_str:
                 return
-            dest = self._project.root / "node_types" / Path(path_str).name  # type: ignore[union-attr]
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(path_str, dest)
-            rel = f"node_types/{dest.name}"
-            if rel not in self._project.node_types:  # type: ignore[union-attr]
-                self._project.node_types.append(rel)  # type: ignore[union-attr]
-            self._refresh_explorer()
-            self.statusBar().showMessage(f"Imported: {dest.name}")
-            dlg.accept()
+            src = Path(path_str)
+            dest = nodes_dir / src.name
+            if dest.exists():
+                answer = QMessageBox.question(
+                    dlg,
+                    "Overwrite?",
+                    f"{src.name} is already installed. Replace it?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                )
+                if answer != QMessageBox.StandardButton.Yes:
+                    return
+            try:
+                defn = load_node_package(src)
+                import shutil as _shutil
+                _shutil.copy2(src, dest)
+                register_user_node(defn)
+                # Refresh the palette (rebuild its widget)
+                new_palette = __import__(
+                    "pocketflow_creator.app.canvas.palette",
+                    fromlist=["PaletteWidget"],
+                ).PaletteWidget()
+                self._palette_dock.setWidget(new_palette)
+                QMessageBox.information(
+                    dlg,
+                    "Installed",
+                    f"'{defn.display_name}' installed successfully.\n"
+                    f"Restart the application to add it to the toolbar.",
+                )
+                dlg.accept()
+            except PackageLoadError as exc:
+                QMessageBox.critical(dlg, "Load Error", str(exc))
 
-        import_btn.clicked.connect(_import)
+        def _open_dir() -> None:
+            import subprocess as _sp
+            d = str(get_user_nodes_dir())
+            if sys.platform == "win32":
+                _sp.Popen(["explorer", d])
+            elif sys.platform == "darwin":
+                _sp.Popen(["open", d])
+            else:
+                _sp.Popen(["xdg-open", d])
+
+        install_py_btn.clicked.connect(_install_py)
+        open_dir_btn.clicked.connect(_open_dir)
+
+        # ── Dialog close button ───────────────────────────────────────────
         ok = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
         ok.accepted.connect(dlg.accept)
         layout.addWidget(ok)
