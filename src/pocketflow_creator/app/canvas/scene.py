@@ -40,9 +40,14 @@ class GraphScene(QGraphicsScene):
     node_deleted = Signal(str)                 # emits node_id
     edge_creation_requested = Signal(object, object, str)  # emits (src NodeItem, tgt NodeItem, action)
     edge_deleted = Signal(str)                 # emits edge_id
-    set_start_node_requested = Signal(object)  # emits NodeItem
-    node_drag_started = Signal(str)            # emits node_id when a drag begins
-    node_move_finished = Signal(str)           # emits node_id when a drag ends with position change
+    set_start_node_requested = Signal(object)         # emits NodeItem
+    node_drag_started = Signal(str)                   # emits node_id when a drag begins
+    node_move_finished = Signal(str)                  # emits node_id when a drag ends with position change
+    node_open_code_requested = Signal(object)         # emits NodeItem (right-click → Open Code)
+    node_rename_requested = Signal(object)            # emits NodeItem (right-click → Rename)
+    node_toggle_breakpoint_requested = Signal(object) # emits NodeItem (right-click → Toggle Breakpoint)
+    node_duplicate_requested = Signal(object)         # emits NodeItem (right-click → Duplicate)
+    node_delete_requested = Signal(object)            # emits NodeItem (right-click → Delete)
 
     def __init__(self, parent: Any = None) -> None:
         super().__init__(parent)
@@ -102,6 +107,8 @@ class GraphScene(QGraphicsScene):
         title: str | None = None,
         actions: list[str] | None = None,
         properties: dict[str, Any] | None = None,
+        reads: list[str] | None = None,
+        writes: list[str] | None = None,
     ) -> NodeItem:
         node = NodeModel(
             id=f"node_{uuid.uuid4().hex[:8]}",
@@ -110,6 +117,8 @@ class GraphScene(QGraphicsScene):
             position={"x": pos.x(), "y": pos.y()},
             actions=actions or [],
             properties=properties or {},
+            reads=reads or [],
+            writes=writes or [],
         )
         item = NodeItem(node)
         self.addItem(item)

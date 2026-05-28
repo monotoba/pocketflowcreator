@@ -13,6 +13,7 @@ if TYPE_CHECKING:
         QBrush,
         QColor,
         QFont,
+        QKeySequence,
         QPainter,
         QPainterPath,
         QPainterPathStroker,
@@ -33,6 +34,7 @@ else:
             QBrush,
             QColor,
             QFont,
+            QKeySequence,
             QPainter,
             QPainterPath,
             QPainterPathStroker,
@@ -279,13 +281,43 @@ class NodeItem(QGraphicsItem):
         if not isinstance(scene, GraphScene):
             return
         menu = QMenu()
+
+        # ── Start node designation ────────────────────────────────────────────
         start_text = "Set as Start Node" if not self._is_start else "Already Start Node"
-        act = menu.addAction(start_text)
+        act_start = menu.addAction(start_text)
         if self._is_start:
-            act.setEnabled(False)
+            act_start.setEnabled(False)
+
+        menu.addSeparator()
+
+        # ── Per-node operations ───────────────────────────────────────────────
+        act_open = menu.addAction("Open Code")
+        act_rename = menu.addAction("Rename")
+        act_bp = menu.addAction("Toggle Breakpoint")
+        act_bp.setShortcut(QKeySequence("F9"))
+
+        menu.addSeparator()
+
+        # ── Structural operations ─────────────────────────────────────────────
+        act_dup = menu.addAction("Duplicate")
+        act_del = menu.addAction("Delete")
+        act_del.setShortcut(QKeySequence("Delete"))
+
         chosen = menu.exec(event.screenPos())
-        if chosen is act and not self._is_start:
+
+        if chosen is act_start and not self._is_start:
             scene.set_start_node_requested.emit(self)
+        elif chosen is act_open:
+            scene.node_open_code_requested.emit(self)
+        elif chosen is act_rename:
+            scene.node_rename_requested.emit(self)
+        elif chosen is act_bp:
+            scene.node_toggle_breakpoint_requested.emit(self)
+        elif chosen is act_dup:
+            scene.node_duplicate_requested.emit(self)
+        elif chosen is act_del:
+            scene.node_delete_requested.emit(self)
+
         event.accept()
 
     def mousePressEvent(self, event: Any) -> None:

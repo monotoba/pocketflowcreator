@@ -14,7 +14,7 @@ from pathlib import Path
 import yaml
 
 try:
-    from PySide6.QtCore import QLocale, QRectF, QSettings, QSize, Qt, QTranslator, QUrl
+    from PySide6.QtCore import QLocale, QPointF, QRectF, QSettings, QSize, Qt, QTranslator, QUrl
     from PySide6.QtGui import (
         QAction,
         QBrush,
@@ -192,6 +192,11 @@ class MainWindow(QMainWindow):
         self._graph_scene.set_start_node_requested.connect(self._on_set_start_node)
         self._graph_scene.node_drag_started.connect(self._on_node_drag_started)
         self._graph_scene.node_move_finished.connect(self._on_node_move_finished)
+        self._graph_scene.node_open_code_requested.connect(self._on_node_double_clicked)
+        self._graph_scene.node_rename_requested.connect(self._on_node_rename_requested)
+        self._graph_scene.node_toggle_breakpoint_requested.connect(self._on_node_toggle_breakpoint_requested)
+        self._graph_scene.node_duplicate_requested.connect(self._on_node_duplicate_requested)
+        self._graph_scene.node_delete_requested.connect(self._on_node_delete_requested)
         self._inspector.itemChanged.connect(self._on_inspector_item_changed)
         self._explorer_tree.itemDoubleClicked.connect(
             self._on_explorer_item_double_clicked
@@ -1762,6 +1767,68 @@ class MainWindow(QMainWindow):
         graph.start_node = item.node.id
         self._graph_scene.mark_start_node(item.node.id)
         self.statusBar().showMessage(f"Start node set: {item.node.title}")
+
+    def _on_node_rename_requested(self, item: object) -> None:
+        if not isinstance(item, NodeItem):
+            return
+        if self._active_graph_rel is None:
+            return
+        graph = self._graphs.get(self._active_graph_rel)
+        if graph is None:
+            return
+        new_title, ok = QInputDialog.getText(
+            self, "Rename Node", "New title:", text=item.node.title
+        )
+        if not ok or not new_title.strip():
+            return
+        before = copy.deepcopy(graph)
+        item.node.title = new_title.strip()
+        item.update()  # repaint canvas tile
+        after = copy.deepcopy(graph)
+        if self._current_node is item.node:
+            self._populate_inspector_for_node(item.node)
+        cmd = GraphSnapshotCommand(
+            "Rename", self._graphs, self._active_graph_rel, before, after, self._graph_scene
+        )
+        self._undo_stack.push(cmd)
+        self.statusBar().showMessage(f"Renamed to: {item.node.title}")
+
+    def _on_node_toggle_breakpoint_requested(self, item: object) -> None:
+        if not isinstance(item, NodeItem):
+            return
+        nid = item.node.id
+        if nid in self._breakpoints:
+            self._breakpoints.discard(nid)
+            item.set_breakpoint(False)
+            self.statusBar().showMessage(f"Breakpoint cleared: {item.node.title}")
+        else:
+            self._breakpoints.add(nid)
+            item.set_breakpoint(True)
+            self.statusBar().showMessage(f"Breakpoint set: {item.node.title}")
+
+    def _on_node_duplicate_requested(self, item: object) -> None:
+        if not isinstance(item, NodeItem):
+            return
+        if self._active_graph_rel is None:
+            return
+        src = item.node
+        offset = 30.0
+        self._graph_scene.create_node_at(
+            src.type_id,
+            QPointF(src.position["x"] + offset, src.position["y"] + offset),
+            title=src.title,
+            actions=list(src.actions),
+            properties=dict(src.properties),
+            reads=list(src.reads),
+            writes=list(src.writes),
+        )
+
+    def _on_node_delete_requested(self, item: object) -> None:
+        if not isinstance(item, NodeItem):
+            return
+        self._graph_scene.clearSelection()
+        item.setSelected(True)
+        self._on_delete_selected()
 
     @staticmethod
     def _resolve_start_node(graph: GraphModel) -> str | None:
