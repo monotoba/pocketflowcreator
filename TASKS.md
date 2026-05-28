@@ -327,7 +327,7 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
   format the string *after* translation using `% name` or `.format(name)`.
 - [x] T-R11 🟡 Change `_stop_action` and `_resume_action` type annotations from `object`
   to `QAction` and remove all `# type: ignore[attr-defined]` comments on their usage.
-- [ ] T-R12 🟡 Change `_ensure_active_graph` return type from `bool` to `None`, remove
+- [x] T-R12 🟡 Change `_ensure_active_graph` return type from `bool` to `None`, remove
   the `return True` statements, and clean up the now-dead
   `if not self._ensure_active_graph(): return` guards in callers.
 - [ ] T-R13 🟡 Replace `assert self._active_graph_rel is not None` (lines 1769, 1834)

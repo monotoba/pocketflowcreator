@@ -653,17 +653,17 @@ class MainWindow(QMainWindow):
             self.tr("New flow ready. Use File > Save As to save it as a project.")
         )
 
-    def _ensure_active_graph(self) -> bool:
-        """Guarantee _active_graph_rel is set. Always returns True.
+    def _ensure_active_graph(self) -> None:
+        """Guarantee _active_graph_rel is set.
 
         If there is no active graph (project or untitled), one is created in memory.
         If a project is open but has no graph file, one is written to disk.
         """
         if self._active_graph_rel is not None:
-            return True
+            return
         if self._project is None or self._is_temp_project:
             self._create_untitled_flow()
-            return True
+            return
         # Project open but no active graph — create a default graph file
         graph_rel = "graphs/main.pfcgraph.yaml"
         graph = GraphModel(
@@ -681,7 +681,6 @@ class MainWindow(QMainWindow):
             pass  # Keep in memory even if the file write fails
         self._graphs[graph_rel] = graph
         self._active_graph_rel = graph_rel
-        return True
 
     # -------------------------------------------------- file action handlers
 
@@ -1672,8 +1671,7 @@ class MainWindow(QMainWindow):
     def _on_node_created(self, item: object) -> None:
         if not isinstance(item, NodeItem):
             return
-        if not self._ensure_active_graph():
-            return
+        self._ensure_active_graph()
         assert self._active_graph_rel is not None
         assert self._project is not None  # _create_untitled_flow always sets _project
         rel = self._active_graph_rel
@@ -1734,8 +1732,7 @@ class MainWindow(QMainWindow):
     def _on_edge_creation_requested(self, src: object, tgt: object, action: object = "default") -> None:
         if not isinstance(src, NodeItem) or not isinstance(tgt, NodeItem):
             return
-        if not self._ensure_active_graph():
-            return
+        self._ensure_active_graph()
         assert self._active_graph_rel is not None
         rel = self._active_graph_rel
         edge = EdgeModel(
