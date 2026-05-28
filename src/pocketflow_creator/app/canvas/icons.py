@@ -1,13 +1,16 @@
 """Icon drawing functions and node-type visual metadata.
 
-Each ``_ico_*`` function receives a QPainter and a size (float) with
-antialiasing already enabled and the background already filled.  They draw
-white shapes that communicate the node's purpose.
+Each ``_ico_*`` function has the uniform signature
+``(p: QPainter, sz: float, bg: QColor) -> None``.
+Antialiasing is already enabled and the background already filled before
+the function is called.  Functions that don't use ``bg`` accept it and
+ignore it so that ``_ICON_DRAW`` can dispatch all 20 uniformly.
 """
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QPointF, QRectF, Qt
@@ -70,8 +73,10 @@ NODE_TYPE_COLOR: dict[str, str] = {tid: color for _, tid, color in _PALETTE_ITEM
 
 
 # ── Per-type icon drawing functions ──────────────────────────────────────────
+# All functions share the uniform signature (p, sz, bg).
+# Functions that do not use bg accept and ignore it.
 
-def _ico_start(p: QPainter, sz: float) -> None:
+def _ico_start(p: QPainter, sz: float, bg: QColor) -> None:
     """Right-pointing play triangle — universally means 'start/begin'."""
     m = sz * 0.22
     poly = QPolygonF([QPointF(m, m), QPointF(sz - m, sz / 2), QPointF(m, sz - m)])
@@ -80,7 +85,7 @@ def _ico_start(p: QPainter, sz: float) -> None:
     p.drawPolygon(poly)
 
 
-def _ico_stop(p: QPainter, sz: float) -> None:
+def _ico_stop(p: QPainter, sz: float, bg: QColor) -> None:
     """Rounded stop square — universally means 'stop/end'."""
     m = sz * 0.27
     p.setPen(Qt.PenStyle.NoPen)
@@ -88,7 +93,7 @@ def _ico_stop(p: QPainter, sz: float) -> None:
     p.drawRoundedRect(QRectF(m, m, sz - 2 * m, sz - 2 * m), sz * 0.1, sz * 0.1)
 
 
-def _ico_gear(p: QPainter, sz: float) -> None:
+def _ico_gear(p: QPainter, sz: float, bg: QColor) -> None:
     """Gear/cog — means 'process / compute'."""
     cx, cy = sz / 2, sz / 2
     outer_r = sz * 0.42
@@ -109,7 +114,7 @@ def _ico_gear(p: QPainter, sz: float) -> None:
     p.fillPath(gear.subtracted(hole), QColor("white"))
 
 
-def _ico_fork(p: QPainter, sz: float) -> None:
+def _ico_fork(p: QPainter, sz: float, bg: QColor) -> None:
     """Y-fork: one line in, two lines out — means 'route / branch'."""
     w = max(2.0, sz * 0.12)
     pen = QPen(
@@ -131,7 +136,7 @@ def _ico_fork(p: QPainter, sz: float) -> None:
         p.drawLine(QPointF(sz * 0.9 - ah, ty + ah * 0.6), QPointF(sz * 0.9, ty))
 
 
-def _ico_chat_bubble(p: QPainter, sz: float) -> None:
+def _ico_chat_bubble(p: QPainter, sz: float, bg: QColor) -> None:
     """Speech bubble — means 'language model / AI prompt'."""
     bx, by = sz * 0.08, sz * 0.08
     bw, bh = sz * 0.84, sz * 0.64
@@ -151,7 +156,7 @@ def _ico_chat_bubble(p: QPainter, sz: float) -> None:
 
 def _ico_json_llm(p: QPainter, sz: float, bg: QColor) -> None:
     """Chat bubble + '{}' label — means 'structured LLM output'."""
-    _ico_chat_bubble(p, sz)
+    _ico_chat_bubble(p, sz, bg)
     font = QFont()
     font.setPixelSize(max(7, int(sz * 0.30)))
     font.setBold(True)
@@ -165,7 +170,7 @@ def _ico_json_llm(p: QPainter, sz: float, bg: QColor) -> None:
     )
 
 
-def _ico_funnel(p: QPainter, sz: float) -> None:
+def _ico_funnel(p: QPainter, sz: float, bg: QColor) -> None:
     """Filter funnel — means 'classify / filter / categorise'."""
     p.setPen(Qt.PenStyle.NoPen)
     p.setBrush(QBrush(QColor("white")))
@@ -181,7 +186,7 @@ def _ico_funnel(p: QPainter, sz: float) -> None:
     p.drawRect(QRectF(sz * 0.38, sz * 0.56, sz * 0.24, sz * 0.32))
 
 
-def _ico_terminal(p: QPainter, sz: float) -> None:
+def _ico_terminal(p: QPainter, sz: float, bg: QColor) -> None:
     """'>_' terminal prompt — means 'execute code / Python tool'."""
     w = max(2.0, sz * 0.11)
     pen = QPen(
@@ -282,7 +287,7 @@ def _ico_file_writer(p: QPainter, sz: float, bg: QColor) -> None:
     p.drawPolygon(cap)
 
 
-def _ico_person(p: QPainter, sz: float) -> None:
+def _ico_person(p: QPainter, sz: float, bg: QColor) -> None:
     """Person silhouette — means 'human in the loop / review'."""
     p.setPen(Qt.PenStyle.NoPen)
     p.setBrush(QBrush(QColor("white")))
@@ -296,7 +301,7 @@ def _ico_person(p: QPainter, sz: float) -> None:
     p.fillPath(body.intersected(clip), QColor("white"))
 
 
-def _ico_stack(p: QPainter, sz: float) -> None:
+def _ico_stack(p: QPainter, sz: float, bg: QColor) -> None:
     """Three stacked offset pages — means 'batch / process many items'."""
     p.setPen(Qt.PenStyle.NoPen)
     rw, rh = sz * 0.58, sz * 0.52
@@ -311,7 +316,7 @@ def _ico_stack(p: QPainter, sz: float) -> None:
         )
 
 
-def _ico_subflow(p: QPainter, sz: float) -> None:
+def _ico_subflow(p: QPainter, sz: float, bg: QColor) -> None:
     """Box enclosing a mini-flowchart — means 'embedded / nested flow'."""
     # Outer dashed border
     pen = QPen(QColor("white"), max(1.5, sz * 0.08), Qt.PenStyle.DashLine)
@@ -332,7 +337,7 @@ def _ico_subflow(p: QPainter, sz: float) -> None:
     p.drawLine(QPointF(sz * 0.60 - ah, cy + ah), QPointF(sz * 0.60, cy))
 
 
-def _ico_lightning(p: QPainter, sz: float) -> None:
+def _ico_lightning(p: QPainter, sz: float, bg: QColor) -> None:
     """Lightning bolt — means 'async / non-blocking'."""
     pts = QPolygonF([
         QPointF(sz * 0.60, sz * 0.08),
@@ -347,7 +352,7 @@ def _ico_lightning(p: QPainter, sz: float) -> None:
     p.drawPolygon(pts)
 
 
-def _ico_async_batch(p: QPainter, sz: float) -> None:
+def _ico_async_batch(p: QPainter, sz: float, bg: QColor) -> None:
     """Stacked pages + lightning bolt — means 'async batch'."""
     p.setPen(Qt.PenStyle.NoPen)
     rw, rh = sz * 0.50, sz * 0.44
@@ -374,7 +379,7 @@ def _ico_async_batch(p: QPainter, sz: float) -> None:
     p.drawPolygon(bolt)
 
 
-def _ico_parallel_arrows(p: QPainter, sz: float) -> None:
+def _ico_parallel_arrows(p: QPainter, sz: float, bg: QColor) -> None:
     """Three parallel right-pointing arrows — means 'concurrent async batch'."""
     w = max(2.0, sz * 0.10)
     pen = QPen(
@@ -390,7 +395,7 @@ def _ico_parallel_arrows(p: QPainter, sz: float) -> None:
         p.drawLine(QPointF(x2 - ah, cy + ah * 0.65), QPointF(x2, cy))
 
 
-def _ico_agent(p: QPainter, sz: float) -> None:
+def _ico_agent(p: QPainter, sz: float, bg: QColor) -> None:
     """Robot face — means 'autonomous AI agent'."""
     w = max(1.5, sz * 0.08)
     pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
@@ -417,7 +422,7 @@ def _ico_agent(p: QPainter, sz: float) -> None:
     p.drawLine(QPointF(sz * 0.32, sz * 0.72), QPointF(sz * 0.68, sz * 0.72))
 
 
-def _ico_rag(p: QPainter, sz: float) -> None:
+def _ico_rag(p: QPainter, sz: float, bg: QColor) -> None:
     """Magnifying glass with text lines — means 'retrieve and generate'."""
     w = max(2.0, sz * 0.11)
     pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
@@ -439,7 +444,7 @@ def _ico_rag(p: QPainter, sz: float) -> None:
         p.drawLine(QPointF(cx - r * 0.54, ly), QPointF(cx + r * 0.54, ly))
 
 
-def _ico_scales(p: QPainter, sz: float) -> None:
+def _ico_scales(p: QPainter, sz: float, bg: QColor) -> None:
     """Balance scales — means 'evaluate / judge / score'."""
     w = max(1.5, sz * 0.09)
     pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine,
@@ -461,7 +466,7 @@ def _ico_scales(p: QPainter, sz: float) -> None:
     p.drawLine(QPointF(sz * 0.34, sz * 0.84), QPointF(sz * 0.66, sz * 0.84))
 
 
-def _ico_human_input(p: QPainter, sz: float) -> None:
+def _ico_human_input(p: QPainter, sz: float, bg: QColor) -> None:
     """Small person silhouette above a text-input rectangle — means 'keyboard input'."""
     p.setPen(Qt.PenStyle.NoPen)
     p.setBrush(QBrush(QColor("white")))
@@ -493,19 +498,18 @@ def _ico_human_input(p: QPainter, sz: float) -> None:
     )
 
 
-# Dispatch map: type_id → drawing function
-# None entries are handled specially in _paint_node_pixmap (they need the bg colour).
-_ICON_DRAW: dict[str, Any] = {
-    "start_node":       _ico_start,
-    "stop_node":        _ico_stop,
-    "basic_node":       _ico_gear,
-    "router_node":      _ico_fork,
-    "llm_prompt_node":  _ico_chat_bubble,
-    "json_llm_node":    None,  # needs bg colour
-    "classifier_node":  _ico_funnel,
-    "python_tool_node": _ico_terminal,
-    "file_reader_node": None,  # needs bg colour
-    "file_writer_node": None,  # needs bg colour
+# Dispatch map: type_id → drawing function (p, sz, bg) → None
+_ICON_DRAW: dict[str, Callable[..., None]] = {
+    "start_node":                _ico_start,
+    "stop_node":                 _ico_stop,
+    "basic_node":                _ico_gear,
+    "router_node":               _ico_fork,
+    "llm_prompt_node":           _ico_chat_bubble,
+    "json_llm_node":             _ico_json_llm,
+    "classifier_node":           _ico_funnel,
+    "python_tool_node":          _ico_terminal,
+    "file_reader_node":          _ico_document,
+    "file_writer_node":          _ico_file_writer,
     "human_review_node":         _ico_person,
     "batch_node":                _ico_stack,
     "async_node":                _ico_lightning,
@@ -532,17 +536,12 @@ def _paint_node_pixmap(type_id: str, size: int, bg: QColor) -> QPixmap:
     r = size * 0.22
     p.drawRoundedRect(1, 1, size - 2, size - 2, r, r)
 
-    # Type-specific shape
+    # Type-specific shape — all functions share (p, sz, bg) signature
     draw_fn = _ICON_DRAW.get(type_id)
     if draw_fn is not None:
-        draw_fn(p, float(size))
-    elif type_id == "json_llm_node":
-        _ico_json_llm(p, float(size), bg)
-    elif type_id == "file_reader_node":
-        _ico_document(p, float(size), bg)
-    elif type_id == "file_writer_node":
-        _ico_file_writer(p, float(size), bg)
+        draw_fn(p, float(size), bg)
     else:
+        # Fallback: two-letter initials for unknown / custom node types
         font = QFont()
         font.setPixelSize(max(8, int(size * 0.38)))
         font.setBold(True)
