@@ -419,9 +419,9 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
 
 ### Group 12 — Code manager (`app/code_manager.py`)
 
-- [ ] T-R43 🟡 Fix `add_node` to reuse the in-memory text string when the start marker
+- [x] T-R43 🟡 Fix `add_node` to reuse the in-memory text string when the start marker
   already exists, eliminating the redundant second `read_text()` call.
-- [ ] T-R44 🟢 Fix `_stem_from_rel` to use an explicit `endswith(".pfcgraph.yaml")` check
+- [x] T-R44 🟢 Fix `_stem_from_rel` to use an explicit `endswith(".pfcgraph.yaml")` check
   rather than the broad second `.replace(".yaml", "")`.
 
 ### Group 13 — Public API exports

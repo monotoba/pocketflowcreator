@@ -50,7 +50,9 @@ def _to_class_name(title: str) -> str:
 
 def _stem_from_rel(graph_rel: str) -> str:
     name = Path(graph_rel).name
-    return name.replace(".pfcgraph.yaml", "").replace(".yaml", "")
+    if name.endswith(".pfcgraph.yaml"):
+        return name[: -len(".pfcgraph.yaml")]
+    return Path(name).stem
 
 
 def get_code_file(graph_rel: str, project_root: Path) -> Path:
