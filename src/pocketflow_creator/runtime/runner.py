@@ -154,9 +154,10 @@ class FlowRunner:
         subgraph = (known_graphs or {}).get(ref)
         inner_steps: list[RunStep] = []
         if subgraph is not None:
-            # Execute the subgraph inline; collect into a list so we can read the
-            # final shared_after for state merge before continuing in the parent.
-            inner_steps = list(  # noqa: UP028
+            # Materialise into a list (not yield-from) so that inner_steps[-1]
+            # is accessible below to merge the subflow's final shared_after state
+            # back into the parent shared_store before we continue execution.
+            inner_steps = list(
                 self.steps(
                     subgraph, provider, shared=shared_store,
                     known_graphs=known_graphs, project_root=project_root,

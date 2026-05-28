@@ -347,7 +347,7 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
   `Callable` types from `collections.abc`; remove the resulting `# type: ignore[operator]`.
 - [x] T-R18 🟡 Replace `bp = breakpoints or set()` with
   `bp = breakpoints if breakpoints is not None else set()` to avoid the falsy-empty-set trap.
-- [ ] T-R19 🟢 Replace the `# noqa: UP028` suppression on the subflow inner-step loop with
+- [x] T-R19 🟢 Replace the `# noqa: UP028` suppression on the subflow inner-step loop with
   a comment explaining why `list()` materialisation is needed (to access `inner_steps[-1]`
   after iteration).
 
