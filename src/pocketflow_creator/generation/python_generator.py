@@ -1,8 +1,21 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from jinja2 import Environment, PackageLoader, StrictUndefined
 
 from pocketflow_creator.model.graph_model import GraphModel, NodeModel
+
+if TYPE_CHECKING:
+    from typing import TypedDict
+
+    class _NodeCtx(TypedDict):
+        class_name: str
+        var_name: str
+        title: str
+        reads: list[str]
+        writes: list[str]
+        action: str
 
 
 class PythonGenerator:
@@ -51,7 +64,7 @@ class PythonGenerator:
             start_var=start_var,
         )
 
-    def _node_ctx(self, node: NodeModel) -> dict:
+    def _node_ctx(self, node: NodeModel) -> "_NodeCtx":
         action = node.actions[0] if node.actions else "default"
         return {
             "class_name": self._class_name(node),
@@ -62,9 +75,11 @@ class PythonGenerator:
             "action": action,
         }
 
-    def _class_name(self, node: NodeModel) -> str:
+    @staticmethod
+    def _class_name(node: NodeModel) -> str:
         raw = "".join(part.capitalize() for part in node.id.replace("-", "_").split("_") if part)
         return f"{raw or 'Unnamed'}Node"
 
-    def _var_name(self, node: NodeModel) -> str:
+    @staticmethod
+    def _var_name(node: NodeModel) -> str:
         return node.id.replace("-", "_")
