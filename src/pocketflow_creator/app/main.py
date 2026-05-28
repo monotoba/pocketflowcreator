@@ -1384,8 +1384,18 @@ class MainWindow(QMainWindow):
         QMessageBox.about(
             self,
             "About PocketFlow Creator",
-            f"PocketFlow Creator v{_VERSION}\n\n"
-            "RAD visual designer for PocketFlow LLM workflows.",
+            f"PocketFlow Creator  v{_VERSION}\n\n"
+            "A RAD (Rapid Application Development) visual designer for building\n"
+            "PocketFlow LLM workflows and agentic applications.\n\n"
+            "Design flows on a live canvas, run them against Ollama or a mock\n"
+            "provider, inspect shared-store state step-by-step, and export a\n"
+            "runnable Python package — all from one IDE-like GUI.\n\n"
+            "Built with Python 3.10+ and PySide6 (Qt 6).\n\n"
+            "PocketFlow Creator is not affiliated with or endorsed by the\n"
+            "PocketFlow project.  PocketFlow is MIT-licensed and developed by\n"
+            "Zachary Huang / The Pocket (github.com/The-Pocket/PocketFlow).\n\n"
+            "© 2026 Monotoba  —  MIT License\n"
+            "https://github.com/Monotoba/PocketFlowCreator",
         )
 
     # ----------------------------------------------- node menu handlers

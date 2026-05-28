@@ -7,7 +7,44 @@ Entries are ordered newest-first within each version.
 
 ## [Unreleased]
 
-### Added — Getting to Know Nodes tutorial series
+---
+
+## [0.2.0] — 2026-05-27 / 2026-05-28
+
+### Added — Toolbar overflow and Customize Toolbar dialog (2026-05-28)
+- Node-palette toolbar now uses `QToolBar.addAction()` instead of `addWidget(QToolButton)` —
+  Qt's built-in overflow extension button (`>>`) appears automatically when the toolbar is too
+  narrow to show all icons
+- Right-click the toolbar → **Customize Toolbar…** opens a modal dialog with icons, ↑/↓ reorder
+  buttons, and a Reset Default option
+- Custom toolbar order is persisted in `QSettings` under `ui/toolbar/node_palette_order` and
+  restored on next launch; new node types added to `BUILTIN_NODE_TYPES` are automatically
+  appended at the end of any saved order
+
+### Added — Node right-click context menu (2026-05-28)
+- Right-clicking a canvas node now shows a full context menu: **Open Code**, **Rename**,
+  **Toggle Breakpoint** (F9), **Duplicate**, **Delete** (Del), and **Set as Start Node**
+- Each action uses the existing signal/handler infrastructure; Rename uses `QInputDialog`;
+  Duplicate offsets the new node by 30 px and pushes an undo command
+
+### Changed — Flow menu cleanup (2026-05-28)
+- Removed the dead **Flow > Set Start Node** menu item; right-click context menu handles it
+
+### Added — Actions / Reads / Writes documentation (2026-05-28)
+- Expanded the "Actions, Reads, and Writes" concept across all help files — context inspector
+  help, quick reference, getting started, your first flow, and Tutorial 3 in part 1 — with
+  code examples, lifecycle tables, and mapping diagrams so the concepts are reinforced
+  across multiple reading paths
+
+### Added — M15 Boy Scout refactoring (T-R01 – T-R47) (2026-05-28)
+- 47 targeted code-quality improvements: `ImportError` guards on all Qt fallback blocks,
+  `TYPE_CHECKING` pattern for Qt type hints, `@staticmethod` on pure helpers,
+  `_NodeCtx` TypedDict, explicit `.endswith(".pfcgraph.yaml")` stem extraction,
+  `__all__` exports in `generation/`, `validation/`, and `runtime/` packages,
+  palette/toolbar sourced from `BUILTIN_NODE_TYPES`, clarifying comment in
+  `GraphSnapshotCommand.redo`, and miscellaneous method and docstring improvements
+
+### Added — Getting to Know Nodes tutorial series (2026-05-28)
 - 7-file tutorial series (`gtkn_index.md` + 6 part files) covering all 20 built-in node types
   through hands-on mini-flows, progressing simplest → most complex
 - Part 1: Start, Stop, Basic — foundation lifecycle and shared store
@@ -17,11 +54,8 @@ Entries are ordered newest-first within each version.
 - Part 5: Batch, Async, Async Batch, Async Parallel Batch — batch and async execution
 - Part 6: RAG, Agent, Subflow — advanced patterns
 - `Help > Getting to Know Nodes` menu item added; opens `tutorials/gtkn_index.md`
-- Tutorials index updated with series table and links
 
----
-
-## [0.2.0] — 2026-05-27
+## [0.2.0] — 2026-05-27 (base)
 
 ### Added — Graph Auto Arrange (M14)
 - Auto Arrange dialog (`View > Auto Arrange…`, Ctrl+Shift+L) with three layout algorithms: Layered BFS, Grid, and Force-directed (spring-embedder)
