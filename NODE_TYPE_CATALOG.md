@@ -372,6 +372,270 @@ flow executions.
 
 ---
 
+---
+
+### Category: System / Shell / Hardware
+
+| Status | node_type_id        | Display Name        | Base Class | Description                                                                                                                                                                                                                   | Source          |
+| ------ | ------------------- | ------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `[X]`  | shell_command_node  | Shell Command Node  | Node       | Executes a shell command string. `shell` property selects the interpreter: `auto` (bash on Linux, zsh on macOS, PowerShell on Windows), `bash`, `sh`, `zsh`, `powershell`, `cmd`. Returns `default` or `error`.              | Original design |
+| `[X]`  | tty_serial_node     | TTY Serial Node     | Node       | Reads or writes data over a serial (TTY/COM) port. Use for Arduino, microcontrollers, and serial instruments. Operations: `open`, `close`, `read`, `readline`, `write`. Returns `default`, `timeout`, or `error`.             | Original design |
+| `[X]`  | spreadsheet_node    | Spreadsheet Node    | Node       | Reads or writes tabular data in CSV, TSV, or Excel (xlsx/xls) format. Supports configurable delimiters, quoting styles, header rows, sheet names, and encoding. Returns `default` or `error`.                                 | Original design |
+
+**Suggested properties for `shell_command_node`:**
+
+| Property    | Type   | Default  | Description                                                                         |
+| ----------- | ------ | -------- | ----------------------------------------------------------------------------------- |
+| shell       | string | `auto`   | Shell: `auto`, `bash`, `sh`, `zsh`, `powershell`, `cmd`                             |
+| command_key | string | `command`| Shared store key containing the command string to execute                           |
+| timeout     | int    | 30       | Execution timeout in seconds                                                        |
+| stdout_key  | string | `stdout` | Shared store key for captured stdout                                                |
+| stderr_key  | string | `stderr` | Shared store key for captured stderr                                                |
+| env_key     | string | ``       | Shared store key for extra environment variables dict (merged with process env)     |
+
+**Suggested properties for `tty_serial_node`:**
+
+| Property    | Type   | Default       | Description                                                                     |
+| ----------- | ------ | ------------- | ------------------------------------------------------------------------------- |
+| operation   | string | `readline`    | Operation: `open`, `close`, `read`, `readline`, `write`                         |
+| port_key    | string | `serial_port` | Shared store key for the port path (`/dev/ttyUSB0`, `COM3`, `/dev/tty.usbmodem1`) |
+| baud_rate   | int    | 9600          | Serial baud rate                                                                |
+| timeout     | float  | 1.0           | Read timeout in seconds (0 = non-blocking)                                      |
+| encoding    | string | `utf-8`       | Decode encoding: `utf-8`, `ascii`, `bytes` (raw bytearray)                      |
+| data_key    | string | `serial_data` | Shared store key for data to write (write operation)                            |
+| output_key  | string | `serial_read` | Shared store key for data received (read/readline operation)                    |
+
+**Suggested properties for `spreadsheet_node`:**
+
+| Property    | Type   | Default    | Description                                                                     |
+| ----------- | ------ | ---------- | ------------------------------------------------------------------------------- |
+| operation   | string | `read`     | Operation: `read`, `write`, `append`                                            |
+| file_key    | string | `file_path`| Shared store key for the file path                                              |
+| format      | string | `auto`     | Format: `auto` (from extension), `csv`, `tsv`, `excel`                          |
+| delimiter   | string | `,`        | Field delimiter (CSV/TSV only; ignored for Excel)                               |
+| quoting     | string | `minimal`  | Quoting style: `minimal`, `all`, `non_numeric`, `none`                          |
+| sheet_name  | string | `Sheet1`   | Excel sheet name (Excel only)                                                   |
+| has_header  | bool   | true       | Treat first row as column headers                                               |
+| encoding    | string | `utf-8`    | File encoding (CSV/TSV only)                                                    |
+| data_key    | string | `table_data`| Shared store key for data to write (list of dicts or list of lists)            |
+| output_key  | string | `table_data`| Shared store key for read data                                                  |
+
+---
+
+### Category: Networking / Sockets
+
+| Status | node_type_id         | Display Name      | Base Class | Description                                                                                                                                                                                       | Source          |
+| ------ | -------------------- | ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `[X]`  | socket_node          | Socket Node       | Node       | Low-level TCP/UDP socket operations. `operation` property: `connect`, `send`, `receive`, `close`. The socket object is stored in the shared store between operations. Returns `default` or `error`. | Original design |
+| `[X]`  | websocket_node       | WebSocket Node    | AsyncNode  | Async WebSocket client. Operations: `connect`, `send`, `receive`, `close`. Supports `ws://` and `wss://`. Returns `default`, `closed`, or `error`.                                                | Original design |
+| `[X]`  | webhook_trigger_node | Webhook Trigger Node | Node    | Starts a lightweight HTTP server on a configured port and waits for a single incoming POST request, writing the request body to the shared store. Returns `triggered` or `timeout`.               | Original design |
+
+**Suggested properties for `socket_node`:**
+
+| Property    | Type   | Default       | Description                                                             |
+| ----------- | ------ | ------------- | ----------------------------------------------------------------------- |
+| operation   | string | `connect`     | Operation: `connect`, `send`, `receive`, `close`                        |
+| host_key    | string | `socket_host` | Shared store key for hostname or IP                                     |
+| port_key    | string | `socket_port` | Shared store key for port number                                        |
+| proto       | string | `tcp`         | Protocol: `tcp` or `udp`                                                |
+| socket_key  | string | `socket`      | Shared store key holding the socket object between operations           |
+| data_key    | string | `socket_data` | Shared store key for data to send                                       |
+| output_key  | string | `socket_recv` | Shared store key for received data                                      |
+| timeout     | float  | 5.0           | Operation timeout in seconds                                            |
+| buffer_size | int    | 4096          | Receive buffer size in bytes                                            |
+
+**Suggested properties for `websocket_node`:**
+
+| Property   | Type   | Default     | Description                                                    |
+| ---------- | ------ | ----------- | -------------------------------------------------------------- |
+| operation  | string | `connect`   | Operation: `connect`, `send`, `receive`, `close`               |
+| url_key    | string | `ws_url`    | Shared store key for the WebSocket URL (`ws://` or `wss://`)   |
+| ws_key     | string | `ws_conn`   | Shared store key holding the WebSocket connection object       |
+| data_key   | string | `ws_send`   | Shared store key for message to send                           |
+| output_key | string | `ws_recv`   | Shared store key for received message                          |
+| timeout    | float  | 10.0        | Receive timeout in seconds                                     |
+
+---
+
+### Category: AI / LLM Utilities
+
+| Status | node_type_id              | Display Name              | Base Class | Description                                                                                                                                                                                                                                                                                 | Source          |
+| ------ | ------------------------- | ------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `[X]`  | context_compact_node      | Context Compact Node      | Node       | Reduces the size of a message list or text block before sending to an LLM. Strategy property selects the algorithm: `truncate` (keep first/last N tokens), `sliding_window` (keep most recent N messages), `summarize` (LLM distillation), `extractive` (key sentences), `semantic_dedup` (drop near-duplicate chunks). Returns `default`. | Original design |
+| `[X]`  | conversation_history_node | Conversation History Node | Node       | Manages a `messages` list (role + content dicts) in the shared store. Operations: `append` (add a new message), `trim` (enforce max length), `clear` (reset), `format` (render to plain string for non-chat LLMs). Returns `default`.                                                      | Original design |
+
+**Suggested properties for `context_compact_node`:**
+
+| Property    | Type   | Default          | Description                                                                          |
+| ----------- | ------ | ---------------- | ------------------------------------------------------------------------------------ |
+| strategy    | string | `sliding_window` | Compaction algorithm: `truncate`, `sliding_window`, `summarize`, `extractive`, `semantic_dedup` |
+| input_key   | string | `messages`       | Shared store key for the message list or text string to compact                      |
+| output_key  | string | `messages`       | Shared store key to write compacted result to                                        |
+| max_tokens  | int    | 2000             | Target maximum tokens after compaction                                               |
+| model       | string | ``               | LLM model for `summarize` strategy (blank = project default)                         |
+| similarity_threshold | float | 0.92   | Cosine similarity threshold for `semantic_dedup`                                     |
+
+**Suggested properties for `conversation_history_node`:**
+
+| Property     | Type   | Default      | Description                                                           |
+| ------------ | ------ | ------------ | --------------------------------------------------------------------- |
+| operation    | string | `append`     | Operation: `append`, `trim`, `clear`, `format`                        |
+| history_key  | string | `messages`   | Shared store key for the message list                                 |
+| role         | string | `user`       | Role for `append`: `user`, `assistant`, `system`                      |
+| content_key  | string | `content`    | Shared store key for the message content to append                    |
+| max_messages | int    | 20           | Maximum messages to keep on `trim`                                    |
+| output_key   | string | `chat_str`   | Shared store key for formatted string output (format operation only)  |
+
+---
+
+### Category: Text / Data Processing
+
+| Status | node_type_id        | Display Name           | Base Class | Description                                                                                                                                                                 | Source          |
+| ------ | ------------------- | ---------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `[X]`  | regex_node          | Regex Node             | Node       | Applies a regular expression to a string in the shared store. Operations: `match`, `search`, `findall`, `replace`, `split`. Returns `matched` / `no_match`, or `default` for replace/split. | Original design |
+| `[X]`  | template_render_node | Template Render Node  | Node       | Renders a Jinja2 template string (or file path) using shared store values as context. Writes the rendered string to an output key. Returns `default`.                       | Original design |
+| `[X]`  | json_parse_node     | JSON Parse Node        | Node       | Parses a JSON string to a Python dict/list or serializes a dict/list to a JSON string. Operations: `parse`, `serialize`. Returns `default` or `error` on invalid JSON.      | Original design |
+| `[X]`  | list_ops_node       | List Operations Node   | Node       | Performs collection operations on a list in the shared store: `filter` (expression), `sort` (key expression), `slice`, `unique`, `flatten`, `reverse`, `count`. Returns `default` or `empty`. | Original design |
+| `[X]`  | string_ops_node     | String Operations Node | Node       | Applies string transformations to a value in the shared store: `split`, `join`, `strip`, `upper`, `lower`, `replace`, `format`, `truncate`. Returns `default`.              | Original design |
+
+**Suggested properties for `regex_node`:**
+
+| Property    | Type   | Default      | Description                                                           |
+| ----------- | ------ | ------------ | --------------------------------------------------------------------- |
+| operation   | string | `findall`    | Operation: `match`, `search`, `findall`, `replace`, `split`           |
+| pattern     | string | ``           | Regular expression pattern string                                     |
+| flags       | string | ``           | Regex flags: `i` (ignore case), `m` (multiline), `s` (dot-all)        |
+| input_key   | string | `text`       | Shared store key for the input string                                 |
+| replacement | string | ``           | Replacement string for `replace` operation (supports `\1` groups)     |
+| output_key  | string | `regex_result`| Shared store key for the result                                      |
+
+**Suggested properties for `template_render_node`:**
+
+| Property      | Type   | Default           | Description                                                      |
+| ------------- | ------ | ----------------- | ---------------------------------------------------------------- |
+| template_type | string | `string`          | Template source: `string` (inline) or `path` (file)              |
+| template      | string | ``               | Inline Jinja2 template or path to `.j2` / `.md` file            |
+| output_key    | string | `rendered`        | Shared store key to write the rendered string to                  |
+
+**Suggested properties for `json_parse_node`:**
+
+| Property   | Type   | Default    | Description                                                           |
+| ---------- | ------ | ---------- | --------------------------------------------------------------------- |
+| operation  | string | `parse`    | Operation: `parse` (string → dict) or `serialize` (dict → string)     |
+| input_key  | string | `json_str` | Shared store key for the JSON string (parse) or object (serialize)    |
+| output_key | string | `json_obj` | Shared store key for the result                                       |
+| indent     | int    | 0          | JSON indentation for `serialize` (0 = compact)                        |
+
+**Suggested properties for `list_ops_node`:**
+
+| Property    | Type   | Default       | Description                                                              |
+| ----------- | ------ | ------------- | ------------------------------------------------------------------------ |
+| operation   | string | `filter`      | Operation: `filter`, `sort`, `slice`, `unique`, `flatten`, `reverse`, `count` |
+| input_key   | string | `items`       | Shared store key for the input list                                      |
+| output_key  | string | `items`       | Shared store key for the result                                          |
+| expression  | string | ``            | Python expression for `filter`/`sort` (item variable)                   |
+| start       | int    | 0             | Start index for `slice`                                                  |
+| stop        | int    | -1            | Stop index for `slice` (-1 = end)                                        |
+
+**Suggested properties for `string_ops_node`:**
+
+| Property    | Type   | Default     | Description                                                        |
+| ----------- | ------ | ----------- | ------------------------------------------------------------------ |
+| operation   | string | `strip`     | Operation: `split`, `join`, `strip`, `upper`, `lower`, `replace`, `format`, `truncate` |
+| input_key   | string | `text`      | Shared store key for the input string (or list for `join`)          |
+| output_key  | string | `text`      | Shared store key for the result                                     |
+| separator   | string | ` `         | Separator for `split` and `join`                                    |
+| find        | string | ``          | Find string for `replace`                                           |
+| replacement | string | ``          | Replacement string for `replace`                                    |
+| max_length  | int    | 200         | Maximum length for `truncate`                                       |
+| template    | string | ``          | Format template string for `format` (`{key}` placeholders)          |
+
+---
+
+### Category: Resilience / Flow Utilities
+
+| Status | node_type_id      | Display Name         | Base Class | Description                                                                                                                                                                               | Source          |
+| ------ | ----------------- | -------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `[X]`  | retry_node        | Retry Node           | Node       | Wraps a section of the flow with retry logic. Reads the result of the last attempt from a status key; routes `retry` (with exponential backoff delay) or `done` when succeeded or `max_attempts` reached. | Original design |
+| `[X]`  | rate_limiter_node | Rate Limiter Node    | Node       | Enforces a rate limit between calls by sleeping if the last call was too recent. Reads a timestamp from the shared store and sleeps the remaining window before returning `default`.       | Original design |
+
+**Suggested properties for `retry_node`:**
+
+| Property       | Type   | Default         | Description                                                          |
+| -------------- | ------ | --------------- | -------------------------------------------------------------------- |
+| max_attempts   | int    | 3               | Maximum retry attempts before routing `give_up`                      |
+| backoff_base   | float  | 1.0             | Base delay in seconds (doubles each retry)                           |
+| jitter         | bool   | true            | Add random jitter to backoff delay                                   |
+| attempt_key    | string | `retry_attempt` | Shared store key for the current attempt counter                     |
+| status_key     | string | `retry_status`  | Shared store key read to determine `retry` vs `done` (`ok` = done)   |
+
+**Suggested properties for `rate_limiter_node`:**
+
+| Property      | Type   | Default           | Description                                                          |
+| ------------- | ------ | ----------------- | -------------------------------------------------------------------- |
+| calls_per_min | int    | 60                | Maximum calls allowed per minute                                     |
+| timestamp_key | string | `last_call_time`  | Shared store key for the last-call Unix timestamp                    |
+| label         | string | `default`         | Rate limiter label (allows multiple independent limiters per flow)   |
+
+---
+
+### Category: Messaging / Notifications
+
+| Status | node_type_id      | Display Name      | Base Class | Description                                                                                                                                                                        | Source          |
+| ------ | ----------------- | ----------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `[X]`  | email_send_node   | Email Send Node   | Node       | Sends an email via SMTP or a transactional API (SendGrid, Mailgun). Reads subject, body, and recipients from the shared store. Returns `sent` or `error`.                          | Original design |
+| `[X]`  | email_read_node   | Email Read Node   | Node       | Fetches unread emails from an IMAP mailbox and writes a list of message dicts (subject, from, body, date) to the shared store. Returns `default` or `no_mail`.                     | Original design |
+| `[X]`  | notification_node | Notification Node | Node       | Sends a notification to a messaging platform. `channel` property selects: `slack`, `discord`, `teams`, `telegram`. Reads message text from the shared store. Returns `default` or `error`. | Original design |
+
+**Suggested properties for `email_send_node`:**
+
+| Property     | Type   | Default       | Description                                                            |
+| ------------ | ------ | ------------- | ---------------------------------------------------------------------- |
+| provider     | string | `smtp`        | Email provider: `smtp`, `sendgrid`, `mailgun`                          |
+| to_key       | string | `email_to`    | Shared store key for recipient address(es) (string or list)            |
+| subject_key  | string | `email_subject`| Shared store key for the email subject line                           |
+| body_key     | string | `email_body`  | Shared store key for the email body (plain text or HTML)               |
+| html         | bool   | false         | Treat body as HTML                                                     |
+| output_key   | string | `email_result`| Shared store key for send result / message ID                          |
+
+**Suggested properties for `email_read_node`:**
+
+| Property     | Type   | Default       | Description                                                              |
+| ------------ | ------ | ------------- | ------------------------------------------------------------------------ |
+| provider     | string | `imap`        | Mail provider: `imap`, `gmail`                                           |
+| folder       | string | `INBOX`       | Mailbox folder to check                                                  |
+| max_messages | int    | 10            | Maximum messages to fetch                                                |
+| unread_only  | bool   | true          | Fetch only unread messages                                               |
+| output_key   | string | `emails`      | Shared store key for the list of message dicts                           |
+
+**Suggested properties for `notification_node`:**
+
+| Property    | Type   | Default          | Description                                                          |
+| ----------- | ------ | ---------------- | -------------------------------------------------------------------- |
+| channel     | string | `slack`          | Platform: `slack`, `discord`, `teams`, `telegram`                    |
+| webhook_url_key | string | `webhook_url` | Shared store key for the platform webhook URL                        |
+| message_key | string | `notification`   | Shared store key for the message text                                |
+| title       | string | ``               | Optional title / header for rich message formats                     |
+
+---
+
+### Category: Security / Configuration
+
+| Status | node_type_id | Display Name | Base Class | Description                                                                                                                                                                                      | Source          |
+| ------ | ------------ | ------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------- |
+| `[X]`  | secret_node  | Secret Node  | Node       | Reads a secret or configuration value from an environment variable, `.env` file, or a secrets manager (AWS Secrets Manager, HashiCorp Vault). Writes the value to the shared store. Returns `default` or `not_found`. | Original design |
+
+**Suggested properties for `secret_node`:**
+
+| Property    | Type   | Default    | Description                                                                   |
+| ----------- | ------ | ---------- | ----------------------------------------------------------------------------- |
+| source      | string | `env`      | Secret source: `env`, `dotenv`, `aws_secrets`, `vault`                        |
+| secret_name | string | ``         | Environment variable name or secret path/name                                 |
+| output_key  | string | `secret`   | Shared store key to write the retrieved secret value to                       |
+| required    | bool   | true       | If true, route `not_found` when the secret is missing; if false, write `None` |
+
+---
+
 ## Summary counts
 
 | Category                       | Candidates |
@@ -388,7 +652,14 @@ flow executions.
 | MCP / Agent Protocol           | 3          |
 | Observability / Utility        | 4          |
 | Data Structures / Memory       | 6          |
-| **Total**                      | **44**     |
+| System / Shell / Hardware      | 3          |
+| Networking / Sockets           | 3          |
+| AI / LLM Utilities             | 2          |
+| Text / Data Processing         | 5          |
+| Resilience / Flow Utilities    | 2          |
+| Messaging / Notifications      | 3          |
+| Security / Configuration       | 1          |
+| **Total**                      | **63**     |
 
 ---
 

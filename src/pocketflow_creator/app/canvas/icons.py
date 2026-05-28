@@ -122,6 +122,32 @@ _PALETTE_ITEMS_EX: list[tuple[str, str, str]] = [
     ("Queue Enqueue Node",       "queue_enqueue_node",       "#26a69a"),
     ("Queue Dequeue Node",       "queue_dequeue_node",       "#009688"),
     ("Local Memory Node",        "local_memory_node",        "#3949ab"),
+    # ── System / Shell / Hardware ─────────────────────────────────────────────
+    ("Shell Command Node",       "shell_command_node",       "#004d00"),
+    ("TTY Serial Node",          "tty_serial_node",          "#f57f17"),
+    ("Spreadsheet Node",         "spreadsheet_node",         "#1b7a1b"),
+    # ── Networking / Sockets ──────────────────────────────────────────────────
+    ("Socket Node",              "socket_node",              "#00838f"),
+    ("WebSocket Node",           "websocket_node",           "#00acc1"),
+    ("Webhook Trigger Node",     "webhook_trigger_node",     "#6200ea"),
+    # ── AI / LLM Utilities ────────────────────────────────────────────────────
+    ("Context Compact Node",     "context_compact_node",     "#4a0072"),
+    ("Conversation History Node","conversation_history_node","#3f51b5"),
+    # ── Text / Data Processing ────────────────────────────────────────────────
+    ("Regex Node",               "regex_node",               "#d84315"),
+    ("Template Render Node",     "template_render_node",     "#f9a825"),
+    ("JSON Parse Node",          "json_parse_node",          "#00695c"),
+    ("List Operations Node",     "list_ops_node",            "#424242"),
+    ("String Operations Node",   "string_ops_node",          "#3e2723"),
+    # ── Resilience / Flow Utilities ───────────────────────────────────────────
+    ("Retry Node",               "retry_node",               "#e53935"),
+    ("Rate Limiter Node",        "rate_limiter_node",        "#00600f"),
+    # ── Messaging / Notifications ─────────────────────────────────────────────
+    ("Email Send Node",          "email_send_node",          "#d50000"),
+    ("Email Read Node",          "email_read_node",          "#c51162"),
+    ("Notification Node",        "notification_node",        "#ff6f00"),
+    # ── Security / Configuration ──────────────────────────────────────────────
+    ("Secret Node",              "secret_node",              "#212121"),
 ]
 
 # Map type_id → bg hex (used by NodeItem paint and icon generator)
