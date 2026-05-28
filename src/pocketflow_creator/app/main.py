@@ -86,6 +86,7 @@ from pocketflow_creator.model.project import ProjectModel
 from pocketflow_creator.project_io import ProjectLoader, ProjectSaver
 from pocketflow_creator.app import code_manager, run_controller
 from pocketflow_creator.app.dialogs.auto_arrange_dialog import AutoArrangeDialog
+from pocketflow_creator.app.dialogs.customize_toolbar_dialog import CustomizeToolbarDialog
 from pocketflow_creator.app.dialogs.provider_manager_dialog import exec_provider_manager
 from pocketflow_creator.app.dialogs.shared_store_designer_dialog import open_shared_store_designer
 from pocketflow_creator.app.settings_keys import (
@@ -98,6 +99,7 @@ from pocketflow_creator.app.settings_keys import (
     _SKEY_LOCALE,
     _SKEY_RECENT,
     _SKEY_THEME,
+    _SKEY_TOOLBAR_ORDER,
 )
 from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES
 from pocketflow_creator.runtime.runner import FlowRunner, RunStep, RunTrace, StepController
@@ -372,17 +374,38 @@ class MainWindow(QMainWindow):
             }
         """)
         self.addToolBar(tb)
+        self._node_toolbar = tb
 
-        for type_id, nt in BUILTIN_NODE_TYPES.items():
+        # Determine display order — saved order first, falling back to default
+        default_order = list(BUILTIN_NODE_TYPES.keys())
+        saved = QSettings(_ORG, _APP).value(_SKEY_TOOLBAR_ORDER, None)
+        if isinstance(saved, list):
+            # Keep only known type_ids; append any new ones not yet in saved list
+            known = set(default_order)
+            order: list[str] = [t for t in saved if t in known]
+            for t in default_order:
+                if t not in order:
+                    order.append(t)
+        else:
+            order = default_order
+
+        # Use addAction so Qt's built-in overflow extension button (>>) works
+        self._toolbar_actions: dict[str, QAction] = {}
+        for type_id in order:
+            nt = BUILTIN_NODE_TYPES.get(type_id)
+            if nt is None:
+                continue
             icon = make_node_icon(type_id, 32)
-            btn = QToolButton()
-            btn.setIcon(icon)
-            btn.setIconSize(QSize(28, 28))
-            btn.setToolTip(nt.display_name)
-            btn.clicked.connect(
+            act = tb.addAction(icon, nt.display_name)
+            act.setToolTip(nt.display_name)
+            act.triggered.connect(
                 lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
             )
-            tb.addWidget(btn)
+            self._toolbar_actions[type_id] = act
+
+        # Right-click on the toolbar → "Customize Toolbar…"
+        tb.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        tb.customContextMenuRequested.connect(self._on_toolbar_context_menu)
 
     def _drop_node_at_center(self, type_id: str) -> None:
         """Add a node of type_id at the visible centre of the graph view."""
@@ -392,6 +415,55 @@ class MainWindow(QMainWindow):
             self._graph_view.viewport().rect().center()
         )
         self._graph_scene.create_node_at(type_id, center)
+
+    def _on_toolbar_context_menu(self) -> None:
+        menu = QMenu(self)
+        menu.addAction(self.tr("Customize Toolbar…"), self._on_customize_toolbar)
+        menu.exec(self._node_toolbar.mapToGlobal(
+            self._node_toolbar.rect().center()
+        ))
+
+    def _on_customize_toolbar(self) -> None:
+        """Open the Customize Toolbar dialog and apply / save the result."""
+        current_order = [
+            type_id
+            for type_id in self._toolbar_actions
+        ]
+        display_names = {
+            type_id: nt.display_name
+            for type_id, nt in BUILTIN_NODE_TYPES.items()
+        }
+        default_order = list(BUILTIN_NODE_TYPES.keys())
+
+        dlg = CustomizeToolbarDialog(
+            current_order, display_names, default_order, self
+        )
+        if dlg.exec() != CustomizeToolbarDialog.DialogCode.Accepted:
+            return
+
+        new_order = dlg.ordered_type_ids()
+
+        # Rebuild toolbar actions in the new order
+        tb = self._node_toolbar
+        # Remove all existing node actions
+        for act in list(self._toolbar_actions.values()):
+            tb.removeAction(act)
+        self._toolbar_actions.clear()
+
+        for type_id in new_order:
+            nt = BUILTIN_NODE_TYPES.get(type_id)
+            if nt is None:
+                continue
+            icon = make_node_icon(type_id, 32)
+            act = tb.addAction(icon, nt.display_name)
+            act.setToolTip(nt.display_name)
+            act.triggered.connect(
+                lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
+            )
+            self._toolbar_actions[type_id] = act
+
+        # Persist the new order
+        QSettings(_ORG, _APP).setValue(_SKEY_TOOLBAR_ORDER, new_order)
 
     def _build_central_area(self) -> None:
         self._graph_view = GraphView(self._graph_scene)

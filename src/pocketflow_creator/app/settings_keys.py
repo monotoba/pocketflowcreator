@@ -25,3 +25,6 @@ _SKEY_LOCALE = "ui/locale"
 _SKEY_LAYOUT_GEOMETRY = "ui/layout/geometry"
 _SKEY_LAYOUT_STATE = "ui/layout/window_state"
 _SKEY_LAYOUT_SPLITTER = "ui/layout/md_splitter"
+
+# ── Toolbar ───────────────────────────────────────────────────────────────────
+_SKEY_TOOLBAR_ORDER = "ui/toolbar/node_palette_order"
