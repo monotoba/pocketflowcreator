@@ -9,6 +9,7 @@ from typing import Protocol
 
 class LLMProvider(Protocol):
     def complete(self, prompt: str, *, model: str | None = None) -> str:
+        """Send *prompt* to the LLM and return the text response."""
         ...
 
 
@@ -40,3 +41,5 @@ class OllamaProvider:
                 return str(body.get("response", ""))
         except urllib.error.URLError as exc:
             raise RuntimeError(f"Ollama request failed: {exc}") from exc
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Ollama returned invalid JSON: {exc}") from exc
