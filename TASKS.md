@@ -323,7 +323,7 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
 - [x] T-R09 🟡 Define module-level constants for all repeated `QSettings` key strings
   (`_ORG`, `_APP`, `_SKEY_PROVIDER`, `_SKEY_OLLAMA_URL`, `_SKEY_OLLAMA_MODEL`, etc.)
   and replace the ~9 scattered string literals.
-- [ ] T-R10 🟡 Fix f-strings passed into `self.tr()` at lines 603, 861, 1861, and 2020 —
+- [x] T-R10 🟡 Fix f-strings passed into `self.tr()` at lines 603, 861, 1861, and 2020 —
   format the string *after* translation using `% name` or `.format(name)`.
 - [ ] T-R11 🟡 Change `_stop_action` and `_resume_action` type annotations from `object`
   to `QAction` and remove all `# type: ignore[attr-defined]` comments on their usage.

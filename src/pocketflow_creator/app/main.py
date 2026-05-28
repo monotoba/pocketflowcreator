@@ -880,7 +880,7 @@ class MainWindow(QMainWindow):
             btn = QMessageBox.question(
                 self,
                 self.tr("Overwrite?"),
-                self.tr(f"'{new_root}' already exists. Overwrite?"),
+                self.tr("'%1' already exists. Overwrite?").replace("%1", str(new_root)),
             )
             if btn != QMessageBox.StandardButton.Yes:
                 return
@@ -905,7 +905,7 @@ class MainWindow(QMainWindow):
             self._add_recent(self._project.project_file)
             self.setWindowTitle(f"PocketFlow Creator — {name}")
             self._refresh_explorer()
-            self.statusBar().showMessage(self.tr(f"Project saved as: {name}"))
+            self.statusBar().showMessage(self.tr("Project saved as: %1").replace("%1", name))
         except Exception as exc:
             QMessageBox.critical(self, self.tr("Save As Failed"), str(exc))
 
