@@ -375,10 +375,10 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
 
 ### Group 7 — Refactor `app/editors.py`
 
-- [ ] T-R28 🟡 Introduce `_RulesHighlighter(QSyntaxHighlighter)` base class with the
+- [x] T-R28 🟡 Introduce `_RulesHighlighter(QSyntaxHighlighter)` base class with the
   shared `highlightBlock` implementation; have `PythonHighlighter` and `YamlHighlighter`
   inherit from it.
-- [ ] T-R29 🟢 Move highlight rule objects to class-level `ClassVar` attributes so they
+- [x] T-R29 🟢 Move highlight rule objects to class-level `ClassVar` attributes so they
   are built once, not on every instantiation.
 
 ### Group 8 — Model layer improvements
