@@ -12,6 +12,8 @@ all from one IDE-like GUI built on PySide6.
 
 Milestones M0–M15 complete. 106 tests, all passing.
 
+![PocketFlow Creator — sentiment triage flow after a complete run, Object Inspector open on a Classifier node](src/pocketflow_creator/help/img/flow_run_complete.png)
+
 ---
 
 ## Features

@@ -132,6 +132,8 @@ fix the property, and validate again.
 If you have Ollama running locally the LLM Node will call it. Otherwise configure a provider
 in **Tools > Provider Manager** or accept the Mock Provider output for testing.
 
+![Debug run in progress — Run Log showing step-by-step node execution and shared store output](img/debug_run_in_progress.png)
+
 ---
 
 ## Step 10 — Export

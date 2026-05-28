@@ -139,6 +139,8 @@ Run > Resume (F5). The flow runs Ask LLM and pauses again if there is another br
 or continues to the end. After the node completes, the Shared Store shows the new values
 it wrote — in this case, `answer`.
 
+![Debug session — breakpoint cleared on the Classify Sentiment node, positive path taken, Run Log shows execution trace](../img/debug_breakpoint_cleared.png)
+
 **Step 6: Use multiple breakpoints in a loop.**
 
 Open Tutorial 8 (Chat). Set breakpoints on **Get Input** and **Call LLM**. Run in debug
