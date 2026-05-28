@@ -25,6 +25,7 @@ the [PocketFlow](https://github.com/The-Pocket/PocketFlow) framework.
 | [Part 1 — Fundamentals](tutorials/part1_fundamentals.md) | IDE Tour, First Flow, Inspector, Code Editor, Custom Nodes, Templates |
 | [Part 2 — PocketFlow Patterns](tutorials/part2_patterns.md) | Hello World, Chat, Structured Output, Routing, Agent, RAG, Batch, HITL, Judge, Multi-Agent, Streaming, Memory |
 | [Part 3 — Advanced Features](tutorials/part3_advanced.md) | Validation, Debug, Subflows, Export, Shared Store, Packaging |
+| [**Creating Custom Nodes**](tutorials/custom_nodes.md) | GUI wizard + external `.py` node packages; installing, sharing, testing |
 | [Part 4 — Exercises](tutorials/part4_exercises.md) | News Summariser, Coding Agent, Multi-Provider Router, Full IDE Workout |
 
 See the [Tutorials Index](tutorials/index.md) for a full list.

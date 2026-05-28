@@ -82,6 +82,24 @@ Code shown in `code blocks` is written in the **Python editor** tab.
 
 ---
 
+## Creating Custom Nodes
+
+[→ Open the Guide](custom_nodes.md)
+
+A complete guide to adding your own node types to the palette — using the GUI wizard
+for project-local nodes and writing `.py` node packages for reusable, shareable nodes.
+
+| Section | Topic |
+|---|---|
+| [Approach 1 — GUI Wizard](custom_nodes.md#approach-1--using-the-gui-wizard) | Definition / Actions / Properties tabs; node registered in the project |
+| [Approach 2 — Node Package](custom_nodes.md#approach-2--writing-a-node-package) | `__node_meta__` dict, auto-detected class, optional icon draw-fn |
+| [Installing a Package](custom_nodes.md#installing-a-package-via-the-gui) | Tools → Node Type Library → Install node package (.py) |
+| [Node Type Library](custom_nodes.md#the-node-type-library-dialog) | Built-in / Installed Custom / Errors tabs |
+| [External Editor Workflow](custom_nodes.md#developing-a-package-in-an-external-editor) | Type hints, secrets, unit-testing outside Creator |
+| [Quick Reference](custom_nodes.md#quick-reference) | Minimal skeleton, full key table, property schema |
+
+---
+
 ## Part 3 — Advanced Creator Features
 
 [→ Open Part 3](part3_advanced.md)
