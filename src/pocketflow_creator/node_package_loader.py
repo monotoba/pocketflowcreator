@@ -1,12 +1,19 @@
-"""Single-file node package loader for PocketFlow Creator.
+"""Node package loader for PocketFlow Creator.
 
 Add-on node packages ship with Creator under ``pocketflow_creator/addon_nodes/``
 and are loaded at startup before user packages.  They appear in the palette
 under a "Scientific & Engineering" section before the user-node section.
 
-A **node package** is a single ``.py`` file.  All metadata is declared in a
-module-level ``__node_meta__`` dict so it is plain Python — no parsing, no
-special syntax, easy to write and validate in any editor:
+A **node package** is either:
+
+* A single ``.py`` file, or
+* A **multi-file folder** whose name matches its entry-point file
+  (e.g. ``my_plugin/my_plugin.py``).  All module-relative imports
+  (``from . import helpers``) work transparently — no ``sys.path`` mutation.
+
+All metadata is declared in a module-level ``__node_meta__`` dict so it is
+plain Python — no parsing, no special syntax, easy to write and validate in
+any editor:
 
 .. code-block:: python
 
@@ -255,8 +262,11 @@ class PackageLoadError(Exception):
     """Raised when a node package file cannot be loaded."""
 
 
-def load_node_package(path: Path) -> NodeTypeDefinition:
-    """Load a single ``.py`` node package file.
+def load_node_package(
+    path: Path,
+    package_dir: Path | None = None,
+) -> NodeTypeDefinition:
+    """Load a ``.py`` node package file (single-file or multi-file entry point).
 
     Reads all metadata from the module-level ``__node_meta__`` dict and the
     optional ``__node_icon__`` dunder.  See the module docstring for the full
@@ -265,7 +275,13 @@ def load_node_package(path: Path) -> NodeTypeDefinition:
     Parameters
     ----------
     path:
-        Absolute path to the ``.py`` file.
+        Absolute path to the ``.py`` file (the entry point).
+    package_dir:
+        For multi-file packages, pass the folder that contains *path*.
+        The spec is created with ``submodule_search_locations=[str(package_dir)]``
+        so relative imports (``from . import helpers``) resolve correctly
+        without mutating ``sys.path``.  When ``None`` the file is loaded as a
+        plain single-file package.
 
     Returns
     -------
@@ -286,8 +302,16 @@ def load_node_package(path: Path) -> NodeTypeDefinition:
         raise PackageLoadError(f"Expected a .py file, got: {path.name}")
 
     # ── Import the module ─────────────────────────────────────────────────
-    module_name = f"_pfc_node_pkg_{path.stem}"
-    spec = importlib.util.spec_from_file_location(module_name, path)
+    if package_dir is not None:
+        # Multi-file: unique prefix so _pfc_addon_dir_foo ≠ _pfc_node_pkg_foo
+        module_name = f"_pfc_addon_dir_{package_dir.name}"
+        spec = importlib.util.spec_from_file_location(
+            module_name, path,
+            submodule_search_locations=[str(package_dir)],
+        )
+    else:
+        module_name = f"_pfc_node_pkg_{path.stem}"
+        spec = importlib.util.spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
         raise PackageLoadError(f"Cannot create module spec for: {path}")
 
@@ -365,16 +389,20 @@ def load_node_package(path: Path) -> NodeTypeDefinition:
     )
 
     # Store extended metadata separately (NodeTypeDefinition is slotted)
-    _PACKAGE_META[type_id] = {
-        "source_file":        str(path),
-        "version":            version,
-        "author":             author,
-        "website":            website,
-        "repo":               repo,
-        "tags":               tags,
-        "license":            license_,
+    meta: dict[str, Any] = {
+        "source_file":         str(path),
+        "version":             version,
+        "author":              author,
+        "website":             website,
+        "repo":                repo,
+        "tags":                tags,
+        "license":             license_,
         "min_creator_version": min_creator,
+        "is_multifile":        package_dir is not None,
     }
+    if package_dir is not None:
+        meta["source_dir"] = str(package_dir)
+    _PACKAGE_META[type_id] = meta
 
     return defn
 
@@ -385,13 +413,25 @@ def _scan_directory(
     directory: Path,
     addon: bool = False,
 ) -> tuple[list[NodeTypeDefinition], list[tuple[str, str]]]:
-    """Internal: scan *directory* for node packages and register them."""
+    """Internal: scan *directory* for node packages and register them.
+
+    Two passes are performed:
+
+    1. **Single-file packages** — every ``*.py`` file whose name does not
+       start with ``_``.
+    2. **Multi-file packages** — every non-private sub-directory.  The
+       convention is ``{dir_name}/{dir_name}.py`` for the entry point.  A
+       folder that does not follow this convention is recorded as an error.
+    """
     definitions: list[NodeTypeDefinition] = []
     errors: list[tuple[str, str]] = []
 
     if not directory.exists():
         return definitions, errors
 
+    label = "addon" if addon else "user"
+
+    # ── Pass 1: single-file packages ──────────────────────────────────────
     for py_file in sorted(directory.glob("*.py")):
         if py_file.name.startswith("_"):
             continue  # skip __init__.py and private helpers
@@ -399,11 +439,36 @@ def _scan_directory(
             defn = load_node_package(py_file)  # also populates _PACKAGE_META
             definitions.append(defn)
             register_user_node(defn, addon=addon)
-            label = "addon" if addon else "user"
             _log.info("Loaded %s node package: %s (%s)", label, defn.display_name, py_file.name)
         except PackageLoadError as exc:
             errors.append((py_file.name, str(exc)))
             _log.warning("Failed to load node package %s: %s", py_file.name, exc)
+
+    # ── Pass 2: multi-file packages (sub-directories) ─────────────────────
+    for subdir in sorted(p for p in directory.iterdir() if p.is_dir() and not p.name.startswith("_")):
+        main_file = subdir / f"{subdir.name}.py"
+        if not main_file.exists():
+            errors.append((
+                f"{subdir.name}/",
+                f"Multi-file node package '{subdir.name}/' must contain "
+                f"'{subdir.name}.py' as its entry point.",
+            ))
+            _log.warning(
+                "Multi-file package '%s/' missing entry point '%s.py'",
+                subdir.name, subdir.name,
+            )
+            continue
+        try:
+            defn = load_node_package(main_file, package_dir=subdir)
+            definitions.append(defn)
+            register_user_node(defn, addon=addon)
+            _log.info(
+                "Loaded %s multi-file node package: %s (%s/)",
+                label, defn.display_name, subdir.name,
+            )
+        except PackageLoadError as exc:
+            errors.append((f"{subdir.name}/", str(exc)))
+            _log.warning("Failed to load multi-file node package %s/: %s", subdir.name, exc)
 
     return definitions, errors
 
@@ -448,10 +513,16 @@ def discover_user_nodes(
 def install_node_package(src: Path, overwrite: bool = False) -> Path:
     """Copy *src* into the user nodes directory.
 
+    *src* may be either:
+
+    * A single ``.py`` file — copied directly.
+    * A **directory** (multi-file package) — the folder must follow the
+      ``{name}/{name}.py`` convention; it is copied in its entirety.
+
     Parameters
     ----------
     src:
-        Source ``.py`` file to install.
+        Source ``.py`` file **or** multi-file package directory to install.
     overwrite:
         If ``False`` (default) and the destination already exists, raise
         ``FileExistsError``.
@@ -460,13 +531,42 @@ def install_node_package(src: Path, overwrite: bool = False) -> Path:
     -------
     Path
         The destination path inside the user nodes directory.
+
+    Raises
+    ------
+    PackageLoadError
+        If *src* is a directory but does not contain the required
+        ``{name}/{name}.py`` entry point.
+    FileExistsError
+        If the destination already exists and *overwrite* is ``False``.
     """
+    import shutil
+
+    if src.is_dir():
+        # Validate multi-file convention
+        main_file = src / f"{src.name}.py"
+        if not main_file.exists():
+            raise PackageLoadError(
+                f"'{src.name}/' is not a valid multi-file node package: "
+                f"it must contain '{src.name}.py' as its entry point."
+            )
+        dest = get_user_nodes_dir() / src.name
+        if dest.exists() and not overwrite:
+            raise FileExistsError(
+                f"'{dest.name}/' is already installed. "
+                "Pass overwrite=True to replace it."
+            )
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(src, dest)
+        return dest
+
+    # Single-file package
     dest = get_user_nodes_dir() / src.name
     if dest.exists() and not overwrite:
         raise FileExistsError(
             f"{dest.name} is already installed. "
             "Pass overwrite=True to replace it."
         )
-    import shutil
     shutil.copy2(src, dest)
     return dest

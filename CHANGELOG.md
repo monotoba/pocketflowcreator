@@ -7,6 +7,51 @@ Entries are ordered newest-first within each version.
 
 ## [Unreleased]
 
+### Added — multi-file node packages and add-on node system (2026-05-28)
+
+**Multi-file node packages**
+- Node packages can now be a folder instead of a single file.
+  Convention: `{name}/{name}.py` is the entry point; all other files in the folder
+  are helpers importable via relative imports (`from . import helpers`).
+- Isolation guaranteed via `importlib.util.spec_from_file_location` with
+  `submodule_search_locations` — no `sys.path` mutation; two plugins with
+  identically named helpers cannot interfere with each other.
+- `install_node_package()` accepts both a `.py` file and a directory; validates
+  the `{name}/{name}.py` convention before copying.
+- 7 new tests covering: load, discovery, missing entry-point error, cross-plugin
+  isolation, install, overwrite, and invalid-folder rejection.
+
+**Add-on node system (`addon_nodes/`)**
+- 34 scientific & engineering node packages ship with Creator in
+  `src/pocketflow_creator/addon_nodes/`:
+  Scientific Computing (2), Aerospace (11), Wind Energy (2),
+  Weather/Atmosphere (2), Building Energy (1), Hydrology/Water (8),
+  Geospatial (7), Data Catalog (1).
+- New `_ADDON_NODE_REGISTRY` separate from `_USER_NODE_REGISTRY`; loaded at
+  startup before user packages.
+- `discover_addon_nodes()`, `get_all_addon_nodes()`, `get_addon_node_groups()`
+  added to `node_package_loader`.
+- Palette gains a **─── Scientific & Engineering ───** section between the
+  built-in and custom-node sections.
+- Node toolbar gains a **48 px** gap before the add-on and custom sections;
+  built-in super-groups are separated by **32 px** transparent spacers.
+- Node Type Library dialog now has four tabs: Built-in, Scientific & Engineering,
+  Installed Custom, ⚠ Errors.
+
+**Documentation**
+- `tutorials/custom_nodes.md`: multi-file packages, installation of folders,
+  4-tab Node Type Library, updated load-order section, sharing multi-file packages.
+- `context/palette.md`: full three-section palette reference with node tables.
+- `docs/11_developer_guide.md`: node package system architecture, add-on node
+  conventions, toolbar super-group implementation note.
+
+### Fixed
+- `QWidget` missing from `QWidgets` import block in `app/main.py` caused
+  `NameError` at startup when building the node toolbar spacers.
+- Toolbar gap spacers now use `setFixedSize(width, height)` instead of
+  `setFixedWidth` alone — Qt's toolbar layout engine collapses widgets that have
+  no explicit height to zero, making the gaps invisible.
+
 ---
 
 ## [0.2.0] — 2026-05-28 (node expansion II)

@@ -79,7 +79,7 @@ class WeatherFetchNode(Node):
 
 ## Approach 2 — Writing a Node Package
 
-A **node package** is a single `.py` file you write in any editor.  Drop it into the user nodes directory and it loads automatically next time Creator starts, or immediately via the Node Type Library.
+A **node package** is either a single `.py` file, or a **multi-file folder**, that you write in any editor.  Drop it into the user nodes directory and it loads automatically next time Creator starts, or immediately via the Node Type Library.
 
 ### 2.1  Where packages live
 
@@ -93,7 +93,7 @@ Creator creates the folder on first launch; you can also open it from
 
 ### 2.2  File naming
 
-Name the file after your node class in snake_case:
+**Single-file package** — name the file after your node class in snake_case:
 
 ```
 weather_fetch_node.py   ✓
@@ -101,6 +101,19 @@ WeatherFetch.py         ✓  (works, but convention is snake_case)
 _helper.py              ✗  (leading underscore — skipped by the loader)
 __init__.py             ✗  (skipped)
 ```
+
+**Multi-file package** — create a folder whose name matches the main entry-point file:
+
+```
+weather_fetch/
+    weather_fetch.py    ✓  entry point (folder name == file name)
+    helpers.py          ✓  any helper modules you like
+    models.py           ✓
+    _private.py         ✓  private helpers (not loaded as a package themselves)
+```
+
+The folder name and entry-point file must share the same name (underscores, no spaces).  
+A folder that does not follow this convention is reported in the **⚠ Errors** tab and skipped.
 
 ### 2.3  The `__node_meta__` dict
 
@@ -292,45 +305,174 @@ class WeatherFetchNode:
 
 ---
 
+## Approach 2b — Multi-File Node Packages
+
+When a node needs helper modules (data models, API clients, constants, utilities), split it into a **folder package** instead of cramming everything into one file.
+
+### Convention
+
+The folder name and entry-point filename must be identical:
+
+```
+~/.pocketflow_creator/nodes/
+└── geocode_node/            ← folder name
+    ├── geocode_node.py      ← entry point (same name as folder)
+    ├── api_client.py        ← helper module
+    └── models.py            ← data models
+```
+
+### Relative imports
+
+Within the package, use **relative imports only**:
+
+```python
+# geocode_node/geocode_node.py
+from . import api_client       # ✓ relative — works correctly
+from . import models           # ✓
+
+import api_client              # ✗ absolute — unreliable; do not use
+```
+
+Creator loads each multi-file package in complete isolation using `importlib`'s `submodule_search_locations` — no `sys.path` mutation.  Two packages that both contain a `helpers.py` will never interfere with each other.
+
+### Complete multi-file example
+
+```
+~/.pocketflow_creator/nodes/
+└── geocode_node/
+    ├── geocode_node.py
+    └── geo_client.py
+```
+
+**`geo_client.py`:**
+```python
+"""Thin wrapper around the Open-Meteo geocoding endpoint."""
+import json, urllib.request
+
+def lookup(city: str) -> dict:
+    url = (
+        "https://geocoding-api.open-meteo.com/v1/search"
+        f"?name={city}&count=1&language=en&format=json"
+    )
+    with urllib.request.urlopen(url, timeout=10) as r:
+        data = json.loads(r.read())
+    results = data.get("results", [])
+    return results[0] if results else {}
+```
+
+**`geocode_node.py`:**
+```python
+"""Resolves a city name to latitude/longitude via Open-Meteo."""
+from . import geo_client
+
+__node_meta__ = {
+    "node":        "Geocode",
+    "category":    "Geospatial",
+    "version":     "1.0.0",
+    "description": "Resolves a city name to lat/lon.",
+    "actions":     ["default", "not_found"],
+    "properties": {
+        "city_key":   {"type": "string", "default": "city",     "description": "Input key"},
+        "result_key": {"type": "string", "default": "location", "description": "Output key"},
+    },
+    "color": "#2e7d32",
+}
+
+__node_icon__ = None
+
+
+class GeocodeNode:
+    def prep(self, shared):
+        return {"city": shared.get("city", ""), "result_key": "location"}
+
+    def exec(self, prep_res):
+        return geo_client.lookup(prep_res["city"])
+
+    def post(self, shared, prep_res, exec_res):
+        if not exec_res:
+            return "not_found"
+        shared[prep_res["result_key"]] = exec_res
+        return "default"
+```
+
+### Installing a multi-file package via the GUI
+
+1. Go to **Tools → Node Type Library → Installed Custom** tab.
+2. Click **Install node package folder…**
+3. Select the **folder** (e.g. `geocode_node/`).
+4. Creator validates the `{name}/{name}.py` convention and copies the entire folder.
+
+### Testing a multi-file package outside Creator
+
+```python
+import importlib.util, sys
+from pathlib import Path
+
+pkg_dir = Path.home() / ".pocketflow_creator/nodes/geocode_node"
+entry   = pkg_dir / "geocode_node.py"
+spec    = importlib.util.spec_from_file_location(
+    "geocode_node", entry,
+    submodule_search_locations=[str(pkg_dir)],
+)
+mod = importlib.util.module_from_spec(spec)
+sys.modules["geocode_node"] = mod
+spec.loader.exec_module(mod)
+
+def test_geocode_london():
+    node = mod.GeocodeNode()
+    shared = {"city": "London"}
+    prep   = node.prep(shared)
+    result = node.exec(prep)
+    assert "latitude" in result
+```
+
+---
+
 ## Installing a Package via the GUI
 
-If you received a `.py` node package from a colleague or downloaded one:
+If you received a node package from a colleague or downloaded one:
 
 1. Go to **Tools → Node Type Library**.
 2. Click the **Installed Custom** tab.
-3. Click **Install node package (.py)…**
-4. Select the `.py` file.
-5. If a node with the same filename is already installed Creator asks whether to replace it.
+3. Click **Install node package (.py)…** for a single-file package, or **Install node package folder…** for a multi-file folder package.
+4. Select the file or folder.
+5. If a package with the same name is already installed, Creator asks whether to replace it.
 6. After a successful install the node appears immediately in the **Component Palette** under its category.  The toolbar shows the node after the next application restart.
 
-> **To remove a package** open the nodes folder (**Open nodes folder** button), delete the `.py` file, and restart Creator.
+> **To remove a package** open the nodes folder (**Open nodes folder** button), delete the `.py` file or folder, and restart Creator.
 
 ---
 
 ## The Node Type Library Dialog
 
-**Tools → Node Type Library** has three tabs:
+**Tools → Node Type Library** has four tabs:
 
 | Tab | Contents |
 |---|---|
-| **Built-in** | All 83 built-in nodes with ID, display name, and category |
-| **Installed Custom** | Every loaded node package — version, author, license, source file; click a row to see description, tags, website, and repo |
-| **⚠ Errors** | Packages that failed to load, with the filename and error message.  Fix the file and restart to retry |
+| **Built-in** | All built-in nodes with ID, display name, and category |
+| **Scientific & Engineering** | The 34 add-on scientific and engineering nodes that ship with Creator, grouped by domain (Aerospace, Hydrology, Geospatial, etc.) |
+| **Installed Custom** | Every user-installed node package — version, author, license, source file/folder; click a row to see description, tags, website, and repo |
+| **⚠ Errors** | Packages (built-in add-ons or user packages) that failed to load, with the filename and error message.  Fix the file and restart to retry |
 
 ---
 
 ## Load Order and the `type_id` Namespace
 
-- Built-in nodes are registered first.
-- User packages are loaded in filename alphabetical order from the nodes directory.
-- If a package declares a `type_id` that collides with a built-in (e.g. a file that produces `start_node`), the **built-in wins** — the package definition is silently skipped and an error is recorded in the **⚠ Errors** tab.
-- Within user packages, a later file silently overwrites an earlier file with the same `type_id`.  Rename one of them to resolve the conflict.
+1. **Built-in nodes** are registered first.
+2. **Add-on nodes** (the scientific & engineering packages that ship with Creator) are loaded next, in filename order.
+3. **User packages** are loaded last, in alphabetical order — single-file `.py` files first, then multi-file folders.
+
+Collision rules:
+- A user package whose `type_id` matches a built-in or add-on node is silently skipped; the existing definition wins and an error is recorded in the **⚠ Errors** tab.
+- Within user packages, a later entry silently overwrites an earlier entry with the same `type_id`.  Rename one of them to resolve the conflict.
 
 ---
 
 ## Sharing Your Node Package
 
-A node package is a single self-contained `.py` file — send it by email, post it in a GitHub Gist, or publish it on PyPI.  Recipients install it through **Tools → Node Type Library → Install node package (.py)…** or by copying the file directly into `~/.pocketflow_creator/nodes/`.
+A single-file package is a self-contained `.py` file — send it by email, post it in a GitHub Gist, or publish it on PyPI.  Recipients install it through **Tools → Node Type Library → Install node package (.py)…** or by copying the file directly into `~/.pocketflow_creator/nodes/`.
+
+A multi-file package is a folder — zip it or share the whole directory.  Recipients extract it and install with **Install node package folder…** or by copying the folder into `~/.pocketflow_creator/nodes/`.  Make sure the zip preserves the top-level folder so the `{name}/{name}.py` convention is intact after extraction.
 
 Suggested `__node_meta__` fields to fill in before sharing:
 

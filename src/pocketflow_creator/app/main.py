@@ -58,6 +58,7 @@ try:
         QTreeWidget,
         QTreeWidgetItem,
         QVBoxLayout,
+        QWidget,
     )
 
     from pocketflow_creator.app.canvas import (
@@ -483,10 +484,10 @@ class MainWindow(QMainWindow):
         self._node_toolbar = tb
 
         # Helpers ─────────────────────────────────────────────────────────────
-        def _add_gap(width: int = 14) -> None:
+        def _add_gap(width: int = 32) -> None:
             """Insert a transparent fixed-width spacer to separate super-groups."""
             spacer = QWidget()
-            spacer.setFixedWidth(width)
+            spacer.setFixedSize(width, 32)  # explicit height so toolbar doesn't collapse it
             spacer.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
             tb.addWidget(spacer)
 
@@ -540,7 +541,7 @@ class MainWindow(QMainWindow):
         # ── Add-on scientific / engineering nodes ─────────────────────────────
         addon_nodes_dict = get_all_addon_nodes()
         if addon_nodes_dict:
-            _add_gap(20)    # prominent break before the add-on section
+            _add_gap(48)    # prominent break before the add-on section
             prev_addon_cat: str | None = None
             for _cat, nodes_in_cat in get_addon_node_groups():
                 for type_id, nt in nodes_in_cat:
@@ -559,7 +560,7 @@ class MainWindow(QMainWindow):
         # ── User-installed custom nodes ───────────────────────────────────────
         user_nodes = get_all_user_nodes()
         if user_nodes:
-            _add_gap(20)    # prominent break before the custom section
+            _add_gap(48)    # prominent break before the custom section
             prev_user_cat: str | None = None
             for type_id, nt in user_nodes.items():
                 if nt.category != prev_user_cat:
