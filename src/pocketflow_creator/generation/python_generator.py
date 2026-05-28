@@ -27,10 +27,11 @@ class PythonGenerator:
         nodes = [self._node_ctx(n) for n in graph.nodes]
         class_names = [self._class_name(n) for n in graph.nodes]
 
+        index = graph.node_index()
         edges = []
         for edge in graph.edges:
-            src = graph.find_node(edge.from_node)
-            tgt = graph.find_node(edge.to_node)
+            src = index.get(edge.from_node)
+            tgt = index.get(edge.to_node)
             if src and tgt:
                 edges.append({
                     "from_var": self._var_name(src),
@@ -38,7 +39,7 @@ class PythonGenerator:
                     "action": edge.action,
                 })
 
-        start_node = graph.find_node(graph.start_node or "") or (
+        start_node = index.get(graph.start_node or "") or (
             graph.nodes[0] if graph.nodes else None
         )
         start_var = self._var_name(start_node) if start_node else "None"

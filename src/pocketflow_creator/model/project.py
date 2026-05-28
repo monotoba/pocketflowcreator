@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 @dataclass(slots=True)
 class ProjectModel:
+    """Top-level project configuration persisted in ``<name>.pfcproj.yaml``.
+
+    ``auto_arrange`` stores the last-used layout-algorithm settings
+    (algorithm, connector_style, h_gap, v_gap, max_cols) so the dialog
+    reopens with the user's previous choices.
+    """
     name: str
     package_name: str
     root: Path
@@ -15,7 +22,7 @@ class ProjectModel:
     prompts: list[str] = field(default_factory=list)
     node_types: list[str] = field(default_factory=list)
     shared_store_schema: str | None = None
-    auto_arrange: dict = field(default_factory=dict)
+    auto_arrange: dict[str, Any] = field(default_factory=dict)
 
     @property
     def project_file(self) -> Path:

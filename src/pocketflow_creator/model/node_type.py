@@ -1,7 +1,19 @@
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
 from typing import Any
+
+
+def _coerce_bool(val: Any) -> bool:
+    """Convert *val* to bool, treating common YAML-false strings as False.
+
+    ``bool("false")`` would return ``True`` (non-empty string) — this helper
+    recognises the strings "false", "no", "off", and "0" as False instead.
+    """
+    if isinstance(val, str):
+        return val.lower() not in ("false", "no", "off", "0", "")
+    return bool(val)
 
 
 @dataclass(slots=True)
@@ -28,22 +40,37 @@ class NodeTypeDefinition:
 
     @classmethod
     def from_mapping(cls, data: dict[str, Any]) -> NodeTypeDefinition:
+        """Construct from a mapping (e.g. loaded YAML dict).
+
+        Iterates ``dataclasses.fields(cls)`` so that adding a new field to the
+        dataclass automatically makes it available here without a second edit.
+        Coercion rules are inferred from each field's default / default_factory.
+        """
         required = ["node_type_id", "display_name", "category", "base_class"]
         missing = [key for key in required if key not in data]
         if missing:
             raise ValueError(f"Missing required node type fields: {', '.join(missing)}")
-        return cls(
-            node_type_id=str(data["node_type_id"]),
-            display_name=str(data["display_name"]),
-            category=str(data["category"]),
-            base_class=str(data["base_class"]),
-            python_class=data.get("python_class"),
-            module=data.get("module"),
-            description=str(data.get("description", "")),
-            properties=dict(data.get("properties", {})),
-            actions=list(data.get("actions", [])),
-            reads=list(data.get("reads", [])),
-            writes=list(data.get("writes", [])),
-            allow_python_hooks=bool(data.get("allow_python_hooks", False)),
-            allow_prompt_files=bool(data.get("allow_prompt_files", False)),
-        )
+
+        kwargs: dict[str, Any] = {}
+        for f in dataclasses.fields(cls):
+            if f.name not in data:
+                continue  # absent optional field — dataclass default applies
+            val = data[f.name]
+            if f.default_factory is not dataclasses.MISSING:  # type: ignore[misc]
+                # list or dict field: coerce to the container type
+                sample = f.default_factory()  # type: ignore[misc]
+                if isinstance(sample, dict):
+                    kwargs[f.name] = dict(val) if isinstance(val, dict) else {}
+                else:
+                    kwargs[f.name] = list(val) if val is not None else []
+            elif (
+                f.default is not dataclasses.MISSING
+                and isinstance(f.default, bool)
+            ):
+                # bool field: use _coerce_bool so "false" strings map to False
+                kwargs[f.name] = _coerce_bool(val)
+            elif val is not None:
+                kwargs[f.name] = str(val)
+            else:
+                kwargs[f.name] = val  # None passthrough (optional str fields)
+        return cls(**kwargs)

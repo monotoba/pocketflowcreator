@@ -89,8 +89,9 @@ class GraphValidator:
     @staticmethod
     def _validate_declared_actions(graph: GraphModel) -> list[ValidationIssue]:
         issues: list[ValidationIssue] = []
+        index = graph.node_index()
         for edge in graph.edges:
-            source = graph.find_node(edge.from_node)
+            source = index.get(edge.from_node)
             if source is None:
                 continue
             if source.actions and edge.action not in source.actions:
