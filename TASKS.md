@@ -431,7 +431,7 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
 
 ### Group 14 — Single source of truth for node display names
 
-- [ ] T-R46 🟡 Update `PaletteWidget` and the toolbar builder in `app/main.py` to source
+- [x] T-R46 🟡 Update `PaletteWidget` and the toolbar builder in `app/main.py` to source
   display names from `BUILTIN_NODE_TYPES` rather than the parallel `_PALETTE_ITEMS_EX`
   list, keeping `_PALETTE_ITEMS_EX` only for colour values.
 

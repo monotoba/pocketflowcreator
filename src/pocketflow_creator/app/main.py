@@ -61,7 +61,6 @@ try:
     )
 
     from pocketflow_creator.app.canvas import (
-        _PALETTE_ITEMS_EX,
         EdgeItem,
         GraphScene,
         GraphView,
@@ -370,12 +369,12 @@ class MainWindow(QMainWindow):
         """)
         self.addToolBar(tb)
 
-        for display_name, type_id, _color in _PALETTE_ITEMS_EX:
+        for type_id, nt in BUILTIN_NODE_TYPES.items():
             icon = make_node_icon(type_id, 32)
             btn = QToolButton()
             btn.setIcon(icon)
             btn.setIconSize(QSize(28, 28))
-            btn.setToolTip(display_name)
+            btn.setToolTip(nt.display_name)
             btn.clicked.connect(
                 lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
             )
