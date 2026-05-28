@@ -332,9 +332,9 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
   `if not self._ensure_active_graph(): return` guards in callers.
 - [x] T-R13 🟡 Replace `assert self._active_graph_rel is not None` (lines 1769, 1834)
   with explicit `if … is None: return` guards that are safe under `python -O`.
-- [ ] T-R14 🟢 Add named constant `_PNG_BACKGROUND_DARK = 0xFF1A1A1A` for the PNG export
+- [x] T-R14 🟢 Add named constant `_PNG_BACKGROUND_DARK = 0xFF1A1A1A` for the PNG export
   background fill colour (line 1028).
-- [ ] T-R15 🟢 Remove the redundant `_PALETTE_ITEMS` list from `canvas.py`; have
+- [x] T-R15 🟢 Remove the redundant `_PALETTE_ITEMS` list from `canvas.py`; have
   `PaletteWidget` iterate `_PALETTE_ITEMS_EX` directly.
 
 ### Group 4 — Decompose `FlowRunner.steps` in `runtime/runner.py`

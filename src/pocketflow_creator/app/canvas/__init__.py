@@ -9,7 +9,6 @@ from __future__ import annotations
 from pocketflow_creator.app.canvas.icons import (
     NODE_TYPE_COLOR,
     _ICON_DRAW,
-    _PALETTE_ITEMS,
     _PALETTE_ITEMS_EX,
     make_node_icon,
 )
@@ -39,7 +38,6 @@ __all__ = [
     # icons
     "NODE_TYPE_COLOR",
     "_ICON_DRAW",
-    "_PALETTE_ITEMS",
     "_PALETTE_ITEMS_EX",
     "make_node_icon",
     # items

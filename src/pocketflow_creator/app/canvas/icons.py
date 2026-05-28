@@ -65,10 +65,6 @@ _PALETTE_ITEMS_EX: list[tuple[str, str, str]] = [
     ("Subflow Node",             "subflow_node",             "#7f8c8d"),
 ]
 
-_PALETTE_ITEMS: list[tuple[str, str]] = [
-    (name, tid) for name, tid, _ in _PALETTE_ITEMS_EX
-]
-
 # Map type_id → bg hex (used by NodeItem paint and icon generator)
 NODE_TYPE_COLOR: dict[str, str] = {tid: color for _, tid, color in _PALETTE_ITEMS_EX}
 

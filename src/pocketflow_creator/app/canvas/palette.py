@@ -27,7 +27,7 @@ else:
     except ImportError:  # pragma: no cover
         QListWidget = object
 
-from pocketflow_creator.app.canvas.icons import _PALETTE_ITEMS, make_node_icon
+from pocketflow_creator.app.canvas.icons import _PALETTE_ITEMS_EX, make_node_icon
 
 _MIME_NODE_TYPE = "application/x-pocketflow-node-type"
 _MIME_NODE_SNIPPET = "application/x-pocketflow-node-snippet"
@@ -52,7 +52,7 @@ class PaletteWidget(QListWidget):
         super().__init__(parent)
         self.setDragDropMode(QAbstractItemView.DragDropMode.DragOnly)
         self.setIconSize(QSize(28, 28))
-        for display_name, type_id in _PALETTE_ITEMS:
+        for display_name, type_id, _ in _PALETTE_ITEMS_EX:
             item = QListWidgetItem(make_node_icon(type_id, 28), display_name)
             item.setData(Qt.ItemDataRole.UserRole, type_id)
             self.addItem(item)

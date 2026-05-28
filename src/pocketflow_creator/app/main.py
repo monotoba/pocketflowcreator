@@ -107,6 +107,7 @@ from pocketflow_creator.validation.graph_validator import GraphValidator
 _MAX_RECENT = 5
 _VERSION = "0.2.0"
 _TEMP_PROJECT_DIR = ".pocketflow_creator_temp"
+_PNG_BACKGROUND_DARK = 0xFF1A1A1A  # ARGB dark background for PNG export
 
 
 def _node_skeleton_text(type_id: str, base_class: str) -> str:
@@ -1069,7 +1070,7 @@ class MainWindow(QMainWindow):
                 painter.end()
             else:
                 img = QImage(rect.size().toSize(), QImage.Format.Format_ARGB32)
-                img.fill(0xFF1A1A1A)
+                img.fill(_PNG_BACKGROUND_DARK)
                 painter = QPainter(img)
                 self._graph_scene.render(painter, source=rect)
                 painter.end()
