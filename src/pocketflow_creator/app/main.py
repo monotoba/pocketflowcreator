@@ -103,9 +103,12 @@ from pocketflow_creator.app.settings_keys import (
 )
 from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES, get_nodes_by_category
 from pocketflow_creator.node_package_loader import (
+    discover_bundled_nodes,
     discover_user_nodes,
     get_all_user_nodes,
+    get_all_bundled_nodes,
     get_user_node_groups,
+    get_bundled_node_groups,
     install_node_package,
     get_user_nodes_dir,
 )
@@ -187,8 +190,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.tr("PocketFlow Creator"))
         self.resize(1400, 900)
         self._build_menu_bar()
-        # Discover user node packages before building the toolbar and palette
-        # so they appear in both.
+        # Discover bundled and user node packages before building toolbar/palette.
+        _bundled_defns, self._bundled_node_load_errors = discover_bundled_nodes()
         _user_defns, self._user_node_load_errors = discover_user_nodes()
         self._build_node_toolbar()
         self._build_central_area()
@@ -494,6 +497,25 @@ class MainWindow(QMainWindow):
                 lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
             )
             self._toolbar_actions[type_id] = act
+
+        # Append bundled scientific / engineering nodes to the toolbar
+        bundled_nodes_dict = get_all_bundled_nodes()
+        if bundled_nodes_dict:
+            tb.addSeparator()
+            prev_bundled_cat: str | None = None
+            for _cat, nodes_in_cat in get_bundled_node_groups():
+                for type_id, nt in nodes_in_cat:
+                    if nt.category != prev_bundled_cat:
+                        if prev_bundled_cat is not None:
+                            tb.addSeparator()
+                        prev_bundled_cat = nt.category
+                    icon = make_node_icon(type_id, 32)
+                    act = tb.addAction(icon, nt.display_name)
+                    act.setToolTip(f"{nt.display_name}  [{nt.category}] ⚗ Bundled")
+                    act.triggered.connect(
+                        lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
+                    )
+                    self._toolbar_actions[type_id] = act
 
         # Append user-installed node packages to the toolbar
         user_nodes = get_all_user_nodes()
@@ -2434,7 +2456,26 @@ class MainWindow(QMainWindow):
         builtin_table.resizeColumnsToContents()
         tabs.addTab(builtin_table, f"Built-in ({len(BUILTIN_NODE_TYPES)})")
 
-        # ── Tab 2: installed custom node packages ─────────────────────────
+        # ── Tab 2: bundled scientific / engineering node packages ─────────
+        bundled_nodes = get_all_bundled_nodes()
+        bundled_table = QTableWidget(len(bundled_nodes), 5)
+        bundled_table.setHorizontalHeaderLabels(
+            ["Display Name", "Category", "Version", "Description", "Website"]
+        )
+        bundled_table.horizontalHeader().setStretchLastSection(True)
+        bundled_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        bundled_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        for r, defn in enumerate(sorted(bundled_nodes.values(), key=lambda d: (d.category, d.display_name))):
+            m = get_package_meta(defn.node_type_id)
+            bundled_table.setItem(r, 0, QTableWidgetItem(defn.display_name))
+            bundled_table.setItem(r, 1, QTableWidgetItem(defn.category))
+            bundled_table.setItem(r, 2, QTableWidgetItem(m.get("version", "")))
+            bundled_table.setItem(r, 3, QTableWidgetItem(defn.description or ""))
+            bundled_table.setItem(r, 4, QTableWidgetItem(m.get("website", "")))
+        bundled_table.resizeColumnsToContents()
+        tabs.addTab(bundled_table, f"Scientific & Engineering ({len(bundled_nodes)})")
+
+        # ── Tab 3: installed custom node packages ─────────────────────────
         custom_layout = QVBoxLayout()
         custom_widget = QWidget()
         custom_widget.setLayout(custom_layout)
@@ -2500,8 +2541,11 @@ class MainWindow(QMainWindow):
         custom_layout.addLayout(custom_btn_row)
         tabs.addTab(custom_widget, f"Installed Custom ({len(user_nodes)})")
 
-        # ── Tab 3: load errors ────────────────────────────────────────────
-        errors = getattr(self, "_user_node_load_errors", [])
+        # ── Tab 4: load errors ────────────────────────────────────────────
+        errors = (
+            getattr(self, "_bundled_node_load_errors", []) +
+            getattr(self, "_user_node_load_errors", [])
+        )
         if errors:
             err_table = QTableWidget(len(errors), 2)
             err_table.setHorizontalHeaderLabels(["File", "Error"])
