@@ -343,7 +343,7 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
   each node-type branch into its own private method:
   `_handle_subflow_node`, `_handle_llm_node`, `_handle_classifier_node`,
   `_handle_judge_node`, `_handle_agent_node`, `_handle_human_input_node`.
-- [ ] T-R17 🟡 Replace `on_step: object` and `input_callback: object` with proper
+- [x] T-R17 🟡 Replace `on_step: object` and `input_callback: object` with proper
   `Callable` types from `collections.abc`; remove the resulting `# type: ignore[operator]`.
 - [x] T-R18 🟡 Replace `bp = breakpoints or set()` with
   `bp = breakpoints if breakpoints is not None else set()` to avoid the falsy-empty-set trap.

@@ -4,7 +4,7 @@ import copy
 import json
 import re
 import threading
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -143,7 +143,7 @@ class FlowRunner:
         provider: LLMProvider,
         known_graphs: dict[str, GraphModel] | None,
         project_root: Path | None,
-        input_callback: object,
+        input_callback: Callable[[dict, dict], object] | None,
         chosen_action: str,
     ) -> tuple[list[RunStep], str, str, str]:
         """Execute a subflow inline; return (inner_steps, prompt, response, chosen_action).
@@ -283,13 +283,13 @@ class FlowRunner:
         node: NodeModel,
         shared_store: dict[str, object],
         available_actions: set[str],
-        input_callback: object,
+        input_callback: Callable[[dict, dict], object] | None,
         chosen_action: str,
     ) -> tuple[str, str, str]:
         """Handle a human-input node; return (prompt, response, chosen_action)."""
         output_key = str(node.properties.get("output_key", "input"))
-        if callable(input_callback):
-            data = input_callback(dict(node.properties), dict(shared_store))  # type: ignore[operator]
+        if input_callback is not None:
+            data = input_callback(dict(node.properties), dict(shared_store))
             if isinstance(data, dict):
                 shared_store.update(data)
                 chosen_action = "saved"
@@ -314,7 +314,7 @@ class FlowRunner:
         shared: dict[str, object] | None = None,
         known_graphs: dict[str, GraphModel] | None = None,
         project_root: Path | None = None,
-        input_callback: object = None,
+        input_callback: Callable[[dict, dict], object] | None = None,
     ) -> Generator[RunStep, None, None]:
         """Yield one RunStep per executed node. Non-blocking; consumer controls pacing.
 
@@ -400,7 +400,7 @@ class FlowRunner:
         shared: dict[str, object] | None = None,
         known_graphs: dict[str, GraphModel] | None = None,
         project_root: Path | None = None,
-        input_callback: object = None,
+        input_callback: Callable[[dict, dict], object] | None = None,
     ) -> RunTrace:
         started_at = datetime.now(tz=timezone.utc).isoformat()
         return RunTrace(
@@ -423,12 +423,12 @@ class FlowRunner:
         controller: StepController,
         *,
         breakpoints: set[str] | None = None,
-        on_step: object = None,
+        on_step: Callable[[RunStep], None] | None = None,
         project_name: str = "",
         shared: dict[str, object] | None = None,
         known_graphs: dict[str, GraphModel] | None = None,
         project_root: Path | None = None,
-        input_callback: object = None,
+        input_callback: Callable[[dict, dict], object] | None = None,
     ) -> RunTrace:
         """Run the graph in debug mode; pauses at breakpoints via controller.
 
@@ -446,8 +446,8 @@ class FlowRunner:
             if controller.is_stopped:
                 break
             collected.append(step)
-            if callable(on_step):
-                on_step(step)  # type: ignore[operator]
+            if on_step is not None:
+                on_step(step)
             if step.node_id in bp:
                 controller.pause()
             if not controller.wait_for_resume():
