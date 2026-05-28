@@ -9,6 +9,44 @@ Entries are ordered newest-first within each version.
 
 ---
 
+## [0.2.0] — 2026-05-28 (node expansion)
+
+### Added — 44 new node types with custom icons (2026-05-28)
+- 44 `NodeTypeDefinition` entries added to `BUILTIN_NODE_TYPES`, growing the palette from 20 to 64
+  node types across 12 new categories
+- Custom QPainter icon function for every new node type — no fallback initials; all 64 palette
+  entries have purpose-drawn icons with unique, semantically meaningful shapes
+- `quick_ref.md` expanded with full property tables and usage guidance for all 44 new types
+- README node-type list updated to reflect all 64 types across all categories
+
+#### New node types by category
+
+**AI / Reasoning** — Chain of Thought, Majority Vote, Supervisor, Debate Advocate, Debate Judge
+
+**Web / Search** — Web Search, Web Scrape, API Call
+
+**Data / Vector** — Text Chunk, Embed, Vector Index, Vector Retrieve
+
+**Database / SQL** — DB Schema, NL to SQL, SQL Execute
+
+**Voice / Audio** — Speech to Text, Text to Speech
+
+**Document / Vision** — PDF Extract, Image Vision, Data Validate
+
+**Code / Execution** — Code Gen, Code Exec, Test Gen
+
+**Data Processing** — Map, Reduce, Condition, Loop Counter, Transform, Merge
+
+**Calendar** — Calendar Read, Calendar Write
+
+**MCP / Agent Protocol** — MCP Tool, A2A Send, A2A Receive
+
+**Observability / Utility** — Log, Timer, Cache, Trace
+
+**Data Structures / Memory** — Registry, Stack Push, Stack Pop, Queue Enqueue, Queue Dequeue, Local Memory
+
+---
+
 ## [0.2.0] — 2026-05-27 / 2026-05-28
 
 ### Added — Toolbar overflow and Customize Toolbar dialog (2026-05-28)

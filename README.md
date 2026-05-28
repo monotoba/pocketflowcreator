@@ -21,9 +21,24 @@ Milestones M0–M15 complete. 106 tests, all passing.
 ### Visual Graph Designer
 - Drag nodes from the Component Palette onto the canvas
 - Wire action ports to create directed edges between nodes
-- 20 built-in node types with purpose-drawn icons: Start, Stop, Basic, Router, LLM Prompt,
-  JSON LLM, Classifier, Agent, Judge, Batch, RAG, Subflow, File Reader/Writer, Human Review/Input,
-  Async, Async Batch, Async Parallel Batch, Python Tool
+- 64 built-in node types with purpose-drawn icons across 12 categories:
+  - **Flow Control:** Start, Stop, Basic, Router, Subflow
+  - **LLM / AI:** LLM Prompt, JSON LLM, Classifier, Agent, RAG, Judge
+  - **AI / Reasoning:** Chain of Thought, Majority Vote, Supervisor, Debate Advocate, Debate Judge
+  - **Web / Search:** Web Search, Web Scrape, API Call
+  - **Data / Vector:** Text Chunk, Embed, Vector Index, Vector Retrieve
+  - **Database / SQL:** DB Schema, NL to SQL, SQL Execute
+  - **Voice / Audio:** Speech to Text, Text to Speech
+  - **Document / Vision:** PDF Extract, Image Vision, Data Validate
+  - **Code / Execution:** Code Gen, Code Exec, Test Gen
+  - **Data Processing:** Map, Reduce, Condition, Loop Counter, Transform, Merge
+  - **Calendar:** Calendar Read, Calendar Write
+  - **MCP / Agent Protocol:** MCP Tool, A2A Send, A2A Receive
+  - **Observability / Utility:** Log, Timer, Cache, Trace
+  - **Data Structures / Memory:** Registry, Stack Push/Pop, Queue Enqueue/Dequeue, Local Memory
+  - **Human-in-the-Loop:** Human Review, Human Input
+  - **Batch / Async:** Batch, Async, Async Batch, Async Parallel Batch
+  - **I/O:** File Reader, File Writer, Python Tool
 - Multi-action output ports — one port per action, node height grows dynamically
 - Input port label shows `input_key` property; action labels rendered inside the node body
 
