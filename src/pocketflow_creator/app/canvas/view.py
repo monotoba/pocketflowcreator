@@ -36,6 +36,13 @@ from pocketflow_creator.app.canvas.palette import _MIME_NODE_TYPE, _MIME_NODE_SN
 _DRAG_LINE_Z = 1000  # connector rubber-band drawn above all nodes while dragging
 
 
+def _hit_test_port(scene_pos: QPointF, port: QPointF, hit_r: float) -> bool:
+    """Return True if *scene_pos* is within *hit_r* scene units of *port*."""
+    dx = scene_pos.x() - port.x()
+    dy = scene_pos.y() - port.y()
+    return dx * dx + dy * dy <= hit_r * hit_r
+
+
 class GraphView(QGraphicsView):
     zoom_changed = Signal(float)  # emits current scale factor (1.0 = 100%)
 
@@ -64,9 +71,7 @@ class GraphView(QGraphicsView):
             actions = item.node.actions or ["default"]
             for action, y in NodeItem._action_port_ys(actions):
                 port = item.mapToScene(QPointF(_WIDTH, y))
-                dx = scene_pos.x() - port.x()
-                dy = scene_pos.y() - port.y()
-                if dx * dx + dy * dy <= hit_r * hit_r:
+                if _hit_test_port(scene_pos, port, hit_r):
                     return item, action
         return None
 
@@ -77,10 +82,7 @@ class GraphView(QGraphicsView):
             return None
         hit_r = _PORT_R * 4.0
         for item in scene._node_items.values():
-            port = item.input_port_scene_pos()
-            dx = scene_pos.x() - port.x()
-            dy = scene_pos.y() - port.y()
-            if dx * dx + dy * dy <= hit_r * hit_r:
+            if _hit_test_port(scene_pos, item.input_port_scene_pos(), hit_r):
                 return item
         for item in scene._node_items.values():
             local = item.mapFromScene(scene_pos)

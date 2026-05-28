@@ -368,7 +368,7 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
 - [x] T-R25 🟡 Unify the 20 `_ico_*` icon functions to a consistent `(p, sz, bg)` signature
   so `_ICON_DRAW` can dispatch uniformly and the `if/elif` special-case block in
   `_paint_node_pixmap` can be removed.
-- [ ] T-R26 🟡 Extract a shared `_hit_test_port(scene_pos, port_fn, hit_r)` helper used
+- [x] T-R26 🟡 Extract a shared `_hit_test_port(scene_pos, port_fn, hit_r)` helper used
   by both `_node_at_action_port` and `_node_at_input_port`.
 - [x] T-R27 🟢 Add explicit type annotation `_edge_rubber: QGraphicsLineItem | None` in
   `GraphView.__init__`.
