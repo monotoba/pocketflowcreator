@@ -2,13 +2,15 @@
 
 Welcome to **Getting to Know Nodes**, a hands-on tutorial series for PocketFlow Creator. This series walks you through every node type available in the **Component Palette**, one at a time. Instead of describing node behaviour in the abstract, each tutorial asks you to build a small, self-contained mini-flow that demonstrates exactly what that node does, why it exists, and how you configure it through the **Object Inspector**.
 
-By the time you finish all nineteen parts you will have built 83 mini-flows and will have a concrete mental model of every node type in the palette. You will know when to reach for a **Batch Node** versus an **Async Parallel Batch Node**, why you might prefer a **Classifier Node** over a hand-coded **Router Node**, and how **Subflow Nodes** let you compose large pipelines from reusable building blocks. The series is ordered from simplest to most powerful — start at Part 1 and work forwards, since later tutorials assume you are already comfortable with the node types introduced earlier.
+By the time you finish all twenty-five parts you will have built 117 mini-flows and will have a concrete mental model of every node type in the palette — including all 34 domain-specific addon nodes for geospatial data, hydrology, weather, aerospace CFD, wind energy, and scientific computing. The series is ordered from simplest to most powerful — start at Part 1 and work forwards, since later tutorials assume you are already comfortable with the node types introduced earlier.
 
 > ⚠️ **Note:** Complete **Tutorial 0 — IDE Tour** (found in [Part 1 of the main tutorial series](part1_fundamentals.md#tutorial-0-ide-tour)) before starting this series. That tutorial familiarises you with the six panels of the IDE — **Component Palette**, **Canvas**, **Object Inspector**, **Project Explorer**, **Python editor tab**, and **Run Log tab** — and introduces the vocabulary used throughout these pages.
 
 ---
 
-## All 83 Node Types at a Glance
+## All 117 Node Types at a Glance
+
+### Built-in Nodes (Parts 1–19)
 
 | # | Node Type | Category | Part |
 |---|-----------|----------|------|
@@ -96,6 +98,45 @@ By the time you finish all nineteen parts you will have built 83 mini-flows and 
 | 82 | Notification Node | Messaging | [Part 19](gtkn_part19.md) |
 | 83 | Secret Node | Security | [Part 19](gtkn_part19.md) |
 
+### Addon Nodes (Parts 20–25)
+
+| # | Node Type | Category | Part |
+|---|-----------|----------|------|
+| 84 | USGS Elevation Point Node | Geospatial | [Part 20](gtkn_part20.md) |
+| 85 | USGS 3DEP Elevation Node | Geospatial | [Part 20](gtkn_part20.md) |
+| 86 | National Map Download Node | Geospatial | [Part 20](gtkn_part20.md) |
+| 87 | Earthquake Catalog Node | Geospatial | [Part 20](gtkn_part20.md) |
+| 88 | Landsat Search & Download Node | Geospatial | [Part 20](gtkn_part20.md) |
+| 89 | ShakeMap Fetch Node | Geospatial | [Part 20](gtkn_part20.md) |
+| 90 | ShakeMap Scenario Node | Geospatial | [Part 20](gtkn_part20.md) |
+| 91 | USGS Water Data Node | Hydrology / Water | [Part 21](gtkn_part21.md) |
+| 92 | NWIS Query Node | Hydrology / Water | [Part 21](gtkn_part21.md) |
+| 93 | StreamStats Basin Node | Hydrology / Water | [Part 21](gtkn_part21.md) |
+| 94 | SWMM Run Node | Hydrology / Water | [Part 21](gtkn_part21.md) |
+| 95 | EPANET Run Node | Hydrology / Water | [Part 21](gtkn_part21.md) |
+| 96 | MODFLOW 6 Run Node | Hydrology / Water | [Part 21](gtkn_part21.md) |
+| 97 | FloPy Model Node | Hydrology / Water | [Part 21](gtkn_part21.md) |
+| 98 | pyWatershed Node | Hydrology / Water | [Part 21](gtkn_part21.md) |
+| 99 | NOAA Weather Node | Weather / Atmosphere | [Part 22](gtkn_part22.md) |
+| 100 | WRF Model Node | Weather / Atmosphere | [Part 22](gtkn_part22.md) |
+| 101 | EnergyPlus Run Node | Building Energy | [Part 22](gtkn_part22.md) |
+| 102 | Open VSP Geometry Node | Aerospace | [Part 23](gtkn_part23.md) |
+| 103 | VSPAERO Analysis Node | Aerospace | [Part 23](gtkn_part23.md) |
+| 104 | SU2 CFD Node | Aerospace | [Part 23](gtkn_part23.md) |
+| 105 | Cart3D Analysis Node | Aerospace | [Part 23](gtkn_part23.md) |
+| 106 | FUN3D Run Node | Aerospace | [Part 23](gtkn_part23.md) |
+| 107 | NASA CEA Node | Aerospace | [Part 24](gtkn_part24.md) |
+| 108 | RocketPy Flight Node | Aerospace | [Part 24](gtkn_part24.md) |
+| 109 | GMAT Script Node | Aerospace | [Part 24](gtkn_part24.md) |
+| 110 | OpenMDAO Model Node | Aerospace | [Part 24](gtkn_part24.md) |
+| 111 | Optimization Node | Aerospace | [Part 24](gtkn_part24.md) |
+| 112 | NASA Trick Simulation Node | Aerospace | [Part 24](gtkn_part24.md) |
+| 113 | OpenFAST Node | Wind Energy | [Part 25](gtkn_part25.md) |
+| 114 | KiteFAST Node | Wind Energy | [Part 25](gtkn_part25.md) |
+| 115 | MATLAB Engine Node | Scientific Computing | [Part 25](gtkn_part25.md) |
+| 116 | Octave Script Node | Scientific Computing | [Part 25](gtkn_part25.md) |
+| 117 | USGS Data Catalog Search Node | Data Catalog | [Part 25](gtkn_part25.md) |
+
 ---
 
 ## Series Structure
@@ -121,6 +162,13 @@ By the time you finish all nineteen parts you will have built 83 mini-flows and 
 | [Part 17](gtkn_part17.md) | Networking Nodes | Socket, WebSocket, Webhook Trigger |
 | [Part 18](gtkn_part18.md) | AI/LLM Utility and Text Processing Nodes | Context Compact, Conversation History, Regex, Template Render, JSON Parse, List Operations, String Operations |
 | [Part 19](gtkn_part19.md) | Resilience, Messaging, and Security Nodes | Retry, Rate Limiter, Email Send, Email Read, Notification, Secret |
+| **Addon Nodes** | | |
+| [Part 20](gtkn_part20.md) | Geospatial Addon Nodes | USGS Elevation Point, 3DEP, National Map, Earthquake Catalog, Landsat, ShakeMap Fetch, ShakeMap Scenario |
+| [Part 21](gtkn_part21.md) | Hydrology and Water Resources | USGS Water Data, NWIS Query, StreamStats Basin, SWMM Run, EPANET Run, MODFLOW 6, FloPy Model, pyWatershed |
+| [Part 22](gtkn_part22.md) | Weather, Atmosphere and Building Energy | NOAA Weather, WRF Model, EnergyPlus Run |
+| [Part 23](gtkn_part23.md) | Aerospace CFD and Geometry | Open VSP Geometry, VSPAERO Analysis, SU2 CFD, Cart3D Analysis, FUN3D Run |
+| [Part 24](gtkn_part24.md) | Aerospace Propulsion, MDO and Mission | NASA CEA, RocketPy Flight, GMAT Script, OpenMDAO Model, Optimization, NASA Trick |
+| [Part 25](gtkn_part25.md) | Wind Energy, Scientific Computing and Data Catalog | OpenFAST, KiteFAST, MATLAB Engine, Octave Script, USGS Data Catalog Search |
 
 ---
 

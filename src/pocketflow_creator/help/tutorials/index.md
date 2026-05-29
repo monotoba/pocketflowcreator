@@ -10,8 +10,7 @@ Part 2 or Part 3 tutorial in any order.
 
 [→ Open the Series Index](gtkn_index.md)
 
-A dedicated series that teaches every built-in node type through hands-on mini-flows,
-progressing from the simplest nodes to the most advanced.
+A dedicated series that teaches every built-in and addon node type through hands-on mini-flows, progressing from the simplest nodes to the most advanced. Parts 1–19 cover all 83 built-in nodes; Parts 20–25 cover all 34 addon nodes (geospatial, hydrology, aerospace, weather, wind energy, scientific computing, and data catalog).
 
 | Part | Nodes covered |
 |---|---|
@@ -21,6 +20,14 @@ progressing from the simplest nodes to the most advanced.
 | [Part 4 — LLM Nodes](gtkn_part4.md) | LLM Prompt, JSON LLM, Classifier, Judge |
 | [Part 5 — Batch and Async](gtkn_part5.md) | Batch, Async, Async Batch, Async Parallel Batch |
 | [Part 6 — Advanced Patterns](gtkn_part6.md) | RAG, Agent, Subflow |
+| Parts 7–19 — All remaining builtin nodes | See [full series index](gtkn_index.md) |
+| **Addon Nodes** | |
+| [Part 20 — Geospatial](gtkn_part20.md) | USGS Elevation Point, 3DEP, National Map, Earthquake Catalog, Landsat, ShakeMap Fetch, ShakeMap Scenario |
+| [Part 21 — Hydrology & Water](gtkn_part21.md) | USGS Water Data, NWIS Query, StreamStats, SWMM, EPANET, MODFLOW 6, FloPy, pyWatershed |
+| [Part 22 — Weather & Building Energy](gtkn_part22.md) | NOAA Weather, WRF Model, EnergyPlus Run |
+| [Part 23 — Aerospace CFD & Geometry](gtkn_part23.md) | Open VSP, VSPAERO, SU2 CFD, Cart3D, FUN3D |
+| [Part 24 — Aerospace Propulsion & MDO](gtkn_part24.md) | NASA CEA, RocketPy, GMAT, OpenMDAO, Optimization, NASA Trick |
+| [Part 25 — Wind Energy, Sci. Computing & Data](gtkn_part25.md) | OpenFAST, KiteFAST, MATLAB Engine, Octave Script, USGS Data Catalog |
 
 ---
 

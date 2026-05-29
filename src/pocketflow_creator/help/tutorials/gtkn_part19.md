@@ -508,11 +508,9 @@ when `secret_found == false`.
 
 ---
 
-## Congratulations — Series Complete!
+## Built-in Nodes Complete — Continue to Addon Nodes!
 
-You have worked through all 19 parts of the **Getting to Know Nodes** series and seen
-every one of PocketFlow Creator's 83 built-in node types in action. Here is a
-summary of the full pipeline families you can now build:
+You have worked through all 19 parts covering PocketFlow Creator's 83 built-in node types. Here is a summary of the full pipeline families you can now build with built-in nodes alone:
 
 | Pipeline | Key Nodes |
 |---|---|
@@ -527,7 +525,10 @@ summary of the full pipeline families you can now build:
 | Scheduled job | Calendar Read → LLM Prompt → Calendar Write |
 | Resilient API | Secret → Rate Limiter → Retry → API Call |
 
+Ready to go further? Parts 20–25 cover the 34 domain-specific **addon nodes** for geospatial data, hydrology, atmospheric modelling, aerospace CFD and propulsion, wind energy, and scientific computing.
+
 ---
 
-[↑ Series Index](gtkn_index.md)
 [← Part 18](gtkn_part18.md)
+[→ Part 20 — Geospatial Addon Nodes](gtkn_part20.md)
+[↑ Series Index](gtkn_index.md)
