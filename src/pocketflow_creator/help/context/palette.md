@@ -41,19 +41,23 @@ They are grouped by category inside the palette.
 
 ## Section 2 — Scientific & Engineering Add-on Nodes
 
-These 34 domain-specific nodes ship with Creator and appear under the
+These 34 domain-specific nodes ship with Creator in `addon_nodes/` and appear under the
 **─── Scientific & Engineering ───** divider.  They are grouped by domain.
 
 | Domain | Node types |
 |---|---|
-| **Scientific Computing** | MATLAB Engine, NumPy Array Ops |
-| **Aerospace** | NASA CEA, OpenRocket Sim, XFOIL Aero, JSBSim Flight, GMAT Orbit, STK Scenario, OpenMDAO Opt, SU2 CFD, OpenFOAM CFD, Nastran FEA, ANSYS FEA |
-| **Wind Energy** | OpenFAST Wind, FLORIS Wake |
-| **Weather / Atmosphere** | NOAA Weather, ERA5 Reanalysis |
-| **Building Energy** | EnergyPlus Building |
-| **Hydrology / Water** | USGS Water Data, SWMM Stormwater, HEC-HMS Hydrology, HEC-RAS Hydraulics, MODFLOW Groundwater, EPANET Water Network, WaterGEMS Pipe, HECRAS 2D Unsteady |
-| **Geospatial** | QGIS Processing, ArcPy Analysis, GDAL Raster, PostGIS Query, GeoServer Publish, Mapbox Tile, OpenLayers Map |
-| **Data Catalog** | CKAN Dataset |
+| **Geospatial** | USGS Elevation Point, USGS 3DEP Elevation, National Map Download, Earthquake Catalog, Landsat Search & Download, ShakeMap Fetch, ShakeMap Scenario |
+| **Hydrology / Water** | USGS Water Data, NWIS Query, StreamStats Basin, SWMM Run, EPANET Run, MODFLOW 6 Run, FloPy Model, pyWatershed |
+| **Weather / Atmosphere** | NOAA Weather, WRF Model |
+| **Building Energy** | EnergyPlus Run |
+| **Aerospace — CFD & Geometry** | Open VSP Geometry, VSPAERO Analysis, SU2 CFD, Cart3D Analysis, FUN3D Run |
+| **Aerospace — Propulsion & MDO** | NASA CEA, RocketPy Flight, GMAT Script, OpenMDAO Model, Optimization, NASA Trick Simulation |
+| **Wind Energy** | OpenFAST, KiteFAST |
+| **Scientific Computing** | MATLAB Engine, Octave Script |
+| **Data Catalog** | USGS Data Catalog Search |
+
+For full property documentation see the [Node Reference](../quick_ref.md#addon-nodes--geospatial).
+For hands-on tutorials see [GTKN Parts 20–25](../tutorials/gtkn_index.md).
 
 ---
 

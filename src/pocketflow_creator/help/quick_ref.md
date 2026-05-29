@@ -1397,6 +1397,485 @@ is missing; writes `None` when `required = false`.
 
 ---
 
+## Addon Nodes — Geospatial
+
+> Addon nodes ship in `addon_nodes/` and appear under the **Scientific & Engineering**
+> divider in the palette. Install them via **Tools → Node Type Library** if they are not
+> already visible.
+
+### USGS Elevation Point Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Returns ground elevation (metres or feet) for a single latitude/longitude point via the
+USGS Elevation Point Query Service (EPQS). No API key required.
+
+| Property | Default | Description |
+|---|---|---|
+| `lat_key` | `lat` | Shared-store key holding latitude (decimal degrees) |
+| `lon_key` | `lon` | Shared-store key holding longitude (decimal degrees) |
+| `units` | `Meters` | Elevation units: `Meters` or `Feet` |
+| `result_key` | `elevation_result` | Key to write the result dict (`lat`, `lon`, `elevation`, `units`) |
+
+### USGS 3DEP Elevation Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Downloads a 3DEP Digital Elevation Model raster for a bounding box via the USGS WCS
+service and saves it as a GeoTIFF. Resolutions: 1/3, 1, or 2 arc-second.
+
+| Property | Default | Description |
+|---|---|---|
+| `bbox_key` | `bbox` | Key holding `[west, south, east, north]` in decimal degrees |
+| `resolution` | `1/3` | DEM resolution: `1/3`, `1`, or `2` arc-second |
+| `output_dir_key` | `dem_output_dir` | Key holding the output directory path |
+| `result_key` | `dem_result` | Key for result dict (`output_path`, `crs`, `bbox`) |
+
+### National Map Download Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Searches The National Map (TNM) API for available USGS datasets within a bounding box.
+Can optionally download the discovered files. Supports NED, NHD, NAIP, Topo, and more.
+
+| Property | Default | Description |
+|---|---|---|
+| `bbox_key` | `bbox` | Key holding `[west, south, east, north]` |
+| `dataset` | `National Elevation Dataset (NED) 1/3 arc-second` | TNM dataset product type |
+| `max_items` | `10` | Maximum dataset records to return |
+| `download` | `false` | If `true`, download files to `output_dir_key` |
+| `output_dir_key` | `tnm_output_dir` | Directory for downloaded files |
+| `result_key` | `tnm_result` | Key for result dict (`items` list, each with `title`, `downloadURL`, `sizeInBytes`) |
+
+### Earthquake Catalog Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Fetches earthquake events from the USGS FDSN/ComCat API filtered by bounding box, time
+range, and minimum magnitude. Returns a list of event dicts. No API key required.
+
+| Property | Default | Description |
+|---|---|---|
+| `bbox_key` | `bbox` | Key holding `[west, south, east, north]` |
+| `start_time` | `2024-01-01` | Start date (YYYY-MM-DD) |
+| `end_time` | _(empty = now)_ | End date; leave blank for the current time |
+| `min_mag` | `2.5` | Minimum earthquake magnitude |
+| `max_results` | `100` | Maximum events to return |
+| `result_key` | `eq_events` | Key for list of event dicts (`magnitude`, `depth_km`, `time`, `place`, `id`) |
+
+### Landsat Search & Download Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Searches and optionally downloads Landsat Collection 2 Level-2 scenes from the USGS M2M
+API. Requires a free USGS EarthExplorer account.
+
+| Property | Default | Description |
+|---|---|---|
+| `username_key` | `usgs_username` | Key holding USGS EarthExplorer username |
+| `token_key` | `usgs_token` | Key holding USGS API token |
+| `bbox_key` | `bbox` | Key holding `[west, south, east, north]` |
+| `dataset` | `landsat_ot_c2_l2` | Landsat dataset identifier |
+| `start_date` | _(empty)_ | Search start date (YYYY-MM-DD) |
+| `max_cloud_pct` | `20` | Maximum cloud cover percentage |
+| `max_results` | `10` | Maximum scenes to return |
+| `download` | `false` | If `true`, download scene data |
+| `output_dir_key` | `landsat_output_dir` | Directory for downloaded scenes |
+| `result_key` | `landsat_scenes` | Key for list of scene dicts |
+
+### ShakeMap Fetch Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Downloads ShakeMap ground-motion products for a USGS earthquake event ID from
+`earthquake.usgs.gov`. No API key required.
+
+| Property | Default | Description |
+|---|---|---|
+| `event_id_key` | `eq_event_id` | Key holding the USGS event ID (e.g. `us7000n7n5`) |
+| `product_type` | `download/grid.xml` | ShakeMap product to fetch |
+| `output_dir_key` | `shakemap_output_dir` | Directory for downloaded files |
+| `result_key` | `shakemap_fetch_result` | Key for result dict (`event_id`, `status`, `downloaded_files`) |
+
+### ShakeMap Scenario Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs USGS ShakeMap v4 locally to generate a ground-motion scenario for a user-supplied
+`event.xml` fault-rupture definition. Requires a local ShakeMap v4 installation.
+
+| Property | Default | Description |
+|---|---|---|
+| `event_dir_key` | `shakemap_event_dir` | Key holding path to the event directory (contains `event.xml`) |
+| `commands` | `assemble, model, contour` | Comma-separated ShakeMap pipeline steps |
+| `result_key` | `shakemap_scenario_result` | Key for result dict (`status`, `grid_path`, `commands_run`) |
+
+---
+
+## Addon Nodes — Hydrology / Water
+
+### USGS Water Data Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Fetches instantaneous or daily time-series data from the USGS National Water Information
+System (NWIS) REST API for a specified gauge site and parameter. No API key required.
+
+| Property | Default | Description |
+|---|---|---|
+| `site_key` | `usgs_site` | Key holding the USGS site number (e.g. `01638500`) |
+| `param_cd` | `00060` | Parameter code: `00060` = discharge (cfs), `00065` = gage height (ft) |
+| `period` | `P7D` | ISO 8601 period string (e.g. `P7D`, `P1Y`) |
+| `stat_cd` | `00003` | Statistic code: `00003` = daily mean; blank = instantaneous |
+| `result_key` | `water_data` | Key for result dict (`site_name`, `param_name`, `values` list) |
+
+### NWIS Query Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Queries USGS NWIS in one of three modes: `site` (station metadata), `peak` (annual peak
+flow record), or `stat` (long-term monthly statistics).
+
+| Property | Default | Description |
+|---|---|---|
+| `query_type` | `site` | Query mode: `site`, `peak`, or `stat` |
+| `site_key` | `usgs_site` | Key holding USGS site number |
+| `state_cd` | _(empty)_ | Two-letter state code for `site` mode searches |
+| `result_key` | `nwis_result` | Key for result dict (contents depend on `query_type`) |
+
+### StreamStats Basin Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Delineates a watershed and computes basin characteristics (drainage area, mean elevation,
+mean annual precipitation, etc.) via the USGS StreamStats REST API.
+
+| Property | Default | Description |
+|---|---|---|
+| `lat_key` | `lat` | Key holding pour-point latitude |
+| `lon_key` | `lon` | Key holding pour-point longitude |
+| `state_cd` | `VA` | Two-letter US state code (upper-case) |
+| `result_key` | `basin_result` | Key for result dict (`basin_characteristics` dict, `workspace_id`) |
+
+### SWMM Run Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs an EPA SWMM 5 stormwater simulation from a `.inp` file. Returns peak conduit flows,
+junction flooding volumes, and subcatchment runoff. Requires `swmm5` on the PATH.
+
+| Property | Default | Description |
+|---|---|---|
+| `inp_path_key` | `swmm_inp_path` | Key holding path to the SWMM `.inp` file |
+| `report_key` | `swmm_rpt_path` | Key holding path for the output `.rpt` report |
+| `result_key` | `swmm_result` | Key for result dict (`conduit_peak_flows`, `junction_flooding`, `status`) |
+
+### EPANET Run Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs an EPA EPANET 2 water distribution network simulation from a `.inp` file. Returns
+nodal pressures (psi), pipe flows, and velocities. Requires EPANET installed.
+
+| Property | Default | Description |
+|---|---|---|
+| `inp_path_key` | `epanet_inp_path` | Key holding path to the EPANET `.inp` file |
+| `result_key` | `epanet_result` | Key for result dict (`node_pressures`, `pipe_flows`, `pipe_velocities`) |
+
+### MODFLOW 6 Run Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs a USGS MODFLOW 6 groundwater simulation from a pre-configured simulation directory
+containing `mfsim.nam`. Returns convergence status and head statistics. Requires `mf6`.
+
+| Property | Default | Description |
+|---|---|---|
+| `sim_dir_key` | `mf6_sim_dir` | Key holding path to the MODFLOW 6 simulation directory |
+| `result_key` | `mf6_result` | Key for result dict (`status`, `converged`, `iterations`, `head_stats`) |
+
+### FloPy Model Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs a MODFLOW simulation managed by a FloPy `MFSimulation` (or `Modflow`) object that
+you construct in Python and pass via the shared store. Returns head statistics.
+
+| Property | Default | Description |
+|---|---|---|
+| `model_key` | `flopy_model` | Key holding a configured FloPy model/simulation instance |
+| `exe_name` | `mf6` | MODFLOW executable name (`mf6`, `mf2005`, `mfnwt`, etc.) |
+| `result_key` | `flopy_result` | Key for result dict (`success`, `head_stats`, head file path) |
+
+### pyWatershed Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs a USGS National Hydrologic Model (NHM) simulation via the `pywatershed` Python
+package. Returns streamflow and storage statistics for the simulated period.
+
+| Property | Default | Description |
+|---|---|---|
+| `domain_dir_key` | `pws_domain_dir` | Key holding path to the NHM domain directory |
+| `control_file_key` | `pws_control_file` | Key holding the control file path (blank = `control.yml` in domain dir) |
+| `result_key` | `pws_result` | Key for result dict (`status`, `n_hru`, `n_days`, `streamflow_stats`) |
+
+---
+
+## Addon Nodes — Weather / Atmosphere
+
+### NOAA Weather Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Fetches current NWS surface observations and the 7-day forecast for any US latitude/
+longitude point via `api.weather.gov`. No API key required. US locations only.
+
+| Property | Default | Description |
+|---|---|---|
+| `lat_key` | `lat` | Key holding latitude (decimal degrees) |
+| `lon_key` | `lon` | Key holding longitude (decimal degrees) |
+| `result_key` | `noaa_weather` | Key for result dict (`current_observation`, `forecast_periods` list) |
+
+### WRF Model Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs WRF-ARW (`real.exe` + `wrf.exe`) in a pre-configured WRF run directory.
+Returns wrfout file paths and run status. Requires a compiled WRF installation with MPI.
+
+| Property | Default | Description |
+|---|---|---|
+| `run_dir_key` | `wrf_run_dir` | Key holding absolute path to the WRF run directory |
+| `nprocs` | `4` | Number of MPI processes |
+| `skip_real` | `false` | Skip `real.exe` if `wrfinput_d01` already exists |
+| `result_key` | `wrf_result` | Key for result dict (`status`, `real_status`, `wrf_status`, `elapsed_seconds`, `wrfout_files`) |
+
+---
+
+## Addon Nodes — Building Energy
+
+### EnergyPlus Run Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs a DOE EnergyPlus building energy simulation from an IDF (or epJSON) input file and
+EPW weather file. Returns annual energy use and end-use breakdown. Requires `energyplus`.
+
+| Property | Default | Description |
+|---|---|---|
+| `idf_path_key` | `eplus_idf_path` | Key holding path to the `.idf` or `.epJSON` input file |
+| `weather_path_key` | `eplus_weather_path` | Key holding path to the `.epw` weather file |
+| `output_dir_key` | `eplus_output_dir` | Key holding the output directory path |
+| `result_key` | `eplus_result` | Key for result dict (`total_site_energy_kwh`, `peak_electricity_kw`, `end_uses`, `idf_name`) |
+
+---
+
+## Addon Nodes — Aerospace
+
+### Open VSP Geometry Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Loads a `.vsp3` OpenVSP parametric geometry model, optionally applies design variable
+overrides, and exports the geometry in a selected format. Uses the `openvsp` Python API.
+
+| Property | Default | Description |
+|---|---|---|
+| `vsp3_path_key` | `vsp3_path` | Key holding path to the `.vsp3` model file |
+| `export_format` | `stl` | Export format: `stl`, `degen_geom`, `stp`, `iges`, `obj` |
+| `design_vars_key` | `vsp_design_vars` | Key holding design variable override dict (nested: container→group→param→value) |
+| `output_path_key` | `vsp_output_path` | Key written with the exported file path |
+
+### VSPAERO Analysis Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs the VSPAERO vortex-lattice / panel method aerodynamic solver on a DegenGeom CSV
+file (exported by the Open VSP Geometry Node) and returns CL, CD, CMy, and span efficiency.
+
+| Property | Default | Description |
+|---|---|---|
+| `degen_geom_key` | `vsp_output_path` | Key holding path to the DegenGeom CSV file |
+| `alpha` | `0.0` | Angle of attack in degrees |
+| `mach` | `0.1` | Freestream Mach number |
+| `result_key` | `vspaero_result` | Key for result dict (`CL`, `CD`, `CMy`, `e`, `alpha`, `mach`) |
+
+### SU2 CFD Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs SU2_CFD (the Stanford open-source CFD solver) with a user-supplied `.cfg`
+configuration file. Supports Euler, RANS, and other PDE systems.
+
+| Property | Default | Description |
+|---|---|---|
+| `config_path_key` | `su2_config_path` | Key holding path to the SU2 `.cfg` file |
+| `nprocs` | `1` | Number of MPI processes (`1` = serial) |
+| `result_key` | `su2_result` | Key for result dict (`CL`, `CD`, `CMy`, `iterations`, `converged`, `final_residual`) |
+
+### Cart3D Analysis Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs a NASA Cart3D inviscid Euler CFD analysis. Cart3D auto-generates a Cartesian mesh
+from a closed triangulated surface — no manual meshing required.
+
+| Property | Default | Description |
+|---|---|---|
+| `case_dir_key` | `cart3d_case_dir` | Key holding path to the Cart3D case directory |
+| `aoa` | `0.0` | Angle of attack in degrees |
+| `mach` | `0.5` | Freestream Mach number |
+| `result_key` | `cart3d_result` | Key for result dict (`CL`, `CD`, `CM`, `alpha`) |
+
+### FUN3D Run Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs NASA FUN3D (`nodet_mpi`) for high-fidelity RANS or LES CFD in a pre-configured
+case directory containing `fun3d.nml` and an unstructured grid.
+
+| Property | Default | Description |
+|---|---|---|
+| `case_dir_key` | `fun3d_case_dir` | Key holding path to the FUN3D case directory |
+| `nprocs` | `4` | Number of MPI processes |
+| `result_key` | `fun3d_result` | Key for result dict (`CL`, `CD`, `CM`, `iterations`, `converged`, `residual_history`) |
+
+### NASA CEA Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Computes rocket combustion thermochemical properties (Isp, Tc, γ, MW, C\*) using the
+NASA CEA code via the `rocketcea` Python wrapper. No separate CEA installation needed.
+
+| Property | Default | Description |
+|---|---|---|
+| `oxid` | `LOX` | Oxidiser name (e.g. `LOX`, `N2O4`, `IRFNA`) |
+| `fuel` | `LH2` | Fuel name (e.g. `LH2`, `RP1`, `MMH`, `Methane`) |
+| `pc_psia` | `1000` | Chamber pressure in psia |
+| `eps` | `40` | Nozzle expansion ratio (exit/throat area) |
+| `of_ratio` | `6.0` | Oxidiser-to-fuel mass ratio |
+| `result_key` | `cea_result` | Key for result dict (`Isp_vac`, `Isp_del`, `T_chamber_K`, `gamma`, `MW`, `cstar`) |
+
+### RocketPy Flight Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs a RocketPy 6-DOF rocket flight simulation. You construct the `rocketpy.Flight`
+object in a preceding Basic Node and pass it via the shared store.
+
+| Property | Default | Description |
+|---|---|---|
+| `flight_key` | `rocketpy_flight` | Key holding a configured `rocketpy.Flight` instance |
+| `result_key` | `rocketpy_result` | Key for result dict (`apogee_m`, `max_speed_ms`, `max_mach`, `max_accel_ms2`, `flight_time_s`, `apogee_time_s`) |
+
+### GMAT Script Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs a GMAT orbital mechanics script in batch (headless) mode and optionally parses a
+GMAT report file to return numerical results. Requires a GMAT installation.
+
+| Property | Default | Description |
+|---|---|---|
+| `script_path_key` | `gmat_script_path` | Key holding path to the `.script` file |
+| `report_path_key` | `gmat_report_path` | Key holding path to the expected report file |
+| `result_key` | `gmat_result` | Key for result dict (`status`, `script_path`, `report_data` list of row dicts) |
+
+### OpenMDAO Model Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Executes an OpenMDAO multidisciplinary analysis or optimisation problem. Accepts a
+configured `openmdao.api.Problem` object built in a preceding Basic Node.
+
+| Property | Default | Description |
+|---|---|---|
+| `problem_key` | `openmdao_problem` | Key holding a configured `openmdao.api.Problem` instance |
+| `driver` | `run_model` | `run_model` = MDA analysis only; `run_driver` = full optimisation |
+| `result_key` | `openmdao_result` | Key for result dict (`design_variables`, `objectives`, `constraints`, `converged`) |
+
+### Optimization Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Minimises a scalar objective function using `scipy.optimize.minimize`. You supply a
+Python callable and an initial guess vector via the shared store.
+
+| Property | Default | Description |
+|---|---|---|
+| `objective_key` | `objective_fn` | Key holding a callable `f(x) → float` |
+| `x0_key` | `x0` | Key holding the initial guess (list or ndarray) |
+| `method` | `SLSQP` | SciPy optimisation method: `SLSQP`, `Nelder-Mead`, `BFGS`, `L-BFGS-B`, etc. |
+| `bounds_key` | _(empty)_ | Key holding a list of `(min, max)` tuples |
+| `constraints_key` | _(empty)_ | Key holding a list of SciPy constraint dicts |
+| `result_key` | `opt_result` | Key for result dict (`x_optimal`, `f_optimal`, `success`, `nfev`, `message`) |
+
+### NASA Trick Simulation Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Builds (optionally) and runs a NASA Trick simulation. Reads Trick log files after the
+run and returns extracted variable time-series arrays.
+
+| Property | Default | Description |
+|---|---|---|
+| `sim_dir_key` | `trick_sim_dir` | Key holding path to the Trick simulation directory |
+| `input_file_key` | `trick_input_file` | Key holding the Python input file path (relative to sim dir) |
+| `build` | `true` | If `true`, run `trick-CP` to compile before executing |
+| `log_vars_key` | `trick_log_vars` | Key holding a list of Trick variable names to extract from log files |
+| `result_key` | `trick_result` | Key for result dict (`build_status`, `run_status`, `sim_time_s`, `log_data`) |
+
+---
+
+## Addon Nodes — Wind Energy
+
+### OpenFAST Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs an NREL OpenFAST aero-elastic wind turbine simulation from a `.fst` primary input
+file and returns rotor performance summary statistics. Requires `openfast` on the PATH.
+
+| Property | Default | Description |
+|---|---|---|
+| `fst_path_key` | `openfast_fst_path` | Key holding path to the primary `.fst` input file |
+| `result_key` | `openfast_result` | Key for result dict (`status`, `sim_time_s`, `elapsed_wall_s`, `performance_summary`) |
+
+The `performance_summary` dict includes `GenPwr_mean_kW`, `RtAeroFxh_mean_kN`, `RtTSR_mean`, and `RotSpeed_mean_rpm`.
+
+### KiteFAST Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Runs an NREL KiteFAST airborne-wind-energy (AWE) simulation and returns tether tension,
+electrical power, and flight cycle statistics. Requires the `kitefast` executable.
+
+| Property | Default | Description |
+|---|---|---|
+| `input_path_key` | `kitefast_input_path` | Key holding path to the KiteFAST primary input file |
+| `result_key` | `kitefast_result` | Key for result dict (`status`, `sim_time_s`, `summary`) |
+
+The `summary` dict includes `mean_tether_tension_kN`, `mean_electrical_power_kW`, `flight_cycles`, and `mean_altitude_m`.
+
+---
+
+## Addon Nodes — Scientific Computing
+
+### MATLAB Engine Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Calls a MATLAB function or script via the `matlab.engine` Python interface and returns
+the first output argument. Requires a licensed MATLAB installation with the Python engine.
+
+| Property | Default | Description |
+|---|---|---|
+| `script_key` | `matlab_script` | Key holding the MATLAB function/script name to call |
+| `args_key` | `matlab_args` | Key holding a list of positional arguments |
+| `result_key` | `matlab_result` | Key for result dict (`output`, `matlab_version`, `status`) |
+
+### Octave Script Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Executes a GNU Octave script file or inline Octave expression in batch mode and returns
+a named workspace variable. Only requires `octave` on the PATH — no Python interface.
+
+| Property | Default | Description |
+|---|---|---|
+| `script_path_key` | `octave_script_path` | Key holding path to a `.m` script file (blank = use inline code) |
+| `inline_code_key` | `octave_code` | Key holding an inline Octave expression or script body |
+| `result_var` | `result` | Name of the Octave workspace variable to extract and return |
+| `result_key` | `octave_result` | Key for result dict (`stdout`, `status`, `result_var_value`) |
+
+---
+
+## Addon Nodes — Data Catalog
+
+### USGS Data Catalog Search Node
+**Base class:** `Node` · **Actions:** `default`, `error`
+
+Searches the USGS ScienceBase Catalog by keyword and returns a list of dataset records
+with titles, summaries, DOIs, and download links. No API key required.
+
+| Property | Default | Description |
+|---|---|---|
+| `query_key` | `sciencebase_query` | Key holding the keyword search string |
+| `max_results` | `20` | Maximum catalog items to return |
+| `fields` | `id,title,summary,link` | Comma-separated ScienceBase metadata fields to include |
+| `result_key` | `sb_results` | Key for result dict (`items` list, `total_count`) |
+
+---
+
+- [Getting to Know Nodes — Series Index](tutorials/gtkn_index.md)
 - [Tutorials](tutorials/index.md)
 - [About PocketFlow](about_pocketflow.md)
 - [Help Home](index.md)

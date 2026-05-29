@@ -32,6 +32,25 @@ See the [Tutorials Index](tutorials/index.md) for a full list.
 
 ---
 
+## Getting to Know Nodes — Node-by-Node Tutorial Series
+
+A 25-part series with one hands-on mini-flow per node type — all 83 built-in nodes
+plus all 34 addon nodes. Start at Part 1 and work forwards.
+
+| Parts | Coverage |
+|---|---|
+| [Parts 1–19](tutorials/gtkn_index.md) | All 83 built-in nodes (Flow Control → Security) |
+| [Part 20 — Geospatial](tutorials/gtkn_part20.md) | USGS Elevation, 3DEP, National Map, Earthquake Catalog, Landsat, ShakeMap |
+| [Part 21 — Hydrology](tutorials/gtkn_part21.md) | USGS Water Data, NWIS, StreamStats, SWMM, EPANET, MODFLOW, FloPy, pyWatershed |
+| [Part 22 — Weather & Building Energy](tutorials/gtkn_part22.md) | NOAA Weather, WRF Model, EnergyPlus |
+| [Part 23 — Aerospace CFD](tutorials/gtkn_part23.md) | Open VSP, VSPAERO, SU2, Cart3D, FUN3D |
+| [Part 24 — Aerospace Propulsion & MDO](tutorials/gtkn_part24.md) | NASA CEA, RocketPy, GMAT, OpenMDAO, Optimization, NASA Trick |
+| [Part 25 — Wind Energy, Sci. Computing & Data](tutorials/gtkn_part25.md) | OpenFAST, KiteFAST, MATLAB Engine, Octave Script, USGS Data Catalog |
+
+[→ Open Series Index](tutorials/gtkn_index.md)
+
+---
+
 ## Context Help
 
 Context help is available in every dialog via the **?** button.
