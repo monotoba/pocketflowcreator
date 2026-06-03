@@ -68,9 +68,7 @@ pocketflow_creator = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-python_files = "test_*.py"
-norecursedirs = "gui_tests"
-addopts = "--ignore=tests/test_canvas.py --ignore=tests/test_editors.py"
+norecursedirs = ["tests/gui"]
 
 [tool.ruff]
 line-length = 150
