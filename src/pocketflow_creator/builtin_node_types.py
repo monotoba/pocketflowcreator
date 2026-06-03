@@ -1395,7 +1395,7 @@ CATEGORY_ORDER: list[str] = [
 ]
 
 
-def get_nodes_by_category() -> list[tuple[str, list[tuple[str, "NodeTypeDefinition"]]]]:
+def get_nodes_by_category() -> list[tuple[str, list[tuple[str, NodeTypeDefinition]]]]:
     """Return all built-in nodes grouped by category in CATEGORY_ORDER.
 
     Returns a list of ``(category_label, [(type_id, NodeTypeDefinition), ...])``

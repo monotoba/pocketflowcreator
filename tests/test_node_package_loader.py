@@ -7,15 +7,14 @@ from pathlib import Path
 import pytest
 
 from pocketflow_creator.node_package_loader import (
-    PackageLoadError,
     _PACKAGE_META,
+    PackageLoadError,
     _to_type_id,
     discover_addon_nodes,
     discover_user_nodes,
     install_node_package,
     load_node_package,
 )
-
 
 # ── _to_type_id ───────────────────────────────────────────────────────────────
 
@@ -29,7 +28,6 @@ from pocketflow_creator.node_package_loader import (
     ("api_call",            "api_call_node"),
 ])
 def test_to_type_id(name, expected):
-    from pocketflow_creator.node_package_loader import _to_type_id
     assert _to_type_id(name) == expected
 
 

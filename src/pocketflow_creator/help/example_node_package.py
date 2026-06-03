@@ -80,8 +80,8 @@ class WeatherFetchNode:
     def exec(self, prep_res: dict) -> dict:
         city = prep_res["city"]
         try:
-            import urllib.request
             import json
+            import urllib.request
 
             # Step 1: Geocode the city name
             geo_url = (

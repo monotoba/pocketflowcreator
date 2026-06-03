@@ -64,7 +64,7 @@ class PythonGenerator:
             start_var=start_var,
         )
 
-    def _node_ctx(self, node: NodeModel) -> "_NodeCtx":
+    def _node_ctx(self, node: NodeModel) -> _NodeCtx:
         action = node.actions[0] if node.actions else "default"
         return {
             "class_name": self._class_name(node),

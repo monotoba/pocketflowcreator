@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QUndoCommand
+
     from pocketflow_creator.app.canvas import GraphScene
     from pocketflow_creator.model.graph_model import GraphModel
 else:

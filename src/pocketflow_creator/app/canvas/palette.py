@@ -49,7 +49,7 @@ def _load_snippets() -> list[dict[str, Any]]:
         return []
 
 
-def _make_category_header(label: str) -> "QListWidgetItem":
+def _make_category_header(label: str) -> QListWidgetItem:
     """Return a non-interactive category-header item."""
     item = QListWidgetItem(f"  {label}")
     item.setFlags(

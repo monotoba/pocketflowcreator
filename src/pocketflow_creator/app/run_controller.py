@@ -14,8 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from PySide6.QtCore import QSettings
-    from PySide6.QtWidgets import QDialog, QMainWindow
+    from PySide6.QtWidgets import QMainWindow
 
 from pocketflow_creator.app.settings_keys import (
     _APP,
@@ -28,7 +27,7 @@ from pocketflow_creator.app.settings_keys import (
 )
 from pocketflow_creator.model.graph_model import GraphModel
 from pocketflow_creator.runtime.providers import MockProvider, OllamaProvider
-from pocketflow_creator.runtime.runner import FlowRunner, RunStep, RunTrace, StepController
+from pocketflow_creator.runtime.runner import FlowRunner, RunStep, StepController
 
 
 def build_provider() -> MockProvider | OllamaProvider:
@@ -101,7 +100,8 @@ def start_run(
     Returns ``(signals, runner)`` where *signals* is the GC-pinned QObject.
     Caller must keep a reference to *signals* until *on_complete* fires.
     """
-    from PySide6.QtCore import QObject, Signal as _Sig
+    from PySide6.QtCore import QObject
+    from PySide6.QtCore import Signal as _Sig
 
     class _RunSignals(QObject):
         result_ready = _Sig(object)
@@ -151,7 +151,8 @@ def start_debug(
     Returns the GC-pinned signals QObject.  Caller must keep a reference to
     it until *on_finished* fires.
     """
-    from PySide6.QtCore import QObject, Signal as _Sig
+    from PySide6.QtCore import QObject
+    from PySide6.QtCore import Signal as _Sig
 
     class _DbgSignals(QObject):
         step_ready = _Sig(object)

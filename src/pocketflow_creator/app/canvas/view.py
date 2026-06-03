@@ -29,9 +29,9 @@ else:
 
         QGraphicsView = object
 
-from pocketflow_creator.app.canvas.items import NodeItem, EdgeItem, _PORT_R, _WIDTH
+from pocketflow_creator.app.canvas.items import _PORT_R, _WIDTH, NodeItem
+from pocketflow_creator.app.canvas.palette import _MIME_NODE_SNIPPET, _MIME_NODE_TYPE
 from pocketflow_creator.app.canvas.scene import GraphScene
-from pocketflow_creator.app.canvas.palette import _MIME_NODE_TYPE, _MIME_NODE_SNIPPET
 
 _DRAG_LINE_Z = 1000  # connector rubber-band drawn above all nodes while dragging
 

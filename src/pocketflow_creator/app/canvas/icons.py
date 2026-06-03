@@ -633,7 +633,7 @@ def _ico_majority_vote(p: QPainter, sz: float, bg: QColor) -> None:
     p.setPen(pen)
     p.setBrush(Qt.BrushStyle.NoBrush)
     # Three horizontal ballot lines
-    for i, y in enumerate([sz * 0.28, sz * 0.50, sz * 0.72]):
+    for _i, y in enumerate([sz * 0.28, sz * 0.50, sz * 0.72]):
         p.drawLine(QPointF(sz * 0.18, y), QPointF(sz * 0.58, y))
     # Big checkmark on the right for the winner
     p.drawLine(QPointF(sz * 0.64, sz * 0.54), QPointF(sz * 0.74, sz * 0.68))
@@ -843,7 +843,7 @@ def _ico_vector_index(p: QPainter, sz: float, bg: QColor) -> None:
     p.setPen(pen)
     p.setBrush(Qt.BrushStyle.NoBrush)
     # Database cylinder
-    cx = sz * 0.50
+    sz * 0.50
     cyl_w, cyl_h = sz * 0.54, sz * 0.54
     top_ell_h = sz * 0.14
     bx = (sz - cyl_w) / 2
@@ -867,7 +867,7 @@ def _ico_vector_retrieve(p: QPainter, sz: float, bg: QColor) -> None:
                Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
     p.setPen(pen)
     p.setBrush(Qt.BrushStyle.NoBrush)
-    cx = sz * 0.50
+    sz * 0.50
     cyl_w, cyl_h = sz * 0.54, sz * 0.54
     top_ell_h = sz * 0.14
     bx = (sz - cyl_w) / 2
@@ -930,7 +930,8 @@ def _ico_nl_to_sql(p: QPainter, sz: float, bg: QColor) -> None:
     font.setBold(True)
     p.setFont(font)
     p.setPen(QPen(bg))
-    p.drawText(QRectF(sz * 0.58, sz * 0.62, sz * 0.32, sz * 0.24), Qt.AlignmentFlag.AlignCenter, "SQL")
+    rect = QRectF(sz * 0.58, sz * 0.62, sz * 0.32, sz * 0.24)
+    p.drawText(rect, Qt.AlignmentFlag.AlignCenter, "SQL")
 
 
 def _ico_sql_execute(p: QPainter, sz: float, bg: QColor) -> None:
@@ -973,7 +974,7 @@ def _ico_speech_to_text(p: QPainter, sz: float, bg: QColor) -> None:
     p.setPen(pen)
     p.setBrush(QBrush(QColor("white")))
     # Microphone capsule
-    mic_cx, mic_cy = sz * 0.28, sz * 0.34
+    mic_cx, _mic_cy = sz * 0.28, sz * 0.34
     p.drawRoundedRect(QRectF(mic_cx - sz * 0.09, sz * 0.12, sz * 0.18, sz * 0.36),
                       sz * 0.09, sz * 0.09)
     # Microphone stand
@@ -1015,7 +1016,7 @@ def _ico_text_to_speech(p: QPainter, sz: float, bg: QColor) -> None:
     # Sound waves
     p.setPen(pen)
     p.setBrush(Qt.BrushStyle.NoBrush)
-    for r_mult, start_y_off in [(0.18, 0.18), (0.28, 0.28), (0.38, 0.38)]:
+    for r_mult, _start_y_off in [(0.18, 0.18), (0.28, 0.28), (0.38, 0.38)]:
         r = sz * r_mult
         wave_cx = sx + sw + sz * 0.16
         p.drawArc(
@@ -1050,7 +1051,8 @@ def _ico_pdf_extract(p: QPainter, sz: float, bg: QColor) -> None:
     font.setBold(True)
     p.setFont(font)
     p.setPen(QPen(bg))
-    p.drawText(QRectF(sz * 0.24, sz * 0.30, sz * 0.30, sz * 0.18), Qt.AlignmentFlag.AlignCenter, "PDF")
+    rect = QRectF(sz * 0.24, sz * 0.30, sz * 0.30, sz * 0.18)
+    p.drawText(rect, Qt.AlignmentFlag.AlignCenter, "PDF")
     # Highlighted text lines
     p.setPen(pen)
     p.setBrush(Qt.BrushStyle.NoBrush)

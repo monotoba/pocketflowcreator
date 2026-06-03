@@ -122,7 +122,7 @@ class FormInputDialog(QDialog):
         layout.addWidget(buttons)
 
     def _accept(self) -> None:
-        for key, (widget, dtype, choices) in self._field_widgets.items():
+        for key, (widget, _dtype, _choices) in self._field_widgets.items():
             if isinstance(widget, QComboBox):
                 self._result[key] = widget.currentText()
             elif isinstance(widget, QSpinBox):

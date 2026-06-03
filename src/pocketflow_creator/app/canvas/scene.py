@@ -20,15 +20,15 @@ else:
 
         QGraphicsScene = object
 
-from pocketflow_creator.model.graph_model import EdgeModel, GraphModel, NodeModel
 from pocketflow_creator.app.canvas.items import (
-    EdgeItem,
-    NodeItem,
     _DARK_COLORS,
     _HEIGHT,
     _LIGHT_COLORS,
     _WIDTH,
+    EdgeItem,
+    NodeItem,
 )
+from pocketflow_creator.model.graph_model import EdgeModel, GraphModel, NodeModel
 
 
 class GraphScene(QGraphicsScene):
@@ -224,7 +224,7 @@ class GraphScene(QGraphicsScene):
             y_start = -total_h / 2
             x_pos = 60 + lyr_idx * (_WIDTH + h_gap)
             y_pos = y_start
-            for item, h in zip(items_in_layer, heights):
+            for item, h in zip(items_in_layer, heights, strict=False):
                 item.setPos(x_pos, y_pos)
                 item.node.position["x"] = x_pos
                 item.node.position["y"] = y_pos
