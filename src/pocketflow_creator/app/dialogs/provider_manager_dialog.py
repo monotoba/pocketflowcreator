@@ -139,7 +139,12 @@ def _test_profile(profile: ProviderProfile, api_key: str, status: QLabel) -> Non
             p.complete("Reply with the single word: ok")
             status.setText("✓ Connection successful")
         except Exception as exc:
-            status.setText(f"✗ {str(exc)[:120]}")
+            error_msg = str(exc)
+            # Show full error, or truncate only if extremely long
+            if len(error_msg) > 300:
+                error_msg = error_msg[:297] + "…"
+            status.setText(f"✗ {error_msg}")
+            status.setWordWrap(True)
 
     threading.Thread(target=_run, daemon=True).start()
 

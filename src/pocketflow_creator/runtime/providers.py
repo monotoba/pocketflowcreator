@@ -34,8 +34,9 @@ class OllamaProvider:
 
     def complete(self, prompt: str, *, model: str | None = None) -> str:
         url = f"{self.base_url.rstrip('/')}/api/generate"
+        model_name = model or self.default_model
         payload = json.dumps(
-            {"model": model or self.default_model, "prompt": prompt, "stream": False}
+            {"model": model_name, "prompt": prompt, "stream": False}
         ).encode()
         req = urllib.request.Request(
             url, data=payload, headers={"Content-Type": "application/json"}, method="POST"
@@ -45,10 +46,19 @@ class OllamaProvider:
                 body = json.loads(resp.read())
                 return str(body.get("response", ""))
         except urllib.error.HTTPError as exc:
+            # Try to extract error details from response
             try:
-                detail = json.loads(exc.read()).get("error", str(exc))
+                resp_body = exc.read().decode("utf-8", errors="replace")
+                try:
+                    error_data = json.loads(resp_body)
+                    detail = error_data.get("error", resp_body[:200])
+                except json.JSONDecodeError:
+                    detail = resp_body[:200]
             except Exception:
                 detail = str(exc)
+            # Provide context about the model if it's likely the issue
+            if "not found" in detail.lower() or "unknown" in detail.lower():
+                detail = f"{detail}. Make sure '{model_name}' is installed in Ollama (ollama pull {model_name})"
             raise RuntimeError(f"Ollama request failed: {detail}") from exc
         except urllib.error.URLError as exc:
             raise RuntimeError(f"Ollama request failed: {exc}") from exc
