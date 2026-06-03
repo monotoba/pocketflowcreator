@@ -131,14 +131,17 @@ def fetch_ollama_models(base_url: str) -> list[str]:
 
 def _test_profile(profile: ProviderProfile, api_key: str, status: QLabel) -> None:
     """Fire a cheap probe request in a background thread."""
+    from PySide6.QtCore import QTimer
+
     status.setText("Testing…")
+    result_holder: list[tuple[str, str] | None] = [None]
 
     def _run() -> None:
         try:
             from pocketflow_creator.runtime.providers import build_provider_from_profile
             p = build_provider_from_profile(profile, api_key)
-            result = p.complete("Reply with the single word: ok")
-            status.setText("✓ Connection successful")
+            p.complete("Reply with the single word: ok")
+            result_holder[0] = ("success", "✓ Connection successful")
         except Exception as exc:
             error_msg = str(exc) or f"{type(exc).__name__}: (no message)"
             # Log to stderr for debugging
@@ -146,9 +149,20 @@ def _test_profile(profile: ProviderProfile, api_key: str, status: QLabel) -> Non
             # Show full error, or truncate only if extremely long
             if len(error_msg) > 300:
                 error_msg = error_msg[:297] + "…"
-            status.setText(f"✗ {error_msg}")
+            result_holder[0] = ("error", f"✗ {error_msg}")
 
-    threading.Thread(target=_run, daemon=True).start()
+    def _update_ui() -> None:
+        """Update UI on the main thread."""
+        if result_holder[0]:
+            _, msg = result_holder[0]
+            status.setText(msg)
+
+    def _thread_wrapper() -> None:
+        """Run the test and schedule UI update on main thread."""
+        _run()
+        QTimer.singleShot(0, _update_ui)
+
+    threading.Thread(target=_thread_wrapper, daemon=True).start()
 
 
 # ── profile edit panel ────────────────────────────────────────────────────────
