@@ -16,9 +16,9 @@ all from one IDE-like GUI built on PySide6.
 > **Note:** PocketFlow Creator is not an official PocketFlow project and is not affiliated
 > with, endorsed by, or maintained by the PocketFlow project.
 
-## Status — v0.2.0 (fully functional)
+## Status — v0.2.1 (fully functional)
 
-Milestones M0–M15 complete. 132 tests, all passing.
+Milestones M0–M15 complete. 177 tests, all passing.
 
 ![PocketFlow Creator — sentiment triage flow after a complete run, Object Inspector open on a Classifier node](https://raw.githubusercontent.com/Monotoba/PocketFlowCreator/main/src/pocketflow_creator/help/img/flow_run_complete.png)
 
@@ -191,7 +191,7 @@ For detailed setup instructions for all providers, custom ports, environment var
 ## Running Tests
 
 ```bash
-python -m pytest            # all 132 tests
+python -m pytest            # all 177 tests
 ./scripts/test.sh           # same, via script
 ```
 
@@ -238,7 +238,7 @@ PocketFlowCreator/
 │   ├─ templates/               Jinja2 .j2 templates for code generation
 │   ├─ help/                    21 Markdown help pages + context/ + tutorials/
 │   └─ translations/            .ts and .qm files (en, es, fr, de, zh, ja)
-├─ tests/                       106 tests (all passing)
+├─ tests/                       177 tests (all passing)
 ├─ examples/document_summarizer/ Example PocketFlow project
 ├─ docs/                        13 design/spec documents
 ├─ scripts/                     setup, run, test, lint, format, package scripts
