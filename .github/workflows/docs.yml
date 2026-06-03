@@ -1,0 +1,84 @@
+name: Documentation Check
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.github/workflows/docs.yml'
+
+jobs:
+  markdown-lint:
+    runs-on: ubuntu-latest
+    name: Markdown Linting
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Markdown
+        uses: nosborn/github-action-markdown-cli@v3.3.0
+        with:
+          files: .
+          config_file: .markdownlint.json
+        continue-on-error: true
+
+  links-check:
+    runs-on: ubuntu-latest
+    name: Check Documentation Links
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check links in Markdown files
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: true
+          use-verbose-mode: false
+          root-dir: docs
+          folder-path: .
+        continue-on-error: true
+
+  docs-exists:
+    runs-on: ubuntu-latest
+    name: Verify Documentation Files
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check key documentation files exist
+        run: |
+          echo "Checking documentation files..."
+          files=(
+            "README.md"
+            "CHANGELOG.md"
+            "docs/00_project_overview.md"
+            "docs/10_user_guide.md"
+            "docs/13_provider_setup.md"
+          )
+
+          for file in "${files[@]}"; do
+            if [ -f "$file" ]; then
+              echo "✓ $file exists"
+            else
+              echo "✗ $file missing"
+              exit 1
+            fi
+          done
+
+      - name: Check help system files
+        run: |
+          echo "Checking help files..."
+          if [ -d "src/pocketflow_creator/help" ]; then
+            echo "✓ Help directory exists"
+            files=$(find src/pocketflow_creator/help -name "*.md" | wc -l)
+            echo "✓ Found $files help files"
+          else
+            echo "✗ Help directory missing"
+            exit 1
+          fi

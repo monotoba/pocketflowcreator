@@ -1,0 +1,134 @@
+name: Release Notes
+
+on:
+  release:
+    types: [created, edited]
+  workflow_dispatch:
+
+jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    name: Validate Release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get release information
+        id: release_info
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          # Check if tag matches version in pyproject.toml
+          VERSION=$(grep 'version = ' pyproject.toml | head -1 | cut -d'"' -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release Tag: $TAG"
+          echo "Project Version: $VERSION"
+
+      - name: Verify version consistency
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=$(grep 'version = ' pyproject.toml | head -1 | cut -d'"' -f2)
+
+          # Extract version from tag (remove 'v' prefix if present)
+          TAG_VERSION=${TAG#v}
+
+          if [ "$VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ Version mismatch!"
+            echo "Tag: $TAG_VERSION"
+            echo "pyproject.toml: $VERSION"
+            exit 1
+          fi
+
+          echo "✓ Version consistency verified"
+
+      - name: Verify changelog entry exists
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#v}
+
+          if grep -q "## \[$VERSION\]" CHANGELOG.md || grep -q "## $VERSION" CHANGELOG.md; then
+            echo "✓ Changelog entry found for version $VERSION"
+          else
+            echo "⚠️ Warning: No changelog entry found for version $VERSION"
+            echo "Please ensure CHANGELOG.md has been updated"
+          fi
+
+  generate-release-notes:
+    runs-on: ubuntu-latest
+    name: Generate Release Notes
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Extract release notes from changelog
+        id: changelog
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#v}
+
+          # Extract section from CHANGELOG.md
+          python3 << 'EOF'
+          import re
+
+          with open('CHANGELOG.md', 'r') as f:
+              content = f.read()
+
+          version = "$VERSION"
+
+          # Find the section for this version
+          pattern = rf'## \[?{re.escape(version)}\]?.*?(?=## |$)'
+          match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
+
+          if match:
+              release_notes = match.group(0).strip()
+              # Remove the version header line
+              release_notes = re.sub(r'^## .*?\n', '', release_notes)
+              print(release_notes)
+          else:
+              print(f"No changelog entry found for version {version}")
+          EOF
+
+      - name: Create release summary comment
+        if: github.event.action == 'created'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            const version = tag.replace(/^v/, '');
+
+            const releaseBody = `
+            ## 🎉 Release v${version}
+
+            ### Installation
+
+            Install via pip:
+            \`\`\`bash
+            pip install --upgrade pocketflow-creator==${version}
+            \`\`\`
+
+            Or install from source:
+            \`\`\`bash
+            git clone https://github.com/Monotoba/PocketFlowCreator.git
+            cd PocketFlowCreator
+            git checkout v${version}
+            pip install -e .
+            \`\`\`
+
+            ### What's New
+
+            See CHANGELOG.md for details.
+
+            ### Issues & Feedback
+
+            Report bugs or request features at: https://github.com/Monotoba/PocketFlowCreator/issues
+            `;
+
+            console.log("Release Summary:");
+            console.log(releaseBody);

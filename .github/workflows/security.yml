@@ -1,0 +1,52 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  bandit:
+    runs-on: ubuntu-latest
+    name: Security - Bandit
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip --disable-pip-version-check
+          pip install bandit
+
+      - name: Run Bandit security scan
+        run: bandit -r src --format json --output bandit-report.json || true
+
+      - name: Bandit report summary
+        run: bandit -r src || true
+
+  dependabot:
+    runs-on: ubuntu-latest
+    name: Dependency Check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip --disable-pip-version-check
+          pip install -e ".[dev]"
+
+      - name: Check for outdated packages
+        run: pip list --outdated || true
