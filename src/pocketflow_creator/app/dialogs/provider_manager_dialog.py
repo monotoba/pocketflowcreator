@@ -351,9 +351,10 @@ class _ProfileEditPanel(QWidget):
         self._base_url_field.setVisible(is_compat)
         if is_compat and not self._base_url_field.text().strip():
             self._base_url_field.setText(DEFAULT_BASE_URLS.get("openai_compat", ""))
-        # For non-openai_compat types (ollama, lm_studio), ensure base_url is set from defaults
+        # For non-openai_compat types (ollama, lm_studio), always use the type's default base_url
+        # since the field is hidden and user can't edit it
         if self._profile is not None:
-            if not is_compat and not self._profile.base_url:
+            if not is_compat:
                 self._profile.base_url = DEFAULT_BASE_URLS.get(ptype, "")
             if not self._model_field.text().strip():
                 self._model_field.setText(DEFAULT_MODELS.get(ptype, ""))
