@@ -46,19 +46,13 @@ def test_create_node_at_model_registered() -> None:
     scene = _make_scene()
     new_item = scene.create_node_at("router_node", QPointF(100, 100))
     assert new_item.node.type_id == "router_node"
-    assert new_item.node.id in {
-        item._node.id for item in scene.items() if isinstance(item, NodeItem)
-    }
+    assert new_item.node.id in {item._node.id for item in scene.items() if isinstance(item, NodeItem)}
 
 
 def test_apply_validation_marks_error() -> None:
     scene = _make_scene()
     scene.apply_validation({"node_start"})
-    node_map = {
-        item._node.id: item
-        for item in scene.items()
-        if isinstance(item, NodeItem)
-    }
+    node_map = {item._node.id: item for item in scene.items() if isinstance(item, NodeItem)}
     assert node_map["node_start"]._has_error is True
     for node_id, item in node_map.items():
         if node_id != "node_start":

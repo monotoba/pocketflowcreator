@@ -115,9 +115,7 @@ class NodeTypeWizard(QDialog):
         play.addLayout(p_row)
         tabs.addTab(prop_widget, "Properties")
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         help_btn = buttons.addButton("?", QDialogButtonBox.ButtonRole.HelpRole)
         help_btn.clicked.connect(self._on_help)
         buttons.accepted.connect(self._on_accept)
@@ -161,10 +159,7 @@ class NodeTypeWizard(QDialog):
         self.accept()
 
     def _collect(self) -> dict[str, Any]:
-        actions = [
-            self._actions_list.item(i).text()
-            for i in range(self._actions_list.count())
-        ]
+        actions = [self._actions_list.item(i).text() for i in range(self._actions_list.count())]
         props: dict[str, dict[str, str]] = {}
         for r in range(self._props_table.rowCount()):
             name_item = self._props_table.item(r, 0)

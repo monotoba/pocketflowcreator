@@ -1,4 +1,5 @@
 """Provider profile model — persisted in the project file (API keys optionally)."""
+
 from __future__ import annotations
 
 import uuid
@@ -11,26 +12,26 @@ PROVIDER_TYPES = ("openai_compat", "anthropic", "gemini", "ollama", "lm_studio")
 # Human-readable labels shown in the dialog dropdown.
 PROVIDER_TYPE_LABELS = {
     "openai_compat": "OpenAI-compatible (OpenAI, DeepSeek, Azure, Groq, …)",
-    "anthropic":     "Anthropic (Claude)",
-    "gemini":        "Google Gemini",
-    "ollama":        "Ollama (local)",
-    "lm_studio":     "LM Studio (local)",
+    "anthropic": "Anthropic (Claude)",
+    "gemini": "Google Gemini",
+    "ollama": "Ollama (local)",
+    "lm_studio": "LM Studio (local)",
 }
 
 # Default base URLs per type.
 DEFAULT_BASE_URLS = {
     "openai_compat": "https://api.openai.com/v1",
-    "ollama":        "http://localhost:11434",
-    "lm_studio":     "http://localhost:1234/v1",
+    "ollama": "http://localhost:11434",
+    "lm_studio": "http://localhost:1234/v1",
 }
 
 # Default model per type.
 DEFAULT_MODELS = {
     "openai_compat": "gpt-4o-mini",
-    "anthropic":     "claude-haiku-4-5",
-    "gemini":        "gemini-2.0-flash",
-    "ollama":        "qwen2.5-coder:14b",
-    "lm_studio":     "meta-llama-3.1-8b",
+    "anthropic": "claude-haiku-4-5",
+    "gemini": "gemini-2.0-flash",
+    "ollama": "qwen2.5-coder:14b",
+    "lm_studio": "meta-llama-3.1-8b",
 }
 
 
@@ -44,12 +45,12 @@ class ProviderProfile:
     project file so the project is fully portable.
     """
 
-    id: str              # stable UUID — never displayed
-    name: str            # user-visible name ("Fast Claude", "Local Ollama", …)
-    type: str            # one of PROVIDER_TYPES
-    model: str           # default model string
-    base_url: str = ""   # used for openai_compat; ignored for others
-    timeout: int = 120   # request timeout in seconds
+    id: str  # stable UUID — never displayed
+    name: str  # user-visible name ("Fast Claude", "Local Ollama", …)
+    type: str  # one of PROVIDER_TYPES
+    model: str  # default model string
+    base_url: str = ""  # used for openai_compat; ignored for others
+    timeout: int = 120  # request timeout in seconds
 
     # Not persisted in the project unless include_api_keys is True.
     # Populated at runtime from QSettings or project YAML.
@@ -68,11 +69,11 @@ class ProviderProfile:
 
     def to_dict(self, *, include_api_key: bool = False) -> dict[str, Any]:
         d: dict[str, Any] = {
-            "id":       self.id,
-            "name":     self.name,
-            "type":     self.type,
-            "model":    self.model,
-            "timeout":  self.timeout,
+            "id": self.id,
+            "name": self.name,
+            "type": self.type,
+            "model": self.model,
+            "timeout": self.timeout,
         }
         if self.base_url:
             d["base_url"] = self.base_url
@@ -113,7 +114,7 @@ class ProjectProviders:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "include_api_keys":   self.include_api_keys,
+            "include_api_keys": self.include_api_keys,
             "default_profile_id": self.default_profile_id,
             "profiles": [p.to_dict(include_api_key=self.include_api_keys) for p in self.profiles],
         }

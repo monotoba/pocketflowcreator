@@ -3,6 +3,7 @@
 GraphScene is referenced inside method bodies only (lazy import) to break the
 circular dependency:  items → scene → items.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -56,9 +57,9 @@ from pocketflow_creator.model.graph_model import EdgeModel, NodeModel
 
 # ── Node geometry constants ───────────────────────────────────────────────────
 _WIDTH = 160
-_HEIGHT = 60       # minimum / single-action node height (kept for layout spacing)
-_HEADER_H = 36     # title (18 px) + type badge (13 px) + 5 px gap before action rows
-_PORT_ROW_H = 18   # height allocated per action row
+_HEIGHT = 60  # minimum / single-action node height (kept for layout spacing)
+_HEADER_H = 36  # title (18 px) + type badge (13 px) + 5 px gap before action rows
+_PORT_ROW_H = 18  # height allocated per action row
 _PORT_R = 5
 
 
@@ -140,6 +141,7 @@ class NodeItem(QGraphicsItem):
     ) -> None:
         scene = self.scene()
         from pocketflow_creator.app.canvas.scene import GraphScene  # lazy – avoids circular import
+
         dark = scene.is_dark if isinstance(scene, GraphScene) else True
         colors = _DARK_COLORS if dark else _LIGHT_COLORS
 
@@ -166,17 +168,13 @@ class NodeItem(QGraphicsItem):
         title_font.setBold(True)
         painter.setFont(title_font)
         painter.setPen(QPen(QColor(colors["title"])))
-        painter.drawText(
-            QRectF(12, 4, _WIDTH - 24, 18), Qt.AlignmentFlag.AlignVCenter, self._node.title
-        )
+        painter.drawText(QRectF(12, 4, _WIDTH - 24, 18), Qt.AlignmentFlag.AlignVCenter, self._node.title)
 
         badge_font = QFont(base_font)
         badge_font.setPointSize(max(base_font.pointSize() - 1, 7))
         painter.setFont(badge_font)
         painter.setPen(QPen(QColor(colors["badge"])))
-        painter.drawText(
-            QRectF(12, 21, _WIDTH - 24, 13), Qt.AlignmentFlag.AlignVCenter, self._node.type_id
-        )
+        painter.drawText(QRectF(12, 21, _WIDTH - 24, 13), Qt.AlignmentFlag.AlignVCenter, self._node.type_id)
 
         # Separator between header and action area (only for multi-action nodes)
         if len(actions) > 1:
@@ -224,20 +222,20 @@ class NodeItem(QGraphicsItem):
         if self._is_start:
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QBrush(QColor("#44bb44")))
-            triangle = QPolygonF([
-                QPointF(8, h / 2 - 6),
-                QPointF(8, h / 2 + 6),
-                QPointF(18, h / 2),
-            ])
+            triangle = QPolygonF(
+                [
+                    QPointF(8, h / 2 - 6),
+                    QPointF(8, h / 2 + 6),
+                    QPointF(18, h / 2),
+                ]
+            )
             painter.drawPolygon(triangle)
 
         if self._node.type_id == "stop_node":
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QBrush(QColor("#dd4444")))
             sq = 10
-            painter.drawRect(
-                int(_WIDTH - 8 - sq), int(h / 2 - sq / 2), sq, sq
-            )
+            painter.drawRect(int(_WIDTH - 8 - sq), int(h / 2 - sq / 2), sq, sq)
 
     @staticmethod
     def _action_port_ys(actions: list[str]) -> list[tuple[str, float]]:
@@ -270,6 +268,7 @@ class NodeItem(QGraphicsItem):
 
     def mouseDoubleClickEvent(self, event: Any) -> None:
         from pocketflow_creator.app.canvas.scene import GraphScene  # lazy – avoids circular import
+
         scene = self.scene()
         if isinstance(scene, GraphScene):
             scene.node_item_double_clicked.emit(self)
@@ -277,6 +276,7 @@ class NodeItem(QGraphicsItem):
 
     def contextMenuEvent(self, event: Any) -> None:
         from pocketflow_creator.app.canvas.scene import GraphScene  # lazy – avoids circular import
+
         scene = self.scene()
         if not isinstance(scene, GraphScene):
             return
@@ -324,6 +324,7 @@ class NodeItem(QGraphicsItem):
         if event.button() == Qt.MouseButton.LeftButton:
             self._drag_start_pos = self.pos()  # type: ignore[assignment]
             from pocketflow_creator.app.canvas.scene import GraphScene  # lazy – avoids circular import
+
             scene = self.scene()
             if isinstance(scene, GraphScene):
                 scene.node_drag_started.emit(self._node.id)
@@ -335,6 +336,7 @@ class NodeItem(QGraphicsItem):
             start = getattr(self, "_drag_start_pos", None)
             if start is not None and start != self.pos():
                 from pocketflow_creator.app.canvas.scene import GraphScene  # lazy – avoids circular import
+
                 scene = self.scene()
                 if isinstance(scene, GraphScene):
                     scene.node_move_finished.emit(self._node.id)
@@ -346,6 +348,7 @@ class NodeItem(QGraphicsItem):
             self.node.position["x"] = p.x()
             self.node.position["y"] = p.y()
             from pocketflow_creator.app.canvas.scene import GraphScene  # lazy – avoids circular import
+
             scene = self.scene()
             if isinstance(scene, GraphScene):
                 scene.update_edges()

@@ -1,4 +1,5 @@
 """GraphScene — the QGraphicsScene subclass that owns all canvas items."""
+
 from __future__ import annotations
 
 import math
@@ -15,6 +16,7 @@ else:
         from PySide6.QtGui import QColor, QPen
         from PySide6.QtWidgets import QGraphicsScene
     except ImportError:  # pragma: no cover
+
         def Signal(*a: Any, **kw: Any) -> Any:
             return None
 
@@ -36,18 +38,18 @@ class GraphScene(QGraphicsScene):
     edge_item_selected = Signal(object)
     selection_cleared = Signal()
     node_item_double_clicked = Signal(object)  # emits NodeItem
-    node_created = Signal(object)              # emits NodeItem
-    node_deleted = Signal(str)                 # emits node_id
+    node_created = Signal(object)  # emits NodeItem
+    node_deleted = Signal(str)  # emits node_id
     edge_creation_requested = Signal(object, object, str)  # emits (src NodeItem, tgt NodeItem, action)
-    edge_deleted = Signal(str)                 # emits edge_id
-    set_start_node_requested = Signal(object)         # emits NodeItem
-    node_drag_started = Signal(str)                   # emits node_id when a drag begins
-    node_move_finished = Signal(str)                  # emits node_id when a drag ends with position change
-    node_open_code_requested = Signal(object)         # emits NodeItem (right-click → Open Code)
-    node_rename_requested = Signal(object)            # emits NodeItem (right-click → Rename)
-    node_toggle_breakpoint_requested = Signal(object) # emits NodeItem (right-click → Toggle Breakpoint)
-    node_duplicate_requested = Signal(object)         # emits NodeItem (right-click → Duplicate)
-    node_delete_requested = Signal(object)            # emits NodeItem (right-click → Delete)
+    edge_deleted = Signal(str)  # emits edge_id
+    set_start_node_requested = Signal(object)  # emits NodeItem
+    node_drag_started = Signal(str)  # emits node_id when a drag begins
+    node_move_finished = Signal(str)  # emits node_id when a drag ends with position change
+    node_open_code_requested = Signal(object)  # emits NodeItem (right-click → Open Code)
+    node_rename_requested = Signal(object)  # emits NodeItem (right-click → Rename)
+    node_toggle_breakpoint_requested = Signal(object)  # emits NodeItem (right-click → Toggle Breakpoint)
+    node_duplicate_requested = Signal(object)  # emits NodeItem (right-click → Duplicate)
+    node_delete_requested = Signal(object)  # emits NodeItem (right-click → Delete)
 
     def __init__(self, parent: Any = None) -> None:
         super().__init__(parent)
@@ -252,9 +254,7 @@ class GraphScene(QGraphicsScene):
         if not self._node_items:
             return
         items = self._node_items
-        positions: dict[str, list[float]] = {
-            nid: [item.pos().x(), item.pos().y()] for nid, item in items.items()
-        }
+        positions: dict[str, list[float]] = {nid: [item.pos().x(), item.pos().y()] for nid, item in items.items()}
         edges_list = [(ei._src.node.id, ei._tgt.node.id) for ei in self._edge_items]
         k = math.sqrt((_WIDTH + h_gap) * (_HEIGHT + v_gap))
         ids = list(items.keys())
@@ -263,7 +263,7 @@ class GraphScene(QGraphicsScene):
             forces: dict[str, list[float]] = {nid: [0.0, 0.0] for nid in ids}
             # Repulsion between all pairs
             for i, u in enumerate(ids):
-                for v in ids[i + 1:]:
+                for v in ids[i + 1 :]:
                     dx = positions[u][0] - positions[v][0]
                     dy = positions[u][1] - positions[v][1]
                     d = math.sqrt(dx * dx + dy * dy) or 0.1

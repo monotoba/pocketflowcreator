@@ -18,9 +18,7 @@ class GraphLoader:
         if version != GRAPH_SCHEMA_VERSION:
             # No automatic migration: the user must re-export from the version
             # that produced the file, or hand-edit schema_version if safe to do so.
-            raise ValueError(
-                f"Unsupported graph schema version {version!r}; expected {GRAPH_SCHEMA_VERSION!r}"
-            )
+            raise ValueError(f"Unsupported graph schema version {version!r}; expected {GRAPH_SCHEMA_VERSION!r}")
         return GraphModel(
             id=str(data["id"]),
             title=str(data["title"]),

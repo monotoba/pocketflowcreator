@@ -18,10 +18,7 @@ class ProjectLoader:
             data: dict[str, Any] = yaml.safe_load(f)
         version = str(data.get("schema_version", ""))
         if version not in (PROJECT_SCHEMA_VERSION, _LEGACY_SCHEMA_VERSION):
-            raise ValueError(
-                f"Unsupported project schema version {version!r};"
-                f" expected {PROJECT_SCHEMA_VERSION!r}"
-            )
+            raise ValueError(f"Unsupported project schema version {version!r}; expected {PROJECT_SCHEMA_VERSION!r}")
         return self._parse_project(data, path.parent, legacy=(version == _LEGACY_SCHEMA_VERSION))
 
     @staticmethod
@@ -31,11 +28,7 @@ class ProjectLoader:
             providers = ProjectProviders.default_empty()
         else:
             raw_providers = data.get("providers")
-            providers = (
-                ProjectProviders.from_dict(raw_providers)
-                if isinstance(raw_providers, dict)
-                else ProjectProviders.default_empty()
-            )
+            providers = ProjectProviders.from_dict(raw_providers) if isinstance(raw_providers, dict) else ProjectProviders.default_empty()
         return ProjectModel(
             name=str(data["name"]),
             package_name=str(data["package_name"]),

@@ -3,29 +3,29 @@ NHM (National Hydrologic Model) domain simulation.
 Install: pip install pywatershed"""
 
 __node_meta__ = {
-    "node":        "pywatershed",
-    "category":    "Hydrology / Water",
-    "version":     "1.0.0",
+    "node": "pywatershed",
+    "category": "Hydrology / Water",
+    "version": "1.0.0",
     "description": "Runs a USGS pywatershed / NHM hydrologic simulation and returns streamflow and storage outputs.",
-    "tags":        ["pywatershed", "nhm", "usgs", "hydrology", "streamflow", "water-balance"],
-    "license":     "MIT",
-    "website":     "https://pywatershed.readthedocs.io/",
-    "repo":        "https://github.com/EC-USGS/pywatershed",
-    "actions":     ["default", "error"],
+    "tags": ["pywatershed", "nhm", "usgs", "hydrology", "streamflow", "water-balance"],
+    "license": "MIT",
+    "website": "https://pywatershed.readthedocs.io/",
+    "repo": "https://github.com/EC-USGS/pywatershed",
+    "actions": ["default", "error"],
     "properties": {
         "domain_dir_key": {
-            "type":        "string",
-            "default":     "pws_domain_dir",
+            "type": "string",
+            "default": "pws_domain_dir",
             "description": "Shared-store key holding the pywatershed domain directory path.",
         },
         "control_file_key": {
-            "type":        "string",
-            "default":     "pws_control_file",
+            "type": "string",
+            "default": "pws_control_file",
             "description": "Shared-store key holding the control file path (optional; defaults to control.yml in domain_dir).",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "pws_result",
+            "type": "string",
+            "default": "pws_result",
             "description": "Shared-store key to write run summary and output file paths.",
         },
     },
@@ -40,16 +40,18 @@ class PyWatershedNode:
 
     def prep(self, shared: dict) -> dict:
         import pathlib
+
         domain_dir = pathlib.Path(shared.get("pws_domain_dir", ""))
         control_file = shared.get("pws_control_file", "") or str(domain_dir / "control.yml")
         return {
-            "domain_dir":   str(domain_dir),
+            "domain_dir": str(domain_dir),
             "control_file": control_file,
-            "result_key":   shared.get("pws_result_key", "pws_result"),
+            "result_key": shared.get("pws_result_key", "pws_result"),
         }
 
     def exec(self, prep_res: dict):
         import pathlib
+
         domain_dir = pathlib.Path(prep_res["domain_dir"])
         if not domain_dir.is_dir():
             return {"error": f"pywatershed domain directory not found: {domain_dir}"}
@@ -59,7 +61,7 @@ class PyWatershedNode:
             return {"error": "pywatershed not installed.  Run: pip install pywatershed"}
         try:
             control = pws.Control.load_prms(prep_res["control_file"])
-            params  = pws.Parameters.from_netcdf(str(domain_dir / "parameters.nc"))
+            params = pws.Parameters.from_netcdf(str(domain_dir / "parameters.nc"))
             # Build a simple NHM simulation
             sim = pws.Model(
                 [pws.PRMSSolarGeometry, pws.PRMSAtmosphere, pws.PRMSSoilzone, pws.PRMSRunoff, pws.PRMSChannel],

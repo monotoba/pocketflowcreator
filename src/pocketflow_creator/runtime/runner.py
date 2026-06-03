@@ -142,6 +142,7 @@ class FlowRunner:
 
         Unknown keys are left as-is so the LLM sees the original placeholder.
         """
+
         # shared['key'] and shared["key"]
         def _replace_shared(m: re.Match) -> str:
             key = m.group(1)
@@ -184,9 +185,13 @@ class FlowRunner:
             # back into the parent shared_store before we continue execution.
             inner_steps = list(
                 self.steps(
-                    subgraph, provider, shared=shared_store,
-                    known_graphs=known_graphs, project_root=project_root,
-                    input_callback=input_callback, provider_resolver=resolver,
+                    subgraph,
+                    provider,
+                    shared=shared_store,
+                    known_graphs=known_graphs,
+                    project_root=project_root,
+                    input_callback=input_callback,
+                    provider_resolver=resolver,
                 )
             )
             if inner_steps:
@@ -204,9 +209,7 @@ class FlowRunner:
     ) -> tuple[str, str, str]:
         """Run an LLM node; return (prompt, response, chosen_action)."""
         prompt = self._interpolate(
-            self._resolve_prompt(node.properties, project_root) or (
-                f"[{node.title}] {node.type_id}"
-            ),
+            self._resolve_prompt(node.properties, project_root) or (f"[{node.title}] {node.type_id}"),
             shared_store,
         )
         response = provider.complete(prompt)
@@ -228,9 +231,9 @@ class FlowRunner:
         categories = str(node.properties.get("categories", ""))
         resolved = self._resolve_prompt(node.properties, project_root)
         prompt = self._interpolate(
-            resolved or (
-                f"Classify the following text as exactly one of [{categories}].\n"
-                f"Reply with only the category name, nothing else.\n\nText: {content}"
+            resolved
+            or (
+                f"Classify the following text as exactly one of [{categories}].\nReply with only the category name, nothing else.\n\nText: {content}"
             ),
             shared_store,
         )
@@ -259,7 +262,8 @@ class FlowRunner:
         content = str(shared_store.get(input_key, ""))
         criteria = str(node.properties.get("criteria", ""))
         prompt = self._interpolate(
-            self._resolve_prompt(node.properties, project_root) or (
+            self._resolve_prompt(node.properties, project_root)
+            or (
                 f"Evaluate the content below against the criteria.\n"
                 f"Reply with exactly 'pass' or 'fail'.\n\n"
                 f"Criteria: {criteria}\n\nContent: {content}"
@@ -288,9 +292,7 @@ class FlowRunner:
         input_key = str(node.properties.get("input_key", "task"))
         task = str(shared_store.get(input_key, ""))
         prompt = self._interpolate(
-            self._resolve_prompt(node.properties, project_root) or (
-                f"You are an AI agent. Complete the following task:\n\n{task}"
-            ),
+            self._resolve_prompt(node.properties, project_root) or (f"You are an AI agent. Complete the following task:\n\n{task}"),
             shared_store,
         )
         response = provider.complete(prompt)
@@ -372,29 +374,57 @@ class FlowRunner:
 
             if node.type_id == "subflow_node":
                 inner_steps, prompt, response, chosen_action = self._handle_subflow_node(
-                    node, shared_store, node_provider, known_graphs, project_root,
-                    input_callback, chosen_action, provider_resolver,
+                    node,
+                    shared_store,
+                    node_provider,
+                    known_graphs,
+                    project_root,
+                    input_callback,
+                    chosen_action,
+                    provider_resolver,
                 )
                 yield from inner_steps
             elif "llm" in node.type_id.lower():
                 prompt, response, chosen_action = self._handle_llm_node(
-                    node, shared_store, node_provider, project_root, chosen_action,
+                    node,
+                    shared_store,
+                    node_provider,
+                    project_root,
+                    chosen_action,
                 )
             elif node.type_id == "classifier_node":
                 prompt, response, chosen_action = self._handle_classifier_node(
-                    node, shared_store, available_actions, node_provider, project_root,
+                    node,
+                    shared_store,
+                    available_actions,
+                    node_provider,
+                    project_root,
                 )
             elif node.type_id == "judge_node":
                 prompt, response, chosen_action = self._handle_judge_node(
-                    node, shared_store, available_actions, node_provider, project_root, chosen_action,
+                    node,
+                    shared_store,
+                    available_actions,
+                    node_provider,
+                    project_root,
+                    chosen_action,
                 )
             elif node.type_id == "agent_node":
                 prompt, response, chosen_action = self._handle_agent_node(
-                    node, shared_store, available_actions, node_provider, project_root, chosen_action,
+                    node,
+                    shared_store,
+                    available_actions,
+                    node_provider,
+                    project_root,
+                    chosen_action,
                 )
             elif node.type_id == "human_input_node":
                 prompt, response, chosen_action = self._handle_human_input_node(
-                    node, shared_store, available_actions, input_callback, chosen_action,
+                    node,
+                    shared_store,
+                    available_actions,
+                    input_callback,
+                    chosen_action,
                 )
             else:
                 prompt, response = "", ""
@@ -415,9 +445,7 @@ class FlowRunner:
             if next_edge is None and outgoing:
                 # Fallback: prefer a 'default' edge, then any edge.
                 # Handles graphs built before action-aware port dragging was available.
-                next_edge = next(
-                    (e for e in outgoing if e.action == "default"), outgoing[0]
-                )
+                next_edge = next((e for e in outgoing if e.action == "default"), outgoing[0])
             current_id = next_edge.to_node if next_edge else ""
 
     def run(
@@ -439,9 +467,13 @@ class FlowRunner:
             graph_title=graph.title,
             steps=list(
                 self.steps(
-                    graph, provider,
-                    shared=shared, known_graphs=known_graphs, project_root=project_root,
-                    input_callback=input_callback, provider_resolver=provider_resolver,
+                    graph,
+                    provider,
+                    shared=shared,
+                    known_graphs=known_graphs,
+                    project_root=project_root,
+                    input_callback=input_callback,
+                    provider_resolver=provider_resolver,
                 )
             ),
         )
@@ -471,8 +503,12 @@ class FlowRunner:
         collected: list[RunStep] = []
 
         for step in self.steps(
-            graph, provider, shared=shared, known_graphs=known_graphs,
-            project_root=project_root, input_callback=input_callback,
+            graph,
+            provider,
+            shared=shared,
+            known_graphs=known_graphs,
+            project_root=project_root,
+            input_callback=input_callback,
             provider_resolver=provider_resolver,
         ):
             if controller.is_stopped:

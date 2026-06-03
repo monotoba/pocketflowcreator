@@ -3,34 +3,34 @@ via the oct2py bridge (pip install oct2py).  Free, open-source alternative
 to MATLAB Engine."""
 
 __node_meta__ = {
-    "node":        "Octave Script",
-    "category":    "Scientific Computing",
-    "version":     "1.0.0",
+    "node": "Octave Script",
+    "category": "Scientific Computing",
+    "version": "1.0.0",
     "description": "Runs a GNU Octave script or expression and returns workspace output.",
-    "tags":        ["octave", "matlab", "numerical", "scientific", "open-source"],
-    "license":     "MIT",
-    "website":     "https://oct2py.readthedocs.io/",
-    "repo":        "https://github.com/blink1073/oct2py",
-    "actions":     ["default", "error"],
+    "tags": ["octave", "matlab", "numerical", "scientific", "open-source"],
+    "license": "MIT",
+    "website": "https://oct2py.readthedocs.io/",
+    "repo": "https://github.com/blink1073/oct2py",
+    "actions": ["default", "error"],
     "properties": {
         "script_path_key": {
-            "type":        "string",
-            "default":     "octave_script_path",
+            "type": "string",
+            "default": "octave_script_path",
             "description": "Shared-store key holding the path to a .m script file (or leave blank to use inline_code).",
         },
         "inline_code_key": {
-            "type":        "string",
-            "default":     "octave_code",
+            "type": "string",
+            "default": "octave_code",
             "description": "Shared-store key holding an inline Octave expression.",
         },
         "result_var": {
-            "type":        "string",
-            "default":     "ans",
+            "type": "string",
+            "default": "ans",
             "description": "Octave variable name to read back as the result.",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "octave_result",
+            "type": "string",
+            "default": "octave_result",
             "description": "Shared-store key to write the result into.",
         },
     },
@@ -47,8 +47,8 @@ class OctaveScriptNode:
         return {
             "script_path": shared.get("octave_script_path", ""),
             "inline_code": shared.get("octave_code", ""),
-            "result_var":  shared.get("octave_result_var", "ans"),
-            "result_key":  shared.get("octave_result_key", "octave_result"),
+            "result_var": shared.get("octave_result_var", "ans"),
+            "result_key": shared.get("octave_result_key", "octave_result"),
         }
 
     def exec(self, prep_res: dict):

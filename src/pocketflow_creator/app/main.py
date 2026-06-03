@@ -127,7 +127,7 @@ def _node_skeleton_text(type_id: str, base_class: str) -> str:
     return (
         f"from __future__ import annotations\n\n\n"
         f"class {class_name}({resolved}):\n"
-        f"    \"\"\"{type_id}\"\"\"\n\n"
+        f'    """{type_id}"""\n\n'
         f"    def prep(self, shared: dict) -> object:\n"
         f"        return None\n\n"
         f"    def exec(self, prep_res: object) -> object:\n"
@@ -135,6 +135,8 @@ def _node_skeleton_text(type_id: str, base_class: str) -> str:
         f"    def post(self, shared: dict, prep_res: object, exec_res: object) -> str:\n"
         f"        return 'default'\n"
     )
+
+
 _EDITOR_TABS: frozenset[str] = frozenset({"Python", "Markdown", "YAML"})
 _ROLE_PATH = Qt.ItemDataRole.UserRole  # type: ignore[attr-defined]
 _ROLE_KIND = Qt.ItemDataRole(Qt.ItemDataRole.UserRole.value + 1)  # type: ignore[attr-defined]
@@ -167,9 +169,7 @@ class MainWindow(QMainWindow):
         _stored = _settings.value(_SKEY_THEME, None)
         if _stored is None:
             _old = _settings.value(_SKEY_DARK_MODE, None)
-            _stored = "dark" if _old is True or _old == "true" else (
-                "light" if _old is False or _old == "false" else "system"
-            )
+            _stored = "dark" if _old is True or _old == "true" else ("light" if _old is False or _old == "false" else "system")
         self._theme_mode: str = str(_stored)
         self._dark_mode: bool = self._resolve_dark()
         self._stop_action: QAction  # assigned in _build_menu_bar
@@ -213,13 +213,9 @@ class MainWindow(QMainWindow):
         self._graph_scene.node_duplicate_requested.connect(self._on_node_duplicate_requested)
         self._graph_scene.node_delete_requested.connect(self._on_node_delete_requested)
         self._inspector.itemChanged.connect(self._on_inspector_item_changed)
-        self._explorer_tree.itemDoubleClicked.connect(
-            self._on_explorer_item_double_clicked
-        )
+        self._explorer_tree.itemDoubleClicked.connect(self._on_explorer_item_double_clicked)
         self._bottom_editors["YAML"].textChanged.connect(self._on_yaml_editor_changed)
-        self._bottom_editors["Markdown"].textChanged.connect(
-            self._on_markdown_editor_changed
-        )
+        self._bottom_editors["Markdown"].textChanged.connect(self._on_markdown_editor_changed)
         self._recent = self._load_recent()
         self._update_recent_menu()
         self._apply_theme()
@@ -246,9 +242,7 @@ class MainWindow(QMainWindow):
         act = file_menu.addAction(self.tr("Save All"), self._on_save_all)
         act.setShortcut(QKeySequence("Ctrl+Shift+S"))
         file_menu.addSeparator()
-        act = file_menu.addAction(
-            self.tr("Export PocketFlow Project..."), self._on_export_project
-        )
+        act = file_menu.addAction(self.tr("Export PocketFlow Project..."), self._on_export_project)
         act.setShortcut(QKeySequence("Ctrl+E"))
         file_menu.addAction(self.tr("Project Settings..."), self._on_project_settings)
         file_menu.addSeparator()
@@ -298,12 +292,8 @@ class MainWindow(QMainWindow):
         act.setShortcut(QKeySequence("Ctrl+G"))
         project_menu.addAction(self.tr("Open Project Folder"), self._on_open_project_folder)
         project_menu.addAction(self.tr("Export Graph Image..."), self._on_export_graph_image)
-        project_menu.addAction(
-            self.tr("Export Project Report..."), self._on_export_project_report
-        )
-        project_menu.addAction(
-            self.tr("Data Flow Report"), self._on_dataflow_report
-        )
+        project_menu.addAction(self.tr("Export Project Report..."), self._on_export_project_report)
+        project_menu.addAction(self.tr("Data Flow Report"), self._on_dataflow_report)
         project_menu.addAction(self.tr("Provider Profiles..."))
 
         flow_menu = self.menuBar().addMenu(self.tr("Flow"))
@@ -337,9 +327,7 @@ class MainWindow(QMainWindow):
         tools_menu = self.menuBar().addMenu(self.tr("Tools"))
         tools_menu.addAction(self.tr("Provider Manager..."), self._on_provider_manager)
         tools_menu.addAction(self.tr("Tool Registry..."), self._on_tool_registry)
-        tools_menu.addAction(
-            self.tr("Shared Store Inspector..."), self._on_shared_store_inspector
-        )
+        tools_menu.addAction(self.tr("Shared Store Inspector..."), self._on_shared_store_inspector)
         tools_menu.addAction(self.tr("Node Type Library..."), self._on_node_type_library)
         tools_menu.addAction(self.tr("Options..."), self._on_options)
 
@@ -387,25 +375,25 @@ class MainWindow(QMainWindow):
         even before the pointer moves near it.
         """
         if dark:
-            btn_hover_border   = "rgba(255, 255, 255, 0.55)"
-            btn_hover_bg       = "rgba(255, 255, 255, 0.12)"
+            btn_hover_border = "rgba(255, 255, 255, 0.55)"
+            btn_hover_bg = "rgba(255, 255, 255, 0.12)"
             btn_pressed_border = "rgba(255, 255, 255, 0.80)"
-            btn_pressed_bg     = "rgba(255, 255, 255, 0.25)"
-            ext_border         = "rgba(255, 255, 255, 0.35)"
-            ext_bg             = "rgba(255, 255, 255, 0.08)"
-            ext_hover_border   = "rgba(255, 255, 255, 0.65)"
-            ext_hover_bg       = "rgba(255, 255, 255, 0.18)"
-            ext_color          = "rgba(255, 255, 255, 0.85)"
+            btn_pressed_bg = "rgba(255, 255, 255, 0.25)"
+            ext_border = "rgba(255, 255, 255, 0.35)"
+            ext_bg = "rgba(255, 255, 255, 0.08)"
+            ext_hover_border = "rgba(255, 255, 255, 0.65)"
+            ext_hover_bg = "rgba(255, 255, 255, 0.18)"
+            ext_color = "rgba(255, 255, 255, 0.85)"
         else:
-            btn_hover_border   = "rgba(0, 0, 0, 0.30)"
-            btn_hover_bg       = "rgba(0, 0, 0, 0.08)"
+            btn_hover_border = "rgba(0, 0, 0, 0.30)"
+            btn_hover_bg = "rgba(0, 0, 0, 0.08)"
             btn_pressed_border = "rgba(0, 0, 0, 0.50)"
-            btn_pressed_bg     = "rgba(0, 0, 0, 0.15)"
-            ext_border         = "rgba(0, 0, 0, 0.28)"
-            ext_bg             = "rgba(0, 0, 0, 0.06)"
-            ext_hover_border   = "rgba(0, 0, 0, 0.50)"
-            ext_hover_bg       = "rgba(0, 0, 0, 0.12)"
-            ext_color          = "rgba(0, 0, 0, 0.75)"
+            btn_pressed_bg = "rgba(0, 0, 0, 0.15)"
+            ext_border = "rgba(0, 0, 0, 0.28)"
+            ext_bg = "rgba(0, 0, 0, 0.06)"
+            ext_hover_border = "rgba(0, 0, 0, 0.50)"
+            ext_hover_bg = "rgba(0, 0, 0, 0.12)"
+            ext_color = "rgba(0, 0, 0, 0.75)"
 
         return f"""
             QToolButton {{
@@ -452,17 +440,29 @@ class MainWindow(QMainWindow):
     # Between super-groups a wider transparent spacer widget is inserted so the
     # groups visually stand apart without cluttering the bar with extra lines.
     _TOOLBAR_SUPER_GROUPS: list[tuple[str, set[str]]] = [
-        ("Flow / Core",  {"Flow Control", "Core"}),
-        ("AI",           {"AI", "AI/Reasoning", "AI/LLM Utilities"}),
-        ("Human",        {"Human-in-the-Loop"}),
-        ("Data",         {"Data/IO", "Data Processing", "Text/Data Processing",
-                          "Data/Vector", "Data Structures/Memory"}),
-        ("Code",         {"Code", "Code/Execution"}),
-        ("Processing",   {"Processing", "Async"}),
-        ("Integrations", {"Web/Search", "Database/SQL", "Voice/Audio",
-                          "Document/Vision", "Calendar", "MCP/Agent Protocol",
-                          "Observability/Utility", "System/Shell", "Networking",
-                          "Resilience", "Messaging", "Security"}),
+        ("Flow / Core", {"Flow Control", "Core"}),
+        ("AI", {"AI", "AI/Reasoning", "AI/LLM Utilities"}),
+        ("Human", {"Human-in-the-Loop"}),
+        ("Data", {"Data/IO", "Data Processing", "Text/Data Processing", "Data/Vector", "Data Structures/Memory"}),
+        ("Code", {"Code", "Code/Execution"}),
+        ("Processing", {"Processing", "Async"}),
+        (
+            "Integrations",
+            {
+                "Web/Search",
+                "Database/SQL",
+                "Voice/Audio",
+                "Document/Vision",
+                "Calendar",
+                "MCP/Agent Protocol",
+                "Observability/Utility",
+                "System/Shell",
+                "Networking",
+                "Resilience",
+                "Messaging",
+                "Security",
+            },
+        ),
     ]
 
     @staticmethod
@@ -471,7 +471,7 @@ class MainWindow(QMainWindow):
         for label, cats in MainWindow._TOOLBAR_SUPER_GROUPS:
             if category in cats:
                 return label
-        return category   # uncategorised built-ins get their own implicit group
+        return category  # uncategorised built-ins get their own implicit group
 
     def _build_node_toolbar(self) -> None:
         tb = QToolBar(self.tr("Node Types"), self)
@@ -491,11 +491,7 @@ class MainWindow(QMainWindow):
             tb.addWidget(spacer)
 
         # Determine display order — saved order first, falling back to default.
-        default_order = [
-            type_id
-            for _cat, nodes in get_nodes_by_category()
-            for type_id, _nt in nodes
-        ]
+        default_order = [type_id for _cat, nodes in get_nodes_by_category() for type_id, _nt in nodes]
         saved = QSettings(_ORG, _APP).value(_SKEY_TOOLBAR_ORDER, None)
         using_default_order: bool
         if isinstance(saved, list):
@@ -524,23 +520,21 @@ class MainWindow(QMainWindow):
                 if prev_super is None:
                     pass  # first item, no separator needed
                 elif super_grp != prev_super:
-                    _add_gap()          # wider gap between super-groups
+                    _add_gap()  # wider gap between super-groups
                 else:
-                    tb.addSeparator()   # thin line within a super-group
+                    tb.addSeparator()  # thin line within a super-group
                 prev_category = nt.category
                 prev_super = super_grp
             icon = make_node_icon(type_id, 32)
             act = tb.addAction(icon, nt.display_name)
             act.setToolTip(f"{nt.display_name}  [{nt.category}]")
-            act.triggered.connect(
-                lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
-            )
+            act.triggered.connect(lambda checked=False, tid=type_id: self._drop_node_at_center(tid))
             self._toolbar_actions[type_id] = act
 
         # ── Add-on scientific / engineering nodes ─────────────────────────────
         addon_nodes_dict = get_all_addon_nodes()
         if addon_nodes_dict:
-            _add_gap(48)    # prominent break before the add-on section
+            _add_gap(48)  # prominent break before the add-on section
             prev_addon_cat: str | None = None
             for _cat, nodes_in_cat in get_addon_node_groups():
                 for type_id, nt in nodes_in_cat:
@@ -551,15 +545,13 @@ class MainWindow(QMainWindow):
                     icon = make_node_icon(type_id, 32)
                     act = tb.addAction(icon, nt.display_name)
                     act.setToolTip(f"{nt.display_name}  [{nt.category}] ⚗ Add-on")
-                    act.triggered.connect(
-                        lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
-                    )
+                    act.triggered.connect(lambda checked=False, tid=type_id: self._drop_node_at_center(tid))
                     self._toolbar_actions[type_id] = act
 
         # ── User-installed custom nodes ───────────────────────────────────────
         user_nodes = get_all_user_nodes()
         if user_nodes:
-            _add_gap(48)    # prominent break before the custom section
+            _add_gap(48)  # prominent break before the custom section
             prev_user_cat: str | None = None
             for type_id, nt in user_nodes.items():
                 if nt.category != prev_user_cat:
@@ -569,9 +561,7 @@ class MainWindow(QMainWindow):
                 icon = make_node_icon(type_id, 32)
                 act = tb.addAction(icon, nt.display_name)
                 act.setToolTip(f"{nt.display_name}  [{nt.category}] ★ Custom")
-                act.triggered.connect(
-                    lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
-                )
+                act.triggered.connect(lambda checked=False, tid=type_id: self._drop_node_at_center(tid))
                 self._toolbar_actions[type_id] = act
 
         # Right-click on the toolbar → "Customize Toolbar…"
@@ -582,33 +572,21 @@ class MainWindow(QMainWindow):
         """Add a node of type_id at the visible centre of the graph view."""
         if not hasattr(self, "_graph_view"):
             return
-        center = self._graph_view.mapToScene(
-            self._graph_view.viewport().rect().center()
-        )
+        center = self._graph_view.mapToScene(self._graph_view.viewport().rect().center())
         self._graph_scene.create_node_at(type_id, center)
 
     def _on_toolbar_context_menu(self) -> None:
         menu = QMenu(self)
         menu.addAction(self.tr("Customize Toolbar…"), self._on_customize_toolbar)
-        menu.exec(self._node_toolbar.mapToGlobal(
-            self._node_toolbar.rect().center()
-        ))
+        menu.exec(self._node_toolbar.mapToGlobal(self._node_toolbar.rect().center()))
 
     def _on_customize_toolbar(self) -> None:
         """Open the Customize Toolbar dialog and apply / save the result."""
-        current_order = [
-            type_id
-            for type_id in self._toolbar_actions
-        ]
-        display_names = {
-            type_id: nt.display_name
-            for type_id, nt in BUILTIN_NODE_TYPES.items()
-        }
+        current_order = [type_id for type_id in self._toolbar_actions]
+        display_names = {type_id: nt.display_name for type_id, nt in BUILTIN_NODE_TYPES.items()}
         default_order = list(BUILTIN_NODE_TYPES.keys())
 
-        dlg = CustomizeToolbarDialog(
-            current_order, display_names, default_order, self
-        )
+        dlg = CustomizeToolbarDialog(current_order, display_names, default_order, self)
         if dlg.exec() != CustomizeToolbarDialog.DialogCode.Accepted:
             return
 
@@ -628,9 +606,7 @@ class MainWindow(QMainWindow):
             icon = make_node_icon(type_id, 32)
             act = tb.addAction(icon, nt.display_name)
             act.setToolTip(nt.display_name)
-            act.triggered.connect(
-                lambda checked=False, tid=type_id: self._drop_node_at_center(tid)
-            )
+            act.triggered.connect(lambda checked=False, tid=type_id: self._drop_node_at_center(tid))
             self._toolbar_actions[type_id] = act
 
         # Persist the new order
@@ -760,8 +736,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._inspector_dock)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._bottom_dock)
         # Make sure all docks are visible
-        for dock in (self._explorer_dock, self._palette_dock,
-                     self._inspector_dock, self._bottom_dock):
+        for dock in (self._explorer_dock, self._palette_dock, self._inspector_dock, self._bottom_dock):
             dock.setVisible(True)
         self.resize(1400, 900)
         self._md_splitter.setSizes([1, 1])
@@ -858,9 +833,7 @@ class MainWindow(QMainWindow):
             self._recent_menu.addAction("(none)").setEnabled(False)
             return
         for path in self._recent:
-            self._recent_menu.addAction(
-                path.name, lambda p=path: self._load_project_from_path(p)
-            )
+            self._recent_menu.addAction(path.name, lambda p=path: self._load_project_from_path(p))
 
     # -------------------------------------------------- temp-project helpers
 
@@ -896,9 +869,7 @@ class MainWindow(QMainWindow):
         self._undo_stack.clear()
         self._graph_scene.load_graph(graph)
         self.setWindowTitle(self.tr("PocketFlow Creator — Untitled (unsaved)"))
-        self.statusBar().showMessage(
-            self.tr("New flow ready. Use File > Save As to save it as a project.")
-        )
+        self.statusBar().showMessage(self.tr("New flow ready. Use File > Save As to save it as a project."))
 
     def _ensure_active_graph(self) -> None:
         """Guarantee _active_graph_rel is set.
@@ -978,9 +949,7 @@ class MainWindow(QMainWindow):
                 info = yaml.safe_load(info_path.read_text(encoding="utf-8")) or {}
             except yaml.YAMLError:
                 continue
-            entries.append(
-                (str(info.get("name", tdir.name)), str(info.get("description", "")), tdir)
-            )
+            entries.append((str(info.get("name", tdir.name)), str(info.get("description", "")), tdir))
 
         if not entries:
             QMessageBox.information(self, "No Templates", "No project templates found.")
@@ -1001,12 +970,8 @@ class MainWindow(QMainWindow):
         desc_label = QLabel(entries[0][1] if entries else "")
         desc_label.setWordWrap(True)
         layout.addWidget(desc_label)
-        template_list.currentRowChanged.connect(
-            lambda r: desc_label.setText(entries[r][1] if 0 <= r < len(entries) else "")
-        )
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
+        template_list.currentRowChanged.connect(lambda r: desc_label.setText(entries[r][1] if 0 <= r < len(entries) else ""))
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(dlg.accept)
         buttons.rejected.connect(dlg.reject)
         layout.addWidget(buttons)
@@ -1041,22 +1006,16 @@ class MainWindow(QMainWindow):
             raw = yaml.safe_load(proj_src.read_text(encoding="utf-8")) or {}
             raw["name"] = name
             raw["package_name"] = package
-            proj_dest.write_text(
-                yaml.dump(raw, default_flow_style=False, allow_unicode=True), encoding="utf-8"
-            )
+            proj_dest.write_text(yaml.dump(raw, default_flow_style=False, allow_unicode=True), encoding="utf-8")
             proj_src.unlink()
 
         try:
             self._load_project_from_path(proj_dest)
         except Exception as exc:
-            QMessageBox.warning(
-                self, "Template Warning", f"Project created but could not load:\n{exc}"
-            )
+            QMessageBox.warning(self, "Template Warning", f"Project created but could not load:\n{exc}")
 
     def _on_open_project(self) -> None:
-        path_str, _ = QFileDialog.getOpenFileName(
-            self, "Open Project", "", "PocketFlow Projects (*.pfcproj.yaml)"
-        )
+        path_str, _ = QFileDialog.getOpenFileName(self, "Open Project", "", "PocketFlow Projects (*.pfcproj.yaml)")
         if not path_str:
             return
         self._load_project_from_path(Path(path_str))
@@ -1075,9 +1034,7 @@ class MainWindow(QMainWindow):
                     try:
                         self._graphs[rel] = loader.load(gpath)
                     except Exception as exc:
-                        QMessageBox.warning(
-                            self, "Load Warning", f"Could not load {rel}:\n{exc}"
-                        )
+                        QMessageBox.warning(self, "Load Warning", f"Could not load {rel}:\n{exc}")
             if not self._graphs:
                 # Project has no graphs (blank template or all files failed) — create a default
                 graph_rel = "graphs/main.pfcgraph.yaml"
@@ -1112,9 +1069,7 @@ class MainWindow(QMainWindow):
     def _on_save_as(self) -> None:
         """Save the current flow (including temp projects) to a named project location."""
         default_name = self._project.name if self._project and not self._is_temp_project else ""
-        name, ok = QInputDialog.getText(
-            self, self.tr("Save Project As"), self.tr("Project name:"), text=default_name
-        )
+        name, ok = QInputDialog.getText(self, self.tr("Save Project As"), self.tr("Project name:"), text=default_name)
         if not ok or not name.strip():
             return
         directory = QFileDialog.getExistingDirectory(self, self.tr("Choose Project Location"))
@@ -1213,9 +1168,7 @@ class MainWindow(QMainWindow):
         form.addRow("Package name:", pkg_edit)
         form.addRow("Default provider:", prov_edit)
         form.addRow("Default model:", model_edit)
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(dlg.accept)
         buttons.rejected.connect(dlg.reject)
         form.addRow(buttons)
@@ -1240,9 +1193,7 @@ class MainWindow(QMainWindow):
         error_ids: set[str] = set()
         for rel, graph in self._graphs.items():
             for issue in validator.validate(graph):
-                lines.append(
-                    f"[{issue.severity.upper()}] {rel}:{issue.object_id}  {issue.message}"
-                )
+                lines.append(f"[{issue.severity.upper()}] {rel}:{issue.object_id}  {issue.message}")
                 error_ids.add(issue.object_id)
         text = "\n".join(lines) if lines else "No issues found."
         self._bottom_editors["Problems"].setPlainText(text)
@@ -1284,11 +1235,13 @@ class MainWindow(QMainWindow):
             warn_dlg = QDialog(self)
             warn_dlg.setWindowTitle("API Key Security Warning")
             warn_layout = QVBoxLayout(warn_dlg)
-            warn_layout.addWidget(QLabel(
-                "<b>This project contains API keys that will be exported in plain text.</b><br><br>"
-                "Anyone who receives the exported files will have access to your credentials.<br>"
-                "Consider unchecking <i>Include API keys in project file</i> in the Provider Manager."
-            ))
+            warn_layout.addWidget(
+                QLabel(
+                    "<b>This project contains API keys that will be exported in plain text.</b><br><br>"
+                    "Anyone who receives the exported files will have access to your credentials.<br>"
+                    "Consider unchecking <i>Include API keys in project file</i> in the Provider Manager."
+                )
+            )
             chk = QCheckBox("I understand and accept responsibility for sharing these API keys.")
             warn_layout.addWidget(chk)
             bbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -1317,9 +1270,7 @@ class MainWindow(QMainWindow):
         if not self._graphs:
             self.statusBar().showMessage("No graphs to export.")
             return
-        path_str, _ = QFileDialog.getSaveFileName(
-            self, "Export Graph Image", "", "PNG Image (*.png);;SVG Image (*.svg)"
-        )
+        path_str, _ = QFileDialog.getSaveFileName(self, "Export Graph Image", "", "PNG Image (*.png);;SVG Image (*.svg)")
         if not path_str:
             return
         path = Path(path_str)
@@ -1353,9 +1304,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("No project open.")
             return
         report = generate_project_report(self._project, self._graphs)
-        path_str, _ = QFileDialog.getSaveFileName(
-            self, "Export Project Report", str(self._project.root), "Markdown (*.md)"
-        )
+        path_str, _ = QFileDialog.getSaveFileName(self, "Export Project Report", str(self._project.root), "Markdown (*.md)")
         if not path_str:
             return
         path = Path(path_str)
@@ -1425,10 +1374,7 @@ class MainWindow(QMainWindow):
                 if step.response:
                     lines.append(f"      response: {step.response}")
             self._bottom_editors["Run Log"].setPlainText("\n".join(lines))
-            shared_text = "\n".join(
-                f"{k}: {v}"
-                for k, v in (trace.steps[-1].shared_after if trace.steps else {}).items()
-            )
+            shared_text = "\n".join(f"{k}: {v}" for k, v in (trace.steps[-1].shared_after if trace.steps else {}).items())
             self._bottom_editors["Shared Store"].setPlainText(shared_text or "{}")
             if project_root and _runner_ref:
                 try:
@@ -1453,8 +1399,7 @@ class MainWindow(QMainWindow):
     def _on_run_tests(self) -> None:
         if self._is_temp_project:
             self._bottom_editors["Test Results"].setPlainText(
-                "No tests to run.\n\nSave the project first (File > Save As), then add a "
-                "tests/ directory with pytest test files."
+                "No tests to run.\n\nSave the project first (File > Save As), then add a tests/ directory with pytest test files."
             )
             self._switch_bottom_tab("Test Results")
             return
@@ -1509,9 +1454,7 @@ class MainWindow(QMainWindow):
             shared_text = "\n".join(f"{k}: {v}" for k, v in step.shared_after.items())
             self._bottom_editors["Shared Store"].setPlainText(shared_text or "{}")
             if step.node_id in self._breakpoints:
-                self.statusBar().showMessage(
-                    f"Paused at [{step.node_id}] — click Resume to continue."
-                )
+                self.statusBar().showMessage(f"Paused at [{step.node_id}] — click Resume to continue.")
 
         def _on_finished() -> None:
             self._dbg_signals = None  # release the pin
@@ -1569,9 +1512,7 @@ class MainWindow(QMainWindow):
     def _on_about_pocketflow(self) -> None:
         self._open_help("about_pocketflow.md")
 
-    def _add_help_button(
-        self, button_box: QDialogButtonBox, context_id: str
-    ) -> None:
+    def _add_help_button(self, button_box: QDialogButtonBox, context_id: str) -> None:
         """Add a ? button that opens context help without closing the dialog."""
         btn = button_box.addButton("?", QDialogButtonBox.ButtonRole.HelpRole)
         btn.clicked.connect(lambda: self._open_help(f"context/{context_id}.md"))
@@ -1607,9 +1548,7 @@ class MainWindow(QMainWindow):
         node_types_dir = self._project.root / "node_types"
         node_types_dir.mkdir(parents=True, exist_ok=True)
         yaml_path = node_types_dir / f"{defn['node_type_id']}.yaml"
-        yaml_path.write_text(
-            yaml.dump(defn, default_flow_style=False, allow_unicode=True), encoding="utf-8"
-        )
+        yaml_path.write_text(yaml.dump(defn, default_flow_style=False, allow_unicode=True), encoding="utf-8")
         skeleton_path = self._project.root / "custom" / f"{defn['node_type_id']}.py"
         skeleton_path.parent.mkdir(parents=True, exist_ok=True)
         if not skeleton_path.exists():
@@ -1661,9 +1600,7 @@ class MainWindow(QMainWindow):
         prompt_type = str(props.get("prompt_type", "string"))
         raw = str(props.get("prompt_file", ""))
         if not raw:
-            self._bottom_editors["Prompt Preview"].setPlainText(
-                f"[{node.title}] No prompt set."
-            )
+            self._bottom_editors["Prompt Preview"].setPlainText(f"[{node.title}] No prompt set.")
             self._switch_bottom_tab("Prompt Preview")
             return
         if prompt_type == "path":
@@ -1704,9 +1641,9 @@ class MainWindow(QMainWindow):
         self._inspector.blockSignals(True)
         self._inspector.clear()
         for label, value in [
-            ("ID",   edge.id),
+            ("ID", edge.id),
             ("From", edge.from_node),
-            ("To",   edge.to_node),
+            ("To", edge.to_node),
         ]:
             self._inspector.addTopLevelItem(QTreeWidgetItem([label, value]))
 
@@ -1734,8 +1671,12 @@ class MainWindow(QMainWindow):
                     rel = self._active_graph_rel
                     after = copy.deepcopy(_g2)
                     cmd = GraphSnapshotCommand(
-                        "Change Edge Action", self._graphs, rel,
-                        _edge_before[0], after, self._graph_scene,
+                        "Change Edge Action",
+                        self._graphs,
+                        rel,
+                        _edge_before[0],
+                        after,
+                        self._graph_scene,
                     )
                     self._undo_stack.push(cmd)
                     _edge_before[0] = after
@@ -1808,9 +1749,7 @@ class MainWindow(QMainWindow):
                 rel = self._active_graph_rel
                 before = self._inspector_snapshot
                 after = copy.deepcopy(graph)
-                cmd = GraphSnapshotCommand(
-                    "Edit Property", self._graphs, rel, before, after, self._graph_scene
-                )
+                cmd = GraphSnapshotCommand("Edit Property", self._graphs, rel, before, after, self._graph_scene)
                 self._undo_stack.push(cmd)
                 self._inspector_snapshot = after
 
@@ -1868,9 +1807,7 @@ class MainWindow(QMainWindow):
         if node.type_id == "subflow_node":
             subflow_section = QTreeWidgetItem(["[Subflow]", ""])
             subflow_section.setFlags(subflow_section.flags() & ~Qt.ItemFlag.ItemIsSelectable)
-            ref_row = QTreeWidgetItem(
-                ["subflow_ref", str(node.properties.get("subflow_ref", ""))]
-            )
+            ref_row = QTreeWidgetItem(["subflow_ref", str(node.properties.get("subflow_ref", ""))])
             ref_row.setFlags(ref_row.flags() | Qt.ItemFlag.ItemIsEditable)
             self._style_editable(ref_row)
             subflow_section.addChild(ref_row)
@@ -1920,16 +1857,17 @@ class MainWindow(QMainWindow):
                         self._live_validate()
                         if pn == "prompt_type":
                             self._update_prompt_preview(n)
+
                     cb.currentTextChanged.connect(_changed)
 
                 _make_handler(node, prop_name, combo)
                 self._inspector.setItemWidget(prop_row, 1, combo)
 
         # Provider override dropdown — shown for all LLM-type nodes
-        _LLM_TYPE_IDS = {"llm_prompt_node", "json_llm_node", "classifier_node",
-                         "judge_node", "agent_node"}
-        is_llm_node = (node.type_id in _LLM_TYPE_IDS or "llm" in node.type_id.lower()
-                       or node.type_id in {"classifier_node", "judge_node", "agent_node"})
+        _LLM_TYPE_IDS = {"llm_prompt_node", "json_llm_node", "classifier_node", "judge_node", "agent_node"}
+        is_llm_node = (
+            node.type_id in _LLM_TYPE_IDS or "llm" in node.type_id.lower() or node.type_id in {"classifier_node", "judge_node", "agent_node"}
+        )
         if is_llm_node and self._project is not None:
             prov_section = QTreeWidgetItem(["[Provider]", ""])
             prov_section.setFlags(prov_section.flags() & ~Qt.ItemFlag.ItemIsSelectable)
@@ -2023,10 +1961,14 @@ class MainWindow(QMainWindow):
         # _on_node_deleted / _on_edge_deleted fire synchronously above — graph is updated
         if graph is not None and before is not None:
             after = copy.deepcopy(graph)
-            if (len(after.nodes) != len(before.nodes) or len(after.edges) != len(before.edges)):
+            if len(after.nodes) != len(before.nodes) or len(after.edges) != len(before.edges):
                 cmd = GraphSnapshotCommand(
-                    "Delete", self._graphs, self._active_graph_rel,
-                    before, after, self._graph_scene,
+                    "Delete",
+                    self._graphs,
+                    self._active_graph_rel,
+                    before,
+                    after,
+                    self._graph_scene,
                 )
                 self._undo_stack.push(cmd)
 
@@ -2036,10 +1978,7 @@ class MainWindow(QMainWindow):
         graph = self._graphs.get(self._active_graph_rel)
         if graph is not None:
             graph.nodes = [n for n in graph.nodes if n.id != node_id]
-            graph.edges = [
-                e for e in graph.edges
-                if e.from_node != node_id and e.to_node != node_id
-            ]
+            graph.edges = [e for e in graph.edges if e.from_node != node_id and e.to_node != node_id]
         if self._project is not None:
             code_path = code_manager.get_code_file(self._active_graph_rel, self._project.root)
             if code_path.exists():
@@ -2095,9 +2034,7 @@ class MainWindow(QMainWindow):
         graph = self._graphs.get(self._active_graph_rel)
         if graph is None:
             return
-        new_title, ok = QInputDialog.getText(
-            self, "Rename Node", "New title:", text=item.node.title
-        )
+        new_title, ok = QInputDialog.getText(self, "Rename Node", "New title:", text=item.node.title)
         if not ok or not new_title.strip():
             return
         before = copy.deepcopy(graph)
@@ -2106,9 +2043,7 @@ class MainWindow(QMainWindow):
         after = copy.deepcopy(graph)
         if self._current_node is item.node:
             self._populate_inspector_for_node(item.node)
-        cmd = GraphSnapshotCommand(
-            "Rename", self._graphs, self._active_graph_rel, before, after, self._graph_scene
-        )
+        cmd = GraphSnapshotCommand("Rename", self._graphs, self._active_graph_rel, before, after, self._graph_scene)
         self._undo_stack.push(cmd)
         self.statusBar().showMessage(f"Renamed to: {item.node.title}")
 
@@ -2194,9 +2129,7 @@ class MainWindow(QMainWindow):
             self._graph_scene.auto_layout(h_gap=h_gap, v_gap=v_gap)
         after = copy.deepcopy(graph)
         rel = self._active_graph_rel
-        cmd = GraphSnapshotCommand(
-            "Auto Arrange", self._graphs, rel, before, after, self._graph_scene
-        )
+        cmd = GraphSnapshotCommand("Auto Arrange", self._graphs, rel, before, after, self._graph_scene)
         self._undo_stack.push(cmd)
         if project:
             project.auto_arrange = new_settings
@@ -2227,9 +2160,7 @@ class MainWindow(QMainWindow):
         self._graph_view.viewport().update()
         # Re-apply the toolbar stylesheet so extension-button colours stay correct
         if hasattr(self, "_node_toolbar"):
-            self._node_toolbar.setStyleSheet(
-                self._node_toolbar_stylesheet(self._dark_mode)
-            )
+            self._node_toolbar.setStyleSheet(self._node_toolbar_stylesheet(self._dark_mode))
 
     # Ordered (locale_code, display_name) pairs for the language selector.
     _LANGUAGES: list[tuple[str, str]] = [
@@ -2286,9 +2217,7 @@ class MainWindow(QMainWindow):
         lang_layout.addWidget(lang_combo)
         layout.addWidget(lang_group)
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         self._add_help_button(buttons, "options")
         buttons.accepted.connect(dlg.accept)
         buttons.rejected.connect(dlg.reject)
@@ -2339,9 +2268,7 @@ class MainWindow(QMainWindow):
             return
         rel = self._active_graph_rel
         after = copy.deepcopy(graph)
-        cmd = GraphSnapshotCommand(
-            "Move Node", self._graphs, rel, self._pre_drag_graph, after, self._graph_scene
-        )
+        cmd = GraphSnapshotCommand("Move Node", self._graphs, rel, self._pre_drag_graph, after, self._graph_scene)
         self._undo_stack.push(cmd)
         self._pre_drag_graph = None
 
@@ -2468,9 +2395,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(dlg)
 
         table = QTableWidget(0, 3)
-        table.setHorizontalHeaderLabels(
-            [self.tr("Function"), self.tr("File"), self.tr("Description")]
-        )
+        table.setHorizontalHeaderLabels([self.tr("Function"), self.tr("File"), self.tr("Description")])
         table.horizontalHeader().setStretchLastSection(True)
         table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -2513,11 +2438,7 @@ class MainWindow(QMainWindow):
             msg = (
                 self.tr("No project open.")
                 if no_project
-                else self.tr(
-                    "No @tool functions found.\n\n"
-                    "Add Python files with @tool-decorated functions to the"
-                    " project's tools/ directory."
-                )
+                else self.tr("No @tool functions found.\n\nAdd Python files with @tool-decorated functions to the project's tools/ directory.")
             )
             layout.insertWidget(0, QLabel(msg))
 
@@ -2568,9 +2489,7 @@ class MainWindow(QMainWindow):
         # ── Tab 2: add-on scientific / engineering node packages ─────────
         addon_nodes = get_all_addon_nodes()
         addon_table = QTableWidget(len(addon_nodes), 5)
-        addon_table.setHorizontalHeaderLabels(
-            ["Display Name", "Category", "Version", "Description", "Website"]
-        )
+        addon_table.setHorizontalHeaderLabels(["Display Name", "Category", "Version", "Description", "Website"])
         addon_table.horizontalHeader().setStretchLastSection(True)
         addon_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         addon_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -2591,9 +2510,7 @@ class MainWindow(QMainWindow):
 
         user_nodes = get_all_user_nodes()
         custom_table = QTableWidget(len(user_nodes), 6)
-        custom_table.setHorizontalHeaderLabels(
-            ["Display Name", "Category", "Version", "Author", "License", "File"]
-        )
+        custom_table.setHorizontalHeaderLabels(["Display Name", "Category", "Version", "Author", "License", "File"])
         custom_table.horizontalHeader().setStretchLastSection(True)
         custom_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         custom_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -2651,10 +2568,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(custom_widget, f"Installed Custom ({len(user_nodes)})")
 
         # ── Tab 4: load errors ────────────────────────────────────────────
-        errors = (
-            getattr(self, "_addon_node_load_errors", []) +
-            getattr(self, "_user_node_load_errors", [])
-        )
+        errors = getattr(self, "_addon_node_load_errors", []) + getattr(self, "_user_node_load_errors", [])
         if errors:
             err_table = QTableWidget(len(errors), 2)
             err_table.setHorizontalHeaderLabels(["File", "Error"])
@@ -2692,6 +2606,7 @@ class MainWindow(QMainWindow):
             try:
                 defn = load_node_package(src)
                 import shutil as _shutil
+
                 _shutil.copy2(src, dest)
                 register_user_node(defn)
                 # Refresh the palette (rebuild its widget)
@@ -2703,8 +2618,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(
                     dlg,
                     "Installed",
-                    f"'{defn.display_name}' installed successfully.\n"
-                    f"Restart the application to add it to the toolbar.",
+                    f"'{defn.display_name}' installed successfully.\nRestart the application to add it to the toolbar.",
                 )
                 dlg.accept()
             except PackageLoadError as exc:
@@ -2712,6 +2626,7 @@ class MainWindow(QMainWindow):
 
         def _open_dir() -> None:
             import subprocess as _sp
+
             d = str(get_user_nodes_dir())
             if sys.platform == "win32":
                 _sp.Popen(["explorer", d])

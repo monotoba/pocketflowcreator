@@ -4,6 +4,7 @@ Each row shows the node display name together with its palette icon.
 Up / Down buttons move the selected row.  Reset Default restores the
 insertion order defined in BUILTIN_NODE_TYPES.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -101,9 +102,7 @@ class CustomizeToolbarDialog(QDialog):
         body_layout.addLayout(side_layout)
 
         # ── OK / Cancel ───────────────────────────────────────────────────────
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
@@ -160,7 +159,4 @@ class CustomizeToolbarDialog(QDialog):
 
     def ordered_type_ids(self) -> list[str]:
         """Return the ``type_id`` list in the order the user set."""
-        return [
-            self._list.item(i).data(Qt.ItemDataRole.UserRole)
-            for i in range(self._list.count())
-        ]
+        return [self._list.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self._list.count())]

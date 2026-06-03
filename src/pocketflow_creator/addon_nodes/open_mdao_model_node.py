@@ -3,30 +3,30 @@ OpenMDAO Problem from a model dictionary stored in the shared store.
 Requires: pip install openmdao"""
 
 __node_meta__ = {
-    "node":        "OpenMDAO Model",
-    "category":    "Aerospace",
-    "version":     "1.0.0",
+    "node": "OpenMDAO Model",
+    "category": "Aerospace",
+    "version": "1.0.0",
     "description": "Executes a NASA OpenMDAO multidisciplinary analysis problem and returns design variable values.",
-    "tags":        ["openmdao", "mdo", "optimization", "multidisciplinary", "nasa"],
-    "license":     "MIT",
-    "website":     "https://openmdao.org/",
-    "repo":        "https://github.com/OpenMDAO/OpenMDAO",
-    "actions":     ["default", "error"],
+    "tags": ["openmdao", "mdo", "optimization", "multidisciplinary", "nasa"],
+    "license": "MIT",
+    "website": "https://openmdao.org/",
+    "repo": "https://github.com/OpenMDAO/OpenMDAO",
+    "actions": ["default", "error"],
     "properties": {
         "problem_key": {
-            "type":        "string",
-            "default":     "openmdao_problem",
+            "type": "string",
+            "default": "openmdao_problem",
             "description": "Shared-store key holding a configured openmdao.api.Problem instance.",
         },
         "driver": {
-            "type":        "choice",
-            "default":     "run_model",
-            "choices":     ["run_model", "run_driver"],
+            "type": "choice",
+            "default": "run_model",
+            "choices": ["run_model", "run_driver"],
             "description": "Whether to run only the model (analysis) or the full driver (optimization).",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "openmdao_result",
+            "type": "string",
+            "default": "openmdao_result",
             "description": "Shared-store key to write a dict of output variable values.",
         },
     },
@@ -41,8 +41,8 @@ class OpenMDAOModelNode:
 
     def prep(self, shared: dict) -> dict:
         return {
-            "problem":    shared.get("openmdao_problem"),
-            "driver":     shared.get("openmdao_driver", "run_model"),
+            "problem": shared.get("openmdao_problem"),
+            "driver": shared.get("openmdao_driver", "run_model"),
             "result_key": shared.get("openmdao_result_key", "openmdao_result"),
         }
 
@@ -52,6 +52,7 @@ class OpenMDAOModelNode:
             return {"error": "No openmdao.Problem found in shared store."}
         try:
             import openmdao.api  # type: ignore[import]  # noqa: F401
+
             if not getattr(prob, "_metadata", None):
                 prob.setup()
             if prep_res["driver"] == "run_driver":

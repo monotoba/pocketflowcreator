@@ -1,4 +1,5 @@
 """Tests for remote LLM providers (OpenAI, Anthropic, Gemini, DeepSeek)."""
+
 from __future__ import annotations
 
 import json
@@ -18,6 +19,7 @@ from pocketflow_creator.runtime.providers import (
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 def _mock_response(body: dict, status: int = 200) -> MagicMock:
     """Return a mock HTTP response context-manager."""
     raw = json.dumps(body).encode()
@@ -29,12 +31,14 @@ def _mock_response(body: dict, status: int = 200) -> MagicMock:
 
 def _http_error(status: int, body: dict) -> Exception:
     import urllib.error
+
     raw = json.dumps(body).encode()
     fp = BytesIO(raw)
     return urllib.error.HTTPError(url="http://x", code=status, msg="err", hdrs=None, fp=fp)  # type: ignore[arg-type]
 
 
 # ── MockProvider ──────────────────────────────────────────────────────────────
+
 
 def test_mock_provider_returns_fixed_response() -> None:
     p = MockProvider(response="hello")
@@ -86,6 +90,7 @@ def test_openai_raises_on_http_error() -> None:
 
 def test_openai_raises_on_connection_error() -> None:
     import urllib.error
+
     with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("refused")):
         p = OpenAIProvider(api_key="k")
         with pytest.raises(RuntimeError, match="OpenAI request failed"):
@@ -135,6 +140,7 @@ def test_anthropic_raises_on_http_error() -> None:
 
 def test_anthropic_raises_on_connection_error() -> None:
     import urllib.error
+
     with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("timeout")):
         p = AnthropicProvider(api_key="k")
         with pytest.raises(RuntimeError, match="Anthropic request failed"):
@@ -166,6 +172,7 @@ def test_gemini_raises_on_http_error() -> None:
 
 def test_gemini_raises_on_connection_error() -> None:
     import urllib.error
+
     with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("no host")):
         p = GeminiProvider(api_key="k")
         with pytest.raises(RuntimeError, match="Gemini request failed"):
@@ -212,6 +219,7 @@ def test_deepseek_raises_on_http_error() -> None:
 
 def test_deepseek_raises_on_connection_error() -> None:
     import urllib.error
+
     with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("refused")):
         p = DeepSeekProvider(api_key="k")
         with pytest.raises(RuntimeError, match="DeepSeek request failed"):
@@ -231,6 +239,7 @@ def test_ollama_complete_success() -> None:
 
 def test_ollama_raises_on_connection_error() -> None:
     import urllib.error
+
     with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("refused")):
         p = OllamaProvider()
         with pytest.raises(RuntimeError, match="Ollama request failed"):

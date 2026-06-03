@@ -36,9 +36,7 @@ def test_subflow_node_missing_ref_raises_pfce2102():
 
 def test_subflow_node_with_known_ref_no_pfce2102():
     graph = _subflow_graph(ref="graphs/sub.pfcgraph.yaml")
-    issues = GraphValidator().validate(
-        graph, known_graph_paths={"graphs/sub.pfcgraph.yaml"}
-    )
+    issues = GraphValidator().validate(graph, known_graph_paths={"graphs/sub.pfcgraph.yaml"})
     assert not any(i.code == "PFCE2102" for i in issues)
 
 

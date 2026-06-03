@@ -37,7 +37,7 @@ class _RulesHighlighter(QSyntaxHighlighter):
         raise NotImplementedError  # pragma: no cover
 
     def highlightBlock(self, text: str) -> None:
-        for pattern, fmt in (type(self)._rules or []):
+        for pattern, fmt in type(self)._rules or []:
             it = pattern.globalMatch(text)
             while it.hasNext():
                 m = it.next()

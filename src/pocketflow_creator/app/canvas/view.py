@@ -1,4 +1,5 @@
 """GraphView — the QGraphicsView subclass with zoom, pan, drag-to-connect, and drop."""
+
 from __future__ import annotations
 
 import json
@@ -24,6 +25,7 @@ else:
             QWidget,
         )
     except ImportError:  # pragma: no cover
+
         def Signal(*a: Any, **kw: Any) -> Any:
             return None
 
@@ -59,9 +61,7 @@ class GraphView(QGraphicsView):
         self._edge_src_action: str = "default"
         self._edge_rubber: QGraphicsLineItem | None = None
 
-    def _node_at_action_port(
-        self, scene_pos: QPointF
-    ) -> tuple[NodeItem, str] | None:
+    def _node_at_action_port(self, scene_pos: QPointF) -> tuple[NodeItem, str] | None:
         """Return (NodeItem, action_name) if scene_pos is near any action port."""
         scene = self.scene()
         if not isinstance(scene, GraphScene):
@@ -145,12 +145,8 @@ class GraphView(QGraphicsView):
         if self._pan_active:
             delta = event.position() - self._pan_start
             self._pan_start = event.position()
-            self.horizontalScrollBar().setValue(
-                int(self.horizontalScrollBar().value() - delta.x())
-            )
-            self.verticalScrollBar().setValue(
-                int(self.verticalScrollBar().value() - delta.y())
-            )
+            self.horizontalScrollBar().setValue(int(self.horizontalScrollBar().value() - delta.x()))
+            self.verticalScrollBar().setValue(int(self.verticalScrollBar().value() - delta.y()))
             event.accept()
         elif self._edge_src is not None and self._edge_rubber is not None:
             scene_pos = self.mapToScene(event.position().toPoint())
@@ -195,9 +191,7 @@ class GraphView(QGraphicsView):
         self.zoom_changed.emit(self.transform().m11())
 
     def _has_node_mime(self, event: Any) -> bool:
-        return event.mimeData().hasFormat(_MIME_NODE_TYPE) or event.mimeData().hasFormat(
-            _MIME_NODE_SNIPPET
-        )
+        return event.mimeData().hasFormat(_MIME_NODE_TYPE) or event.mimeData().hasFormat(_MIME_NODE_SNIPPET)
 
     def dragEnterEvent(self, event: Any) -> None:
         if self._has_node_mime(event):

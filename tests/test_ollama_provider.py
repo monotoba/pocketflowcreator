@@ -50,9 +50,7 @@ class TestOllamaProvider:
         server, port = _make_server("the answer")
         t = threading.Thread(target=_serve_once, args=(server,))
         t.start()
-        provider = OllamaProvider(
-            base_url=f"http://127.0.0.1:{port}", default_model="test-model"
-        )
+        provider = OllamaProvider(base_url=f"http://127.0.0.1:{port}", default_model="test-model")
         result = provider.complete("what is 2+2?")
         t.join(timeout=5)
         assert result == "the answer"

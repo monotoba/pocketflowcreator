@@ -4,6 +4,7 @@ Analyses a GraphModel and produces a plain-text report showing which shared
 store keys each node reads and writes, execution order, and a key lifecycle
 table.
 """
+
 from __future__ import annotations
 
 from collections import deque
@@ -98,13 +99,7 @@ def generate_dataflow_report(
     CW = (5, 26, 24, 22, 22)  # col widths: Step, Title, Type, Reads, Writes
     lines.append("NODE DATA FLOW")
     lines.append("─" * 80)
-    hdr = (
-        f"{'Step':<{CW[0]}}  "
-        f"{'Node':<{CW[1]}}  "
-        f"{'Type':<{CW[2]}}  "
-        f"{'Reads (store keys)':<{CW[3]}}  "
-        f"Writes (store keys)"
-    )
+    hdr = f"{'Step':<{CW[0]}}  {'Node':<{CW[1]}}  {'Type':<{CW[2]}}  {'Reads (store keys)':<{CW[3]}}  Writes (store keys)"
     lines.append(hdr)
     lines.append("  ".join("─" * w for w in CW))
 
@@ -113,20 +108,14 @@ def generate_dataflow_report(
         if not node:
             continue
 
-        reads_str  = ", ".join(node_reads[nid])  or "—"
+        reads_str = ", ".join(node_reads[nid]) or "—"
         writes_str = ", ".join(node_writes[nid]) or "—"
         suffix = "" if nid in reachable else " [unreachable]"
         title_col = _truncate(node.title + suffix, CW[1])
-        type_col  = _truncate(node.type_id, CW[2])
+        type_col = _truncate(node.type_id, CW[2])
         reads_col = _truncate(reads_str, CW[3])
 
-        lines.append(
-            f"{step:<{CW[0]}}  "
-            f"{title_col:<{CW[1]}}  "
-            f"{type_col:<{CW[2]}}  "
-            f"{reads_col:<{CW[3]}}  "
-            f"{writes_str}"
-        )
+        lines.append(f"{step:<{CW[0]}}  {title_col:<{CW[1]}}  {type_col:<{CW[2]}}  {reads_col:<{CW[3]}}  {writes_str}")
 
         # Show branch destinations when there is more than one outgoing action
         edges = sorted(out_edges.get(nid, []), key=lambda x: x[0])
@@ -135,10 +124,7 @@ def generate_dataflow_report(
                 to_node = node_index.get(to_id)
                 to_title = to_node.title if to_node else to_id
                 branch = "└" if i == len(edges) - 1 else "├"
-                lines.append(
-                    f"       {branch}─[{action}]→ "
-                    f"Step {step_of.get(to_id, '?')}: {to_title}"
-                )
+                lines.append(f"       {branch}─[{action}]→ Step {step_of.get(to_id, '?')}: {to_title}")
 
     lines.append("")
 
@@ -152,27 +138,15 @@ def generate_dataflow_report(
         KW, WW = 22, 28
         lines.append("SHARED STORE KEY LIFECYCLE")
         lines.append("─" * 80)
-        lines.append(
-            f"{'Key':<{KW}}  {'Written by':<{WW}}  Read by"
-        )
+        lines.append(f"{'Key':<{KW}}  {'Written by':<{WW}}  Read by")
         lines.append("  ".join(["─" * KW, "─" * WW, "─" * 26]))
 
         for key in sorted(all_keys):
-            writers = [
-                node_index[nid].title
-                for nid in bfs_order
-                if key in node_writes.get(nid, []) and nid in node_index
-            ]
-            readers = [
-                node_index[nid].title
-                for nid in bfs_order
-                if key in node_reads.get(nid, []) and nid in node_index
-            ]
+            writers = [node_index[nid].title for nid in bfs_order if key in node_writes.get(nid, []) and nid in node_index]
+            readers = [node_index[nid].title for nid in bfs_order if key in node_reads.get(nid, []) and nid in node_index]
             writers_str = _truncate(", ".join(writers) if writers else "(external)", WW)
             readers_str = ", ".join(readers) if readers else "(not consumed)"
-            lines.append(
-                f"{repr(key):<{KW}}  {writers_str:<{WW}}  {readers_str}"
-            )
+            lines.append(f"{repr(key):<{KW}}  {writers_str:<{WW}}  {readers_str}")
         lines.append("")
 
     # ── Section 3 — Warnings ─────────────────────────────────────────────────
@@ -201,37 +175,23 @@ def generate_dataflow_report(
             )
         elif mismatched:
             for action, to_title in mismatched:
-                notes.append(
-                    f"  ⚠  {node.title!r} → {to_title!r}: edge action '{action}' is not "
-                    f"in this node's actions {sorted(declared)}"
-                )
+                notes.append(f"  ⚠  {node.title!r} → {to_title!r}: edge action '{action}' is not in this node's actions {sorted(declared)}")
 
     for key in sorted(all_keys):
         writers = [nid for nid in bfs_order if key in node_writes.get(nid, [])]
         readers = [nid for nid in bfs_order if key in node_reads.get(nid, [])]
 
         if writers and not readers:
-            wt = ", ".join(
-                node_index[nid].title for nid in writers if nid in node_index
-            )
+            wt = ", ".join(node_index[nid].title for nid in writers if nid in node_index)
             notes.append(f'  ! "{key}" written by {wt} — not consumed by any node')
 
         if not writers and readers:
-            rt = ", ".join(
-                node_index[nid].title for nid in readers if nid in node_index
-            )
-            notes.append(
-                f'  ! "{key}" read by {rt} — not written by any node '
-                f"(must be supplied externally)"
-            )
+            rt = ", ".join(node_index[nid].title for nid in readers if nid in node_index)
+            notes.append(f'  ! "{key}" read by {rt} — not written by any node (must be supplied externally)')
 
         if len(writers) > 1:
-            wt = ", ".join(
-                node_index[nid].title for nid in writers if nid in node_index
-            )
-            notes.append(
-                f'  ! "{key}" written by multiple nodes: {wt} — later write overwrites earlier'
-            )
+            wt = ", ".join(node_index[nid].title for nid in writers if nid in node_index)
+            notes.append(f'  ! "{key}" written by multiple nodes: {wt} — later write overwrites earlier')
 
     if notes:
         lines.append("DATA FLOW NOTES")

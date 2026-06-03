@@ -1,4 +1,5 @@
 """AutoArrangeDialog — settings dialog shown before running Auto Arrange."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -80,9 +81,7 @@ class AutoArrangeDialog(QDialog):
         self._max_cols.setValue(int(settings.get("max_cols", 4)))
         form.addRow("Max Columns (Grid):", self._max_cols)
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)

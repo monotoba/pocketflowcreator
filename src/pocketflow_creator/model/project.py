@@ -19,6 +19,7 @@ class ProjectModel:
     may reference a profile by id via their ``provider_id`` property; if
     unset they use the profile marked as default.
     """
+
     name: str
     package_name: str
     root: Path

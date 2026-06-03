@@ -6,6 +6,7 @@ from typing import Any, TypedDict
 
 class Position(TypedDict):
     """Canvas position for a node, in scene co-ordinates."""
+
     x: float
     y: float
 
@@ -18,6 +19,7 @@ class NodeModel:
     output-action labels; an empty list means a single implicit "default" action.
     ``reads`` / ``writes`` document the shared-store keys this node accesses.
     """
+
     id: str
     type_id: str
     title: str
@@ -31,6 +33,7 @@ class NodeModel:
 @dataclass(slots=True)
 class EdgeModel:
     """Directed connection between two nodes carrying a named action label."""
+
     id: str
     from_node: str
     action: str
@@ -40,6 +43,7 @@ class EdgeModel:
 @dataclass(slots=True)
 class GraphModel:
     """A complete flow graph: nodes, directed edges, and execution metadata."""
+
     id: str
     title: str
     flow_type: str = "sync"

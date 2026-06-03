@@ -37,9 +37,7 @@ class GraphValidator:
         issues: list[ValidationIssue] = []
         for node in graph.nodes:
             if node.id in seen:
-                issues.append(
-                    ValidationIssue("error", "PFCE1002", node.id, f"Duplicate node ID: {node.id}")
-                )
+                issues.append(ValidationIssue("error", "PFCE1002", node.id, f"Duplicate node ID: {node.id}"))
             seen.add(node.id)
         return issues
 
@@ -81,9 +79,7 @@ class GraphValidator:
                     )
                 )
             if not edge.action:
-                issues.append(
-                    ValidationIssue("error", "PFCE2003", edge.id, "Edge has no action label.")
-                )
+                issues.append(ValidationIssue("error", "PFCE2003", edge.id, "Edge has no action label."))
         return issues
 
     @staticmethod
@@ -106,9 +102,7 @@ class GraphValidator:
         return issues
 
     @staticmethod
-    def _validate_subflow_refs(
-        graph: GraphModel, known_graph_paths: set[str]
-    ) -> list[ValidationIssue]:
+    def _validate_subflow_refs(graph: GraphModel, known_graph_paths: set[str]) -> list[ValidationIssue]:
         issues: list[ValidationIssue] = []
         for node in graph.nodes:
             if node.type_id != "subflow_node":

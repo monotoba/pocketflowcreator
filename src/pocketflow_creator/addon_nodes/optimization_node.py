@@ -2,34 +2,34 @@
 OpenMDAO ScipyOptimizeDriver problem for single-objective minimization."""
 
 __node_meta__ = {
-    "node":        "Optimization",
-    "category":    "Aerospace",
-    "version":     "1.0.0",
+    "node": "Optimization",
+    "category": "Aerospace",
+    "version": "1.0.0",
     "description": "Minimizes an objective function using scipy or an OpenMDAO driver; returns optimal design variables.",
-    "tags":        ["optimization", "scipy", "openmdao", "minimization", "gradient-free", "gradient-based"],
-    "license":     "MIT",
-    "website":     "https://docs.scipy.org/doc/scipy/reference/optimize.html",
-    "actions":     ["default", "error"],
+    "tags": ["optimization", "scipy", "openmdao", "minimization", "gradient-free", "gradient-based"],
+    "license": "MIT",
+    "website": "https://docs.scipy.org/doc/scipy/reference/optimize.html",
+    "actions": ["default", "error"],
     "properties": {
         "objective_key": {
-            "type":        "string",
-            "default":     "objective_fn",
+            "type": "string",
+            "default": "objective_fn",
             "description": "Shared-store key holding a callable f(x) -> float (scipy mode).",
         },
         "x0_key": {
-            "type":        "string",
-            "default":     "x0",
+            "type": "string",
+            "default": "x0",
             "description": "Shared-store key holding the initial guess (list or ndarray).",
         },
         "method": {
-            "type":        "choice",
-            "default":     "SLSQP",
-            "choices":     ["SLSQP", "L-BFGS-B", "Nelder-Mead", "COBYLA", "trust-constr"],
+            "type": "choice",
+            "default": "SLSQP",
+            "choices": ["SLSQP", "L-BFGS-B", "Nelder-Mead", "COBYLA", "trust-constr"],
             "description": "Scipy optimization method.",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "opt_result",
+            "type": "string",
+            "default": "opt_result",
             "description": "Shared-store key to write the scipy OptimizeResult dict.",
         },
     },
@@ -44,9 +44,9 @@ class OptimizationNode:
 
     def prep(self, shared: dict) -> dict:
         return {
-            "fn":         shared.get("objective_fn"),
-            "x0":         shared.get("x0", [0.0]),
-            "method":     shared.get("opt_method", "SLSQP"),
+            "fn": shared.get("objective_fn"),
+            "x0": shared.get("x0", [0.0]),
+            "method": shared.get("opt_method", "SLSQP"),
             "result_key": shared.get("opt_result_key", "opt_result"),
         }
 
@@ -57,14 +57,15 @@ class OptimizationNode:
         try:
             import numpy as np
             from scipy.optimize import minimize  # type: ignore[import]
+
             x0 = np.asarray(prep_res["x0"], dtype=float)
             res = minimize(fn, x0, method=prep_res["method"])
             return {
-                "x_opt":    res.x.tolist(),
-                "fun":      float(res.fun),
-                "success":  res.success,
-                "message":  res.message,
-                "nit":      res.nit,
+                "x_opt": res.x.tolist(),
+                "fun": float(res.fun),
+                "success": res.success,
+                "message": res.message,
+                "nit": res.nit,
             }
         except ImportError:
             return {"error": "scipy not installed.  Run: pip install scipy"}

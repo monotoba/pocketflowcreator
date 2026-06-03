@@ -1,4 +1,5 @@
 """Smoke tests for the HelpBrowser — run offscreen via QApplication."""
+
 import os
 import sys
 from pathlib import Path
@@ -39,9 +40,17 @@ def test_index_md_exists():
 
 def test_all_context_files_exist():
     expected = [
-        "canvas.md", "inspector.md", "palette.md", "explorer.md",
-        "options.md", "provider_manager.md", "shared_store.md",
-        "node_type_wizard.md", "code_editor.md", "run_log.md", "validation.md",
+        "canvas.md",
+        "inspector.md",
+        "palette.md",
+        "explorer.md",
+        "options.md",
+        "provider_manager.md",
+        "shared_store.md",
+        "node_type_wizard.md",
+        "code_editor.md",
+        "run_log.md",
+        "validation.md",
     ]
     context_dir = _HELP_ROOT / "context"
     for name in expected:
@@ -50,8 +59,11 @@ def test_all_context_files_exist():
 
 def test_all_tutorial_files_exist():
     expected = [
-        "index.md", "part1_fundamentals.md", "part2_patterns.md",
-        "part3_advanced.md", "part4_exercises.md",
+        "index.md",
+        "part1_fundamentals.md",
+        "part2_patterns.md",
+        "part3_advanced.md",
+        "part4_exercises.md",
     ]
     tut_dir = _HELP_ROOT / "tutorials"
     for name in expected:

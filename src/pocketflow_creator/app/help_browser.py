@@ -1,4 +1,5 @@
 """Help browser — renders Markdown help files in a navigable QDialog."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -78,9 +79,7 @@ class HelpBrowser(QDialog):  # type: ignore[misc]
         """Load a page by path relative to the help root, optionally scrolling to fragment."""
         path = (self._help_root / rel).resolve()
         if not path.exists():
-            self._browser.setHtml(
-                f"<h2>Page not found</h2><p><code>{rel}</code></p>"
-            )
+            self._browser.setHtml(f"<h2>Page not found</h2><p><code>{rel}</code></p>")
             return
         text = path.read_text(encoding="utf-8")
         self._browser.setMarkdown(text)

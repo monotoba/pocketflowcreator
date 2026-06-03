@@ -36,30 +36,14 @@ def test_yaml_highlighter_attaches() -> None:
 
 
 def test_python_highlighter_does_not_crash_on_keywords() -> None:
-    code = (
-        "def greet(name: str) -> None:\n"
-        "    if name:\n"
-        "        print(f'Hello {name}')\n"
-        "    return None\n"
-        "class Foo:\n"
-        "    pass\n"
-    )
+    code = "def greet(name: str) -> None:\n    if name:\n        print(f'Hello {name}')\n    return None\nclass Foo:\n    pass\n"
     editor = _make_editor(code)
     h = PythonHighlighter(editor.document())
     h.rehighlight()
 
 
 def test_yaml_highlighter_does_not_crash_on_nested_yaml() -> None:
-    content = (
-        "---\n"
-        "document:\n"
-        "  path:\n"
-        "    type: string\n"
-        "  text:\n"
-        "    type: string\n"
-        "    default: 'hello'\n"
-        "# end\n"
-    )
+    content = "---\ndocument:\n  path:\n    type: string\n  text:\n    type: string\n    default: 'hello'\n# end\n"
     editor = _make_editor(content)
     h = YamlHighlighter(editor.document())
     h.rehighlight()

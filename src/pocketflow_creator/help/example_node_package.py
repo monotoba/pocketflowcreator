@@ -14,34 +14,31 @@ the shared store, using the Open-Meteo API (no API key required).
 
 __node_meta__ = {
     # ── Identity ──────────────────────────────────────────────────────────
-    "node":     "Weather Fetch",          # display name shown in palette
-    "category": "Web / Search",           # palette / toolbar group
-
+    "node": "Weather Fetch",  # display name shown in palette
+    "category": "Web / Search",  # palette / toolbar group
     # ── Package info ──────────────────────────────────────────────────────
-    "version":             "1.0.0",
-    "author":              "Your Name",
-    "website":             "https://yoursite.example.com",
-    "repo":                "https://github.com/you/weather-fetch-node",
-    "description":         "Fetches current temperature for a city via Open-Meteo.",
-    "tags":                ["weather", "api", "http", "example"],
-    "license":             "MIT",
+    "version": "1.0.0",
+    "author": "Your Name",
+    "website": "https://yoursite.example.com",
+    "repo": "https://github.com/you/weather-fetch-node",
+    "description": "Fetches current temperature for a city via Open-Meteo.",
+    "tags": ["weather", "api", "http", "example"],
+    "license": "MIT",
     "min_creator_version": "0.2.0",
-
     # ── Node behaviour ────────────────────────────────────────────────────
     "actions": ["default", "error"],
     "properties": {
         "city_key": {
-            "type":        "string",
-            "default":     "city",
+            "type": "string",
+            "default": "city",
             "description": "Shared-store key that holds the city name to look up.",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "weather",
+            "type": "string",
+            "default": "weather",
             "description": "Shared-store key to write the result dict into.",
         },
     },
-
     # ── Visual ────────────────────────────────────────────────────────────
     # Hex background colour for the auto-generated palette icon.
     # Remove this key (or set to None) to get the default grey.
@@ -55,6 +52,7 @@ __node_icon__ = None
 
 
 # ── Node implementation ───────────────────────────────────────────────────────
+
 
 class WeatherFetchNode:
     """Retrieves current temperature and weather code for a city.
@@ -70,10 +68,10 @@ class WeatherFetchNode:
     """
 
     def prep(self, shared: dict) -> dict:
-        city_key   = "city"    # In Creator these come from the Inspector
+        city_key = "city"  # In Creator these come from the Inspector
         result_key = "weather"
         return {
-            "city":       shared.get(city_key, "London"),
+            "city": shared.get(city_key, "London"),
             "result_key": result_key,
         }
 
@@ -84,10 +82,7 @@ class WeatherFetchNode:
             import urllib.request
 
             # Step 1: Geocode the city name
-            geo_url = (
-                f"https://geocoding-api.open-meteo.com/v1/search"
-                f"?name={city}&count=1&language=en&format=json"
-            )
+            geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1&language=en&format=json"
             with urllib.request.urlopen(geo_url, timeout=10) as resp:
                 geo = json.loads(resp.read())
             if not geo.get("results"):
@@ -96,21 +91,17 @@ class WeatherFetchNode:
             lat, lon = result["latitude"], result["longitude"]
 
             # Step 2: Fetch current weather
-            wx_url = (
-                f"https://api.open-meteo.com/v1/forecast"
-                f"?latitude={lat}&longitude={lon}"
-                f"&current=temperature_2m,weather_code"
-            )
+            wx_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,weather_code"
             with urllib.request.urlopen(wx_url, timeout=10) as resp:
                 wx = json.loads(resp.read())
             current = wx["current"]
 
             return {
-                "city":          city,
-                "latitude":      lat,
-                "longitude":     lon,
+                "city": city,
+                "latitude": lat,
+                "longitude": lon,
                 "temperature_c": current["temperature_2m"],
-                "weather_code":  current["weather_code"],
+                "weather_code": current["weather_code"],
             }
         except Exception as exc:
             # Return an error dict rather than raising so post() can route

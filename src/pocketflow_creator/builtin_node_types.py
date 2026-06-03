@@ -3,6 +3,7 @@
 These mirror the palette in canvas.py and provide property metadata for the
 Object Inspector without requiring a project or custom YAML files.
 """
+
 from __future__ import annotations
 
 from pocketflow_creator.model.node_type import NodeTypeDefinition
@@ -304,10 +305,7 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
                 "output_key": {
                     "type": "string",
                     "default": "input",
-                    "description": (
-                        "Shared store key written on Save. "
-                        "Form mode: dict of field values. List mode: list of strings."
-                    ),
+                    "description": ("Shared store key written on Save. Form mode: dict of field values. List mode: list of strings."),
                 },
             },
         ),
@@ -1094,7 +1092,11 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
             actions=["default", "timeout", "error"],
             properties={
                 "operation": {"type": "string", "default": "readline", "description": "Operation: open, close, read, readline, write"},
-                "port_key": {"type": "string", "default": "serial_port", "description": "Shared-store key for port path (/dev/ttyUSB0, COM3, /dev/tty.usbmodem1)"},
+                "port_key": {
+                    "type": "string",
+                    "default": "serial_port",
+                    "description": "Shared-store key for port path (/dev/ttyUSB0, COM3, /dev/tty.usbmodem1)",
+                },
                 "baud_rate": {"type": "int", "default": 9600, "description": "Serial baud rate"},
                 "timeout": {"type": "float", "default": 1.0, "description": "Read timeout in seconds (0 = non-blocking)"},
                 "encoding": {"type": "string", "default": "utf-8", "description": "Decode encoding: utf-8, ascii, bytes (raw bytearray)"},
@@ -1177,7 +1179,11 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
             base_class="Node",
             actions=["default"],
             properties={
-                "strategy": {"type": "string", "default": "sliding_window", "description": "Strategy: truncate, sliding_window, summarize, extractive, semantic_dedup"},
+                "strategy": {
+                    "type": "string",
+                    "default": "sliding_window",
+                    "description": "Strategy: truncate, sliding_window, summarize, extractive, semantic_dedup",
+                },
                 "input_key": {"type": "string", "default": "messages", "description": "Shared-store key for messages list or text to compact"},
                 "output_key": {"type": "string", "default": "messages", "description": "Shared-store key to write the compacted result"},
                 "max_tokens": {"type": "int", "default": 2000, "description": "Target maximum tokens after compaction"},
@@ -1197,7 +1203,11 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
                 "role": {"type": "string", "default": "user", "description": "Role for append: user, assistant, system"},
                 "content_key": {"type": "string", "default": "content", "description": "Shared-store key for the message content to append"},
                 "max_messages": {"type": "int", "default": 20, "description": "Maximum messages to keep on trim"},
-                "output_key": {"type": "string", "default": "chat_str", "description": "Shared-store key for formatted string output (format operation)"},
+                "output_key": {
+                    "type": "string",
+                    "default": "chat_str",
+                    "description": "Shared-store key for formatted string output (format operation)",
+                },
             },
         ),
         # ── Text / Data Processing ────────────────────────────────────────────
@@ -1236,7 +1246,11 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
             actions=["default", "error"],
             properties={
                 "operation": {"type": "string", "default": "parse", "description": "Operation: parse (string→dict) or serialize (dict→string)"},
-                "input_key": {"type": "string", "default": "json_str", "description": "Shared-store key for JSON string (parse) or object (serialize)"},
+                "input_key": {
+                    "type": "string",
+                    "default": "json_str",
+                    "description": "Shared-store key for JSON string (parse) or object (serialize)",
+                },
                 "output_key": {"type": "string", "default": "json_obj", "description": "Shared-store key for the result"},
                 "indent": {"type": "int", "default": 0, "description": "JSON indentation for serialize (0 = compact)"},
             },
@@ -1248,7 +1262,11 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
             base_class="Node",
             actions=["default", "empty"],
             properties={
-                "operation": {"type": "string", "default": "filter", "description": "Operation: filter, sort, slice, unique, flatten, reverse, count"},
+                "operation": {
+                    "type": "string",
+                    "default": "filter",
+                    "description": "Operation: filter, sort, slice, unique, flatten, reverse, count",
+                },
                 "input_key": {"type": "string", "default": "items", "description": "Shared-store key for the input list"},
                 "output_key": {"type": "string", "default": "items", "description": "Shared-store key for the result"},
                 "expression": {"type": "string", "default": "", "description": "Python expression for filter/sort (item variable)"},
@@ -1263,7 +1281,11 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
             base_class="Node",
             actions=["default"],
             properties={
-                "operation": {"type": "string", "default": "strip", "description": "Operation: split, join, strip, upper, lower, replace, format, truncate"},
+                "operation": {
+                    "type": "string",
+                    "default": "strip",
+                    "description": "Operation: split, join, strip, upper, lower, replace, format, truncate",
+                },
                 "input_key": {"type": "string", "default": "text", "description": "Shared-store key for the input string (or list for join)"},
                 "output_key": {"type": "string", "default": "text", "description": "Shared-store key for the result"},
                 "separator": {"type": "string", "default": " ", "description": "Separator for split and join"},
@@ -1285,7 +1307,11 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
                 "backoff_base": {"type": "float", "default": 1.0, "description": "Base delay in seconds (doubles each retry)"},
                 "jitter": {"type": "bool", "default": True, "description": "Add random jitter to backoff delay"},
                 "attempt_key": {"type": "string", "default": "retry_attempt", "description": "Shared-store key for the current attempt counter"},
-                "status_key": {"type": "string", "default": "retry_status", "description": "Shared-store key read to determine retry vs done (ok = done)"},
+                "status_key": {
+                    "type": "string",
+                    "default": "retry_status",
+                    "description": "Shared-store key read to determine retry vs done (ok = done)",
+                },
             },
         ),
         NodeTypeDefinition(

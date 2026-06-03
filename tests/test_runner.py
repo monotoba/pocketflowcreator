@@ -128,9 +128,7 @@ class TestRunDebug:
         result: list[object] = []
 
         def _runner() -> None:
-            trace = FlowRunner().run_debug(
-                _two_node_graph(), MockProvider(), ctrl, breakpoints={"n1"}
-            )
+            trace = FlowRunner().run_debug(_two_node_graph(), MockProvider(), ctrl, breakpoints={"n1"})
             result.append(trace)
 
         t = threading.Thread(target=_runner)
@@ -157,9 +155,7 @@ class TestRunDebug:
         def _on_step(step: object) -> None:
             ctrl.stop()
 
-        trace = FlowRunner().run_debug(
-            _two_node_graph(), MockProvider(), ctrl, on_step=_on_step
-        )
+        trace = FlowRunner().run_debug(_two_node_graph(), MockProvider(), ctrl, on_step=_on_step)
         assert len(trace.steps) == 1
         assert trace.steps[0].node_id == "n1"
 

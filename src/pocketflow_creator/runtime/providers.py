@@ -34,16 +34,13 @@ class OllamaProvider:
 
     def complete(self, prompt: str, *, model: str | None = None) -> str:
         import sys
+
         url = f"{self.base_url.rstrip('/')}/api/generate"
         model_name = model or self.default_model
-        payload = json.dumps(
-            {"model": model_name, "prompt": prompt, "stream": False}
-        ).encode()
+        payload = json.dumps({"model": model_name, "prompt": prompt, "stream": False}).encode()
         print(f"[OllamaProvider] URL: {url}", file=sys.stderr)
         print(f"[OllamaProvider] Request: {payload.decode()}", file=sys.stderr)
-        req = urllib.request.Request(
-            url, data=payload, headers={"Content-Type": "application/json"}, method="POST"
-        )
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 body = json.loads(resp.read())
@@ -173,13 +170,8 @@ class GeminiProvider:
 
     def complete(self, prompt: str, *, model: str | None = None) -> str:
         mdl = model or self.default_model
-        url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/{mdl}"
-            f":generateContent?key={self.api_key}"
-        )
-        payload = json.dumps(
-            {"contents": [{"parts": [{"text": prompt}]}]}
-        ).encode()
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{mdl}:generateContent?key={self.api_key}"
+        payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode()
         req = urllib.request.Request(
             url,
             data=payload,
@@ -240,6 +232,7 @@ class DeepSeekProvider:
 
 
 # ── profile factory ───────────────────────────────────────────────────────────
+
 
 def build_provider_from_profile(
     profile: ProviderProfile,

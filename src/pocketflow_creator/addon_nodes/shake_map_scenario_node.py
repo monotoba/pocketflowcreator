@@ -3,29 +3,29 @@ simulation for a user-defined fault rupture.
 Requires ShakeMap v4 installed: https://usgs.github.io/shakemap/"""
 
 __node_meta__ = {
-    "node":        "ShakeMap Scenario",
-    "category":    "Geospatial",
-    "version":     "1.0.0",
+    "node": "ShakeMap Scenario",
+    "category": "Geospatial",
+    "version": "1.0.0",
     "description": "Runs a USGS ShakeMap v4 scenario simulation for a fault rupture and returns output grid path.",
-    "tags":        ["shakemap", "usgs", "scenario", "ground-motion", "hazard", "earthquake", "simulation"],
-    "license":     "MIT",
-    "website":     "https://usgs.github.io/shakemap/",
-    "repo":        "https://github.com/usgs/shakemap",
-    "actions":     ["default", "error"],
+    "tags": ["shakemap", "usgs", "scenario", "ground-motion", "hazard", "earthquake", "simulation"],
+    "license": "MIT",
+    "website": "https://usgs.github.io/shakemap/",
+    "repo": "https://github.com/usgs/shakemap",
+    "actions": ["default", "error"],
     "properties": {
         "event_dir_key": {
-            "type":        "string",
-            "default":     "shakemap_event_dir",
+            "type": "string",
+            "default": "shakemap_event_dir",
             "description": "Shared-store key holding the ShakeMap event directory path (contains event.xml).",
         },
         "commands": {
-            "type":        "string",
-            "default":     "select assemble model contour",
+            "type": "string",
+            "default": "select assemble model contour",
             "description": "Space-separated ShakeMap processing pipeline commands.",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "shakemap_scenario_result",
+            "type": "string",
+            "default": "shakemap_scenario_result",
             "description": "Shared-store key to write run status and output file paths.",
         },
     },
@@ -41,7 +41,7 @@ class ShakeMapScenarioNode:
     def prep(self, shared: dict) -> dict:
         return {
             "event_dir": shared.get("shakemap_event_dir", ""),
-            "commands":  shared.get("shakemap_commands", "select assemble model contour").split(),
+            "commands": shared.get("shakemap_commands", "select assemble model contour").split(),
             "result_key": shared.get("shakemap_scenario_result_key", "shakemap_scenario_result"),
         }
 
@@ -49,6 +49,7 @@ class ShakeMapScenarioNode:
         import os
         import pathlib
         import subprocess
+
         event_dir = pathlib.Path(prep_res["event_dir"])
         if not event_dir.is_dir():
             return {"error": f"ShakeMap event directory not found: {event_dir}"}
@@ -62,7 +63,9 @@ class ShakeMapScenarioNode:
             for cmd in prep_res["commands"]:
                 proc = subprocess.run(
                     ["shake", event_id, cmd],
-                    capture_output=True, text=True, timeout=1800,
+                    capture_output=True,
+                    text=True,
+                    timeout=1800,
                     env=os.environ.copy(),
                 )
                 results.append({"command": cmd, "returncode": proc.returncode, "stderr_tail": proc.stderr[-300:]})

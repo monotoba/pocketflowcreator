@@ -64,6 +64,7 @@ Loader behaviour
   optional draw-function in ``_ICON_DRAW`` so ``make_node_icon`` works
   immediately for every loaded type.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -92,6 +93,7 @@ def get_user_nodes_dir() -> Path:
 
 # ── type_id derivation ────────────────────────────────────────────────────────
 
+
 def _to_type_id(display_name: str) -> str:
     """Convert a display name or class name to a snake_case ``type_id``.
 
@@ -117,6 +119,7 @@ def _to_type_id(display_name: str) -> str:
 
 
 # ── Node subclass detection ───────────────────────────────────────────────────
+
 
 def _find_node_class(module: types.ModuleType) -> type | None:
     """Return the first Node subclass defined in *module*, or ``None``.
@@ -258,6 +261,7 @@ def get_addon_node_groups() -> list[tuple[str, list[tuple[str, NodeTypeDefinitio
 
 # ── Core loader ───────────────────────────────────────────────────────────────
 
+
 class PackageLoadError(Exception):
     """Raised when a node package file cannot be loaded."""
 
@@ -306,7 +310,8 @@ def load_node_package(
         # Multi-file: unique prefix so _pfc_addon_dir_foo ≠ _pfc_node_pkg_foo
         module_name = f"_pfc_addon_dir_{package_dir.name}"
         spec = importlib.util.spec_from_file_location(
-            module_name, path,
+            module_name,
+            path,
             submodule_search_locations=[str(package_dir)],
         )
     else:
@@ -327,28 +332,22 @@ def load_node_package(
     raw_meta = getattr(module, "__node_meta__", None)
     if raw_meta is None:
         del sys.modules[module_name]
-        raise PackageLoadError(
-            f"No __node_meta__ dict found in {path.name}. "
-            "Add a module-level __node_meta__ = {...} declaration."
-        )
+        raise PackageLoadError(f"No __node_meta__ dict found in {path.name}. Add a module-level __node_meta__ = {{...}} declaration.")
     if not isinstance(raw_meta, dict):
         del sys.modules[module_name]
-        raise PackageLoadError(
-            f"__node_meta__ in {path.name} must be a dict, "
-            f"got {type(raw_meta).__name__}."
-        )
+        raise PackageLoadError(f"__node_meta__ in {path.name} must be a dict, got {type(raw_meta).__name__}.")
 
     # ── Extract fields with defaults ──────────────────────────────────────
     display_name: str = str(raw_meta.get("node", "")).strip() or path.stem.replace("_", " ").title()
-    category: str     = str(raw_meta.get("category", "Custom")).strip()
-    version: str      = str(raw_meta.get("version", "0.0.0")).strip()
-    author: str       = str(raw_meta.get("author", "")).strip()
-    website: str      = str(raw_meta.get("website", "")).strip()
-    repo: str         = str(raw_meta.get("repo", "")).strip()
-    description: str  = str(raw_meta.get("description", "")).strip()
-    license_: str     = str(raw_meta.get("license", "")).strip()
-    min_creator: str  = str(raw_meta.get("min_creator_version", "")).strip()
-    color: str        = str(raw_meta.get("color", _DEFAULT_CUSTOM_COLOR)).strip()
+    category: str = str(raw_meta.get("category", "Custom")).strip()
+    version: str = str(raw_meta.get("version", "0.0.0")).strip()
+    author: str = str(raw_meta.get("author", "")).strip()
+    website: str = str(raw_meta.get("website", "")).strip()
+    repo: str = str(raw_meta.get("repo", "")).strip()
+    description: str = str(raw_meta.get("description", "")).strip()
+    license_: str = str(raw_meta.get("license", "")).strip()
+    min_creator: str = str(raw_meta.get("min_creator_version", "")).strip()
+    color: str = str(raw_meta.get("color", _DEFAULT_CUSTOM_COLOR)).strip()
 
     # tags may be a list or a comma-separated string
     raw_tags = raw_meta.get("tags", [])
@@ -357,7 +356,7 @@ def load_node_package(
     else:
         tags = [str(t).strip() for t in raw_tags if str(t).strip()]
 
-    actions: list[str]      = list(raw_meta.get("actions", ["default"]))
+    actions: list[str] = list(raw_meta.get("actions", ["default"]))
     properties: dict[str, Any] = dict(raw_meta.get("properties", {}))
 
     # __node_icon__ stays as a separate dunder since it's a callable
@@ -367,10 +366,7 @@ def load_node_package(
     node_cls = _find_node_class(module)
     if node_cls is None:
         del sys.modules[module_name]
-        raise PackageLoadError(
-            f"No Node subclass found in {path.name}. "
-            "Define a class that extends pocketflow.Node."
-        )
+        raise PackageLoadError(f"No Node subclass found in {path.name}. Define a class that extends pocketflow.Node.")
 
     type_id = _to_type_id(node_cls.__name__)
 
@@ -390,15 +386,15 @@ def load_node_package(
 
     # Store extended metadata separately (NodeTypeDefinition is slotted)
     meta: dict[str, Any] = {
-        "source_file":         str(path),
-        "version":             version,
-        "author":              author,
-        "website":             website,
-        "repo":                repo,
-        "tags":                tags,
-        "license":             license_,
+        "source_file": str(path),
+        "version": version,
+        "author": author,
+        "website": website,
+        "repo": repo,
+        "tags": tags,
+        "license": license_,
         "min_creator_version": min_creator,
-        "is_multifile":        package_dir is not None,
+        "is_multifile": package_dir is not None,
     }
     if package_dir is not None:
         meta["source_dir"] = str(package_dir)
@@ -408,6 +404,7 @@ def load_node_package(
 
 
 # ── Discovery ─────────────────────────────────────────────────────────────────
+
 
 def _scan_directory(
     directory: Path,
@@ -448,14 +445,16 @@ def _scan_directory(
     for subdir in sorted(p for p in directory.iterdir() if p.is_dir() and not p.name.startswith("_")):
         main_file = subdir / f"{subdir.name}.py"
         if not main_file.exists():
-            errors.append((
-                f"{subdir.name}/",
-                f"Multi-file node package '{subdir.name}/' must contain "
-                f"'{subdir.name}.py' as its entry point.",
-            ))
+            errors.append(
+                (
+                    f"{subdir.name}/",
+                    f"Multi-file node package '{subdir.name}/' must contain '{subdir.name}.py' as its entry point.",
+                )
+            )
             _log.warning(
                 "Multi-file package '%s/' missing entry point '%s.py'",
-                subdir.name, subdir.name,
+                subdir.name,
+                subdir.name,
             )
             continue
         try:
@@ -464,7 +463,9 @@ def _scan_directory(
             register_user_node(defn, addon=addon)
             _log.info(
                 "Loaded %s multi-file node package: %s (%s/)",
-                label, defn.display_name, subdir.name,
+                label,
+                defn.display_name,
+                subdir.name,
             )
         except PackageLoadError as exc:
             errors.append((f"{subdir.name}/", str(exc)))
@@ -510,6 +511,7 @@ def discover_user_nodes(
 
 # ── Install helper ────────────────────────────────────────────────────────────
 
+
 def install_node_package(src: Path, overwrite: bool = False) -> Path:
     """Copy *src* into the user nodes directory.
 
@@ -546,16 +548,10 @@ def install_node_package(src: Path, overwrite: bool = False) -> Path:
         # Validate multi-file convention
         main_file = src / f"{src.name}.py"
         if not main_file.exists():
-            raise PackageLoadError(
-                f"'{src.name}/' is not a valid multi-file node package: "
-                f"it must contain '{src.name}.py' as its entry point."
-            )
+            raise PackageLoadError(f"'{src.name}/' is not a valid multi-file node package: it must contain '{src.name}.py' as its entry point.")
         dest = get_user_nodes_dir() / src.name
         if dest.exists() and not overwrite:
-            raise FileExistsError(
-                f"'{dest.name}/' is already installed. "
-                "Pass overwrite=True to replace it."
-            )
+            raise FileExistsError(f"'{dest.name}/' is already installed. Pass overwrite=True to replace it.")
         if dest.exists():
             shutil.rmtree(dest)
         shutil.copytree(src, dest)
@@ -564,9 +560,6 @@ def install_node_package(src: Path, overwrite: bool = False) -> Path:
     # Single-file package
     dest = get_user_nodes_dir() / src.name
     if dest.exists() and not overwrite:
-        raise FileExistsError(
-            f"{dest.name} is already installed. "
-            "Pass overwrite=True to replace it."
-        )
+        raise FileExistsError(f"{dest.name} is already installed. Pass overwrite=True to replace it.")
     shutil.copy2(src, dest)
     return dest

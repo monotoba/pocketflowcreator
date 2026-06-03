@@ -4,34 +4,34 @@ Requires EnergyPlus installed: https://energyplus.net/downloads
 Optional: pip install eppy"""
 
 __node_meta__ = {
-    "node":        "EnergyPlus Run",
-    "category":    "Building Energy",
-    "version":     "1.0.0",
+    "node": "EnergyPlus Run",
+    "category": "Building Energy",
+    "version": "1.0.0",
     "description": "Runs a DOE EnergyPlus building energy simulation and returns annual energy use and peak demand.",
-    "tags":        ["energyplus", "building-energy", "doe", "hvac", "simulation", "idf"],
-    "license":     "MIT",
-    "website":     "https://energyplus.net/",
-    "repo":        "https://github.com/NREL/EnergyPlus",
-    "actions":     ["default", "error"],
+    "tags": ["energyplus", "building-energy", "doe", "hvac", "simulation", "idf"],
+    "license": "MIT",
+    "website": "https://energyplus.net/",
+    "repo": "https://github.com/NREL/EnergyPlus",
+    "actions": ["default", "error"],
     "properties": {
         "idf_path_key": {
-            "type":        "string",
-            "default":     "eplus_idf_path",
+            "type": "string",
+            "default": "eplus_idf_path",
             "description": "Shared-store key holding path to the .idf or .epJSON input file.",
         },
         "weather_path_key": {
-            "type":        "string",
-            "default":     "eplus_weather_path",
+            "type": "string",
+            "default": "eplus_weather_path",
             "description": "Shared-store key holding path to the .epw weather file.",
         },
         "output_dir_key": {
-            "type":        "string",
-            "default":     "eplus_output_dir",
+            "type": "string",
+            "default": "eplus_output_dir",
             "description": "Shared-store key holding the output directory path.",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "eplus_result",
+            "type": "string",
+            "default": "eplus_result",
             "description": "Shared-store key to write energy summary dict.",
         },
     },
@@ -46,11 +46,12 @@ class EnergyPlusRunNode:
 
     def prep(self, shared: dict) -> dict:
         import tempfile
+
         return {
-            "idf_path":     shared.get("eplus_idf_path", ""),
+            "idf_path": shared.get("eplus_idf_path", ""),
             "weather_path": shared.get("eplus_weather_path", ""),
-            "output_dir":   shared.get("eplus_output_dir", tempfile.mkdtemp(prefix="eplus_")),
-            "result_key":   shared.get("eplus_result_key", "eplus_result"),
+            "output_dir": shared.get("eplus_output_dir", tempfile.mkdtemp(prefix="eplus_")),
+            "result_key": shared.get("eplus_result_key", "eplus_result"),
         }
 
     def exec(self, prep_res: dict):
@@ -58,6 +59,7 @@ class EnergyPlusRunNode:
         import pathlib
         import shutil
         import subprocess
+
         idf = pathlib.Path(prep_res["idf_path"])
         epw = pathlib.Path(prep_res["weather_path"])
         out_dir = pathlib.Path(prep_res["output_dir"])
@@ -74,13 +76,17 @@ class EnergyPlusRunNode:
         try:
             proc = subprocess.run(
                 [ep_bin, "-w", str(epw), "-d", str(out_dir), str(idf)],
-                capture_output=True, text=True, timeout=3600, env=os.environ.copy(),
+                capture_output=True,
+                text=True,
+                timeout=3600,
+                env=os.environ.copy(),
             )
             # Parse eplustbl.csv for totals
             csv_file = out_dir / "eplustbl.csv"
             summary: dict = {"returncode": proc.returncode, "output_dir": str(out_dir)}
             if csv_file.exists():
                 import csv
+
                 with open(csv_file) as f:
                     rows = list(csv.reader(f))
                 summary["table_rows"] = len(rows)

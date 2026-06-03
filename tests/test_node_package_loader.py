@@ -1,4 +1,5 @@
 """Tests for the node package loader (single-file and multi-file)."""
+
 from __future__ import annotations
 
 import textwrap
@@ -18,15 +19,19 @@ from pocketflow_creator.node_package_loader import (
 
 # ── _to_type_id ───────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("name,expected", [
-    ("WeatherFetch",        "weather_fetch_node"),
-    ("Weather Fetch",       "weather_fetch_node"),
-    ("weather_fetch",       "weather_fetch_node"),
-    ("rag_node",            "rag_node"),              # already ends in _node
-    ("MyCustomNode",        "my_custom_node"),
-    ("SQLRunner",           "sql_runner_node"),        # CamelCase with acronym
-    ("api_call",            "api_call_node"),
-])
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("WeatherFetch", "weather_fetch_node"),
+        ("Weather Fetch", "weather_fetch_node"),
+        ("weather_fetch", "weather_fetch_node"),
+        ("rag_node", "rag_node"),  # already ends in _node
+        ("MyCustomNode", "my_custom_node"),
+        ("SQLRunner", "sql_runner_node"),  # CamelCase with acronym
+        ("api_call", "api_call_node"),
+    ],
+)
 def test_to_type_id(name, expected):
     assert _to_type_id(name) == expected
 
@@ -130,6 +135,7 @@ def test_load_wrong_extension_raises(tmp_path):
 
 # ── discover_user_nodes ───────────────────────────────────────────────────────
 
+
 def test_discover_empty_dir(tmp_path):
     defns, errors = discover_user_nodes(tmp_path)
     assert defns == []
@@ -162,14 +168,12 @@ def test_discover_nonexistent_dir(tmp_path):
 
 # ── discover_addon_nodes ────────────────────────────────────────────────────
 
+
 def test_discover_addon_nodes_finds_all():
     """Add-on node packages should all load without errors."""
     defns, errors = discover_addon_nodes()
     # Verify all 34 addon packages loaded
-    assert len(defns) == 34, (
-        f"Expected 34 addon nodes, got {len(defns)}. "
-        f"Errors: {errors}"
-    )
+    assert len(defns) == 34, f"Expected 34 addon nodes, got {len(defns)}. Errors: {errors}"
     assert errors == [], f"Unexpected load errors: {errors}"
 
 
@@ -188,9 +192,7 @@ def test_discover_addon_nodes_categories():
     defns, _ = discover_addon_nodes()
     actual_categories = {d.category for d in defns}
     assert expected_categories == actual_categories, (
-        f"Category mismatch.\n"
-        f"Expected: {sorted(expected_categories)}\n"
-        f"Got:      {sorted(actual_categories)}"
+        f"Category mismatch.\nExpected: {sorted(expected_categories)}\nGot:      {sorted(actual_categories)}"
     )
 
 
@@ -277,9 +279,13 @@ def test_discover_folder_missing_entrypoint(tmp_path):
 def test_multifile_no_cross_contamination(tmp_path):
     """Two multi-file plugins with same-named helpers don't bleed into each other."""
     # plugin_a has helpers.default_host → "localhost"
-    dir_a = _make_multifile_pkg(tmp_path, "plugin_a", _MULTIFILE_MAIN.replace("Multi Ping", "Plugin A").replace("MultiPingNode", "PluginANode"), _MULTIFILE_HELPER)
+    dir_a = _make_multifile_pkg(
+        tmp_path, "plugin_a", _MULTIFILE_MAIN.replace("Multi Ping", "Plugin A").replace("MultiPingNode", "PluginANode"), _MULTIFILE_HELPER
+    )
     # plugin_b has helpers.default_host → "WRONG" — must not leak into plugin_a
-    dir_b = _make_multifile_pkg(tmp_path, "plugin_b", _MULTIFILE_MAIN.replace("Multi Ping", "Plugin B").replace("MultiPingNode", "PluginBNode"), _HELPER_COLLISION)
+    dir_b = _make_multifile_pkg(
+        tmp_path, "plugin_b", _MULTIFILE_MAIN.replace("Multi Ping", "Plugin B").replace("MultiPingNode", "PluginBNode"), _HELPER_COLLISION
+    )
 
     defn_a = load_node_package(dir_a / "plugin_a.py", package_dir=dir_a)
     defn_b = load_node_package(dir_b / "plugin_b.py", package_dir=dir_b)
@@ -290,6 +296,7 @@ def test_multifile_no_cross_contamination(tmp_path):
     # Verify by inspecting that both loaded without error — the real runtime
     # check is that plugin_a's helpers.default_host still returns "localhost".
     import sys
+
     mod_a = sys.modules.get("_pfc_addon_dir_plugin_a")
     mod_b = sys.modules.get("_pfc_addon_dir_plugin_b")
     assert mod_a is not None
@@ -300,6 +307,7 @@ def test_multifile_no_cross_contamination(tmp_path):
 
 # ── install_node_package (directory) ──────────────────────────────────────────
 
+
 def test_install_node_package_directory(tmp_path, monkeypatch):
     """install_node_package copies a multi-file folder to the user nodes dir."""
     from pocketflow_creator import node_package_loader as npl
@@ -308,7 +316,9 @@ def test_install_node_package_directory(tmp_path, monkeypatch):
     user_dir.mkdir()
     monkeypatch.setattr(npl, "_USER_NODES_DIR", user_dir)
 
-    src_pkg = _make_multifile_pkg(tmp_path / "src", "my_plugin", _MULTIFILE_MAIN.replace("Multi Ping", "My Plugin").replace("MultiPingNode", "MyPluginNode"), _MULTIFILE_HELPER)
+    src_pkg = _make_multifile_pkg(
+        tmp_path / "src", "my_plugin", _MULTIFILE_MAIN.replace("Multi Ping", "My Plugin").replace("MultiPingNode", "MyPluginNode"), _MULTIFILE_HELPER
+    )
     dest = install_node_package(src_pkg)
     assert dest == user_dir / "my_plugin"
     assert (dest / "my_plugin.py").exists()
@@ -323,7 +333,12 @@ def test_install_node_package_directory_overwrite(tmp_path, monkeypatch):
     user_dir.mkdir()
     monkeypatch.setattr(npl, "_USER_NODES_DIR", user_dir)
 
-    src_pkg = _make_multifile_pkg(tmp_path / "src", "ow_plugin", _MULTIFILE_MAIN.replace("Multi Ping", "Overwrite Plugin").replace("MultiPingNode", "OverwritePluginNode"), _MULTIFILE_HELPER)
+    src_pkg = _make_multifile_pkg(
+        tmp_path / "src",
+        "ow_plugin",
+        _MULTIFILE_MAIN.replace("Multi Ping", "Overwrite Plugin").replace("MultiPingNode", "OverwritePluginNode"),
+        _MULTIFILE_HELPER,
+    )
     install_node_package(src_pkg)
     # Second install without overwrite → FileExistsError
     with pytest.raises(FileExistsError):

@@ -45,17 +45,13 @@ def generate_project_report(project: ProjectModel, graphs: dict[str, GraphModel]
             lines += ["### Edges", ""]
             lines += ["| ID | From | Action | To |", "|----|------|--------|----|"]
             for edge in graph.edges:
-                lines.append(
-                    f"| `{edge.id}` | `{edge.from_node}` | {edge.action} | `{edge.to_node}` |"
-                )
+                lines.append(f"| `{edge.id}` | `{edge.from_node}` | {edge.action} | `{edge.to_node}` |")
             lines.append("")
 
         if issues:
             lines += ["### Validation Issues", ""]
             for issue in issues:
-                lines.append(
-                    f"- **[{issue.severity.upper()}]** `{issue.object_id}`: {issue.message}"
-                )
+                lines.append(f"- **[{issue.severity.upper()}]** `{issue.object_id}`: {issue.message}")
             lines.append("")
 
     return "\n".join(lines)

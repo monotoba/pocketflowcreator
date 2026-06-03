@@ -3,34 +3,34 @@ files and runs real.exe + wrf.exe for numerical weather prediction.
 Requires WRF compiled and on PATH."""
 
 __node_meta__ = {
-    "node":        "WRF Model",
-    "category":    "Weather / Atmosphere",
-    "version":     "1.0.0",
+    "node": "WRF Model",
+    "category": "Weather / Atmosphere",
+    "version": "1.0.0",
     "description": "Runs WRF NWP simulation (real.exe + wrf.exe) and returns wrfout file paths.",
-    "tags":        ["wrf", "numerical-weather", "nwp", "atmosphere", "mesoscale"],
-    "license":     "MIT",
-    "website":     "https://www.mmm.ucar.edu/weather-research-and-forecasting-model",
-    "repo":        "https://github.com/wrf-model/WRF",
-    "actions":     ["default", "error"],
+    "tags": ["wrf", "numerical-weather", "nwp", "atmosphere", "mesoscale"],
+    "license": "MIT",
+    "website": "https://www.mmm.ucar.edu/weather-research-and-forecasting-model",
+    "repo": "https://github.com/wrf-model/WRF",
+    "actions": ["default", "error"],
     "properties": {
         "run_dir_key": {
-            "type":        "string",
-            "default":     "wrf_run_dir",
+            "type": "string",
+            "default": "wrf_run_dir",
             "description": "Shared-store key holding path to the WRF run/ directory.",
         },
         "nprocs": {
-            "type":        "integer",
-            "default":     "4",
+            "type": "integer",
+            "default": "4",
             "description": "Number of MPI processes.",
         },
         "skip_real": {
-            "type":        "bool",
-            "default":     "false",
+            "type": "bool",
+            "default": "false",
             "description": "Skip real.exe (use if wrfinput/wrfbdy already exist).",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "wrf_result",
+            "type": "string",
+            "default": "wrf_result",
             "description": "Shared-store key to write wrfout file paths and status.",
         },
     },
@@ -45,9 +45,9 @@ class WRFModelNode:
 
     def prep(self, shared: dict) -> dict:
         return {
-            "run_dir":    shared.get("wrf_run_dir", ""),
-            "nprocs":     int(shared.get("wrf_nprocs", 4)),
-            "skip_real":  bool(shared.get("wrf_skip_real", False)),
+            "run_dir": shared.get("wrf_run_dir", ""),
+            "nprocs": int(shared.get("wrf_nprocs", 4)),
+            "skip_real": bool(shared.get("wrf_skip_real", False)),
             "result_key": shared.get("wrf_result_key", "wrf_result"),
         }
 
@@ -56,6 +56,7 @@ class WRFModelNode:
         import os
         import pathlib
         import subprocess
+
         run_dir = pathlib.Path(prep_res["run_dir"])
         if not run_dir.is_dir():
             return {"error": f"WRF run directory not found: {run_dir}"}
@@ -65,15 +66,21 @@ class WRFModelNode:
             if not prep_res["skip_real"]:
                 real_proc = subprocess.run(
                     ["mpirun", "-np", str(np), "./real.exe"],
-                    cwd=run_dir, capture_output=True, text=True,
-                    timeout=3600, env=env,
+                    cwd=run_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=3600,
+                    env=env,
                 )
                 if real_proc.returncode != 0:
                     return {"error": f"real.exe failed:\n{real_proc.stderr[-1000:]}"}
             wrf_proc = subprocess.run(
                 ["mpirun", "-np", str(np), "./wrf.exe"],
-                cwd=run_dir, capture_output=True, text=True,
-                timeout=86400, env=env,
+                cwd=run_dir,
+                capture_output=True,
+                text=True,
+                timeout=86400,
+                env=env,
             )
             if wrf_proc.returncode != 0:
                 return {"error": f"wrf.exe failed:\n{wrf_proc.stderr[-1000:]}"}

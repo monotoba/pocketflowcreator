@@ -11,9 +11,7 @@ def _graph() -> GraphModel:
         NodeModel(id="node_stop", type_id="basic", title="Stop"),
     ]
     edges = [EdgeModel(id="e1", from_node="node_start", to_node="node_stop", action="default")]
-    return GraphModel(
-        id="g1", title="Main Flow", nodes=nodes, edges=edges, start_node="node_start"
-    )
+    return GraphModel(id="g1", title="Main Flow", nodes=nodes, edges=edges, start_node="node_start")
 
 
 def _project() -> ProjectModel:

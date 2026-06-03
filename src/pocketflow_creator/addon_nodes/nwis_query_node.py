@@ -3,34 +3,34 @@ for sites and retrieves statistical or peak-flow records via the NWIS
 web services REST API."""
 
 __node_meta__ = {
-    "node":        "NWIS Query",
-    "category":    "Hydrology / Water",
-    "version":     "1.0.0",
+    "node": "NWIS Query",
+    "category": "Hydrology / Water",
+    "version": "1.0.0",
     "description": "Searches USGS NWIS for monitoring sites and retrieves statistical or peak-flow records.",
-    "tags":        ["nwis", "usgs", "hydrology", "peak-flow", "statistics", "water-records"],
-    "license":     "MIT",
-    "website":     "https://nwis.waterdata.usgs.gov/",
-    "actions":     ["default", "error"],
+    "tags": ["nwis", "usgs", "hydrology", "peak-flow", "statistics", "water-records"],
+    "license": "MIT",
+    "website": "https://nwis.waterdata.usgs.gov/",
+    "actions": ["default", "error"],
     "properties": {
         "query_type": {
-            "type":        "choice",
-            "default":     "site",
-            "choices":     ["site", "peak", "stat"],
+            "type": "choice",
+            "default": "site",
+            "choices": ["site", "peak", "stat"],
             "description": "Type of NWIS query: site metadata, peak flow record, or statistics.",
         },
         "site_key": {
-            "type":        "string",
-            "default":     "usgs_site",
+            "type": "string",
+            "default": "usgs_site",
             "description": "Shared-store key holding the USGS site number.",
         },
         "state_cd": {
-            "type":        "string",
-            "default":     "",
+            "type": "string",
+            "default": "",
             "description": "Two-letter state code for site searches (e.g. 'va', 'md').",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "nwis_result",
+            "type": "string",
+            "default": "nwis_result",
             "description": "Shared-store key to write the NWIS response.",
         },
     },
@@ -49,22 +49,26 @@ class NWISQueryNode:
     def prep(self, shared: dict) -> dict:
         return {
             "query_type": shared.get("nwis_query_type", "site"),
-            "site":       str(shared.get("usgs_site", "01646500")),
-            "state_cd":   str(shared.get("nwis_state_cd", "")),
+            "site": str(shared.get("usgs_site", "01646500")),
+            "state_cd": str(shared.get("nwis_state_cd", "")),
             "result_key": shared.get("nwis_result_key", "nwis_result"),
         }
 
     def exec(self, prep_res: dict):
         import urllib.parse
         import urllib.request
+
         qt = prep_res["query_type"]
         site = prep_res["site"]
         try:
             if qt == "peak":
-                params = urllib.parse.urlencode({
-                    "site_no": site, "agency_cd": "USGS",
-                    "format": "rdb",
-                })
+                params = urllib.parse.urlencode(
+                    {
+                        "site_no": site,
+                        "agency_cd": "USGS",
+                        "format": "rdb",
+                    }
+                )
                 url = f"{self._PEAK}?{params}"
                 req = urllib.request.Request(url)
                 with urllib.request.urlopen(req, timeout=30) as r:

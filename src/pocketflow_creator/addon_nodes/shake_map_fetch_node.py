@@ -3,24 +3,24 @@ PGA/PGV rasters) for a specific earthquake event ID from the USGS
 ComCat / Product Distribution Layer API."""
 
 __node_meta__ = {
-    "node":        "ShakeMap Fetch",
-    "category":    "Geospatial",
-    "version":     "1.0.0",
+    "node": "ShakeMap Fetch",
+    "category": "Geospatial",
+    "version": "1.0.0",
     "description": "Downloads ShakeMap grid/contour products for a USGS earthquake event ID.",
-    "tags":        ["shakemap", "usgs", "earthquake", "ground-motion", "hazard", "geospatial"],
-    "license":     "MIT",
-    "website":     "https://earthquake.usgs.gov/data/shakemap/",
-    "actions":     ["default", "error"],
+    "tags": ["shakemap", "usgs", "earthquake", "ground-motion", "hazard", "geospatial"],
+    "license": "MIT",
+    "website": "https://earthquake.usgs.gov/data/shakemap/",
+    "actions": ["default", "error"],
     "properties": {
         "event_id_key": {
-            "type":        "string",
-            "default":     "eq_event_id",
+            "type": "string",
+            "default": "eq_event_id",
             "description": "Shared-store key holding the USGS event ID (e.g. 'us7000n7n5').",
         },
         "product_type": {
-            "type":        "choice",
-            "default":     "download/grid.xml",
-            "choices":     [
+            "type": "choice",
+            "default": "download/grid.xml",
+            "choices": [
                 "download/grid.xml",
                 "download/contour_pga.json",
                 "download/contour_pgv.json",
@@ -30,13 +30,13 @@ __node_meta__ = {
             "description": "ShakeMap product to fetch.",
         },
         "output_dir_key": {
-            "type":        "string",
-            "default":     "shakemap_output_dir",
+            "type": "string",
+            "default": "shakemap_output_dir",
             "description": "Shared-store key holding local directory to save the product.",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "shakemap_result",
+            "type": "string",
+            "default": "shakemap_result",
             "description": "Shared-store key to write download status and file path.",
         },
     },
@@ -50,13 +50,14 @@ class ShakeMapFetchNode:
     """Fetch a ShakeMap product file for an earthquake event."""
 
     _BASE = "https://earthquake.usgs.gov/fdsnws/event/1/query"
-    _PDL  = "https://earthquake.usgs.gov/product/shakemap"
+    _PDL = "https://earthquake.usgs.gov/product/shakemap"
 
     def prep(self, shared: dict) -> dict:
         import tempfile
+
         return {
-            "event_id":   shared.get("eq_event_id", ""),
-            "product":    shared.get("shakemap_product_type", "download/grid.xml"),
+            "event_id": shared.get("eq_event_id", ""),
+            "product": shared.get("shakemap_product_type", "download/grid.xml"),
             "output_dir": shared.get("shakemap_output_dir", tempfile.mkdtemp(prefix="shakemap_")),
             "result_key": shared.get("shakemap_result_key", "shakemap_result"),
         }
@@ -65,6 +66,7 @@ class ShakeMapFetchNode:
         import json
         import pathlib
         import urllib.request
+
         event_id = prep_res["event_id"]
         if not event_id:
             return {"error": "No earthquake event ID provided."}
@@ -85,8 +87,8 @@ class ShakeMapFetchNode:
                 available = list(contents.keys())[:10]
                 return {"error": f"Product '{product_type}' not available. Available: {available}"}
             dl_url = contents[product_type]["url"]
-            fname  = pathlib.Path(product_type).name
-            out_p  = pathlib.Path(prep_res["output_dir"]) / fname
+            fname = pathlib.Path(product_type).name
+            out_p = pathlib.Path(prep_res["output_dir"]) / fname
             out_p.parent.mkdir(parents=True, exist_ok=True)
             urllib.request.urlretrieve(dl_url, str(out_p))
             return {"event_id": event_id, "product": product_type, "file": str(out_p)}

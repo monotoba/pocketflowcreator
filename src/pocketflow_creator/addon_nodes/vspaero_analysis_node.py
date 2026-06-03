@@ -3,34 +3,34 @@ from a DegenGeom CSV produced by OpenVSP.  Requires the vspaero binary
 on PATH or the openvsp Python bindings."""
 
 __node_meta__ = {
-    "node":        "VSPAERO Analysis",
-    "category":    "Aerospace",
-    "version":     "1.0.0",
+    "node": "VSPAERO Analysis",
+    "category": "Aerospace",
+    "version": "1.0.0",
     "description": "Runs a VSPAERO vortex-lattice / panel method aero analysis and returns CL, CD, and moment data.",
-    "tags":        ["vspaero", "openvsp", "aerodynamics", "vortex-lattice", "panel-method", "nasa"],
-    "license":     "MIT",
-    "website":     "https://openvsp.org/",
-    "repo":        "https://github.com/OpenVSP/OpenVSP",
-    "actions":     ["default", "error"],
+    "tags": ["vspaero", "openvsp", "aerodynamics", "vortex-lattice", "panel-method", "nasa"],
+    "license": "MIT",
+    "website": "https://openvsp.org/",
+    "repo": "https://github.com/OpenVSP/OpenVSP",
+    "actions": ["default", "error"],
     "properties": {
         "degen_geom_key": {
-            "type":        "string",
-            "default":     "vsp_output_path",
+            "type": "string",
+            "default": "vsp_output_path",
             "description": "Shared-store key holding the path to the DegenGeom CSV file.",
         },
         "alpha": {
-            "type":        "number",
-            "default":     "0.0",
+            "type": "number",
+            "default": "0.0",
             "description": "Angle of attack in degrees.",
         },
         "mach": {
-            "type":        "number",
-            "default":     "0.1",
+            "type": "number",
+            "default": "0.1",
             "description": "Freestream Mach number.",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "vspaero_result",
+            "type": "string",
+            "default": "vspaero_result",
             "description": "Shared-store key to write the aero polar dict.",
         },
     },
@@ -46,8 +46,8 @@ class VSPAeroAnalysisNode:
     def prep(self, shared: dict) -> dict:
         return {
             "degen_geom": shared.get("vsp_output_path", ""),
-            "alpha":      float(shared.get("vspaero_alpha", 0.0)),
-            "mach":       float(shared.get("vspaero_mach", 0.1)),
+            "alpha": float(shared.get("vspaero_alpha", 0.0)),
+            "mach": float(shared.get("vspaero_mach", 0.1)),
             "result_key": shared.get("vspaero_result_key", "vspaero_result"),
         }
 
@@ -57,6 +57,7 @@ class VSPAeroAnalysisNode:
             return {"error": "No DegenGeom path provided."}
         try:
             import openvsp as vsp  # type: ignore[import]
+
             # Build a simple single-point analysis
             setup = vsp.vspaero.SetupFile(degen)
             setup.AlphaDeg = prep_res["alpha"]

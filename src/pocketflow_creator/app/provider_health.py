@@ -1,4 +1,5 @@
 """Health checks for local LLM providers (Ollama, LM Studio)."""
+
 from __future__ import annotations
 
 import json

@@ -3,24 +3,24 @@ API for available data products within a bounding box and optionally
 downloads the first result."""
 
 __node_meta__ = {
-    "node":        "National Map Download",
-    "category":    "Geospatial",
-    "version":     "1.0.0",
+    "node": "National Map Download",
+    "category": "Geospatial",
+    "version": "1.0.0",
     "description": "Searches The National Map API for available datasets in a bounding box and optionally downloads them.",
-    "tags":        ["usgs", "national-map", "tnm", "elevation", "topo", "geospatial", "download"],
-    "license":     "MIT",
-    "website":     "https://apps.nationalmap.gov/tnmaccess/",
-    "actions":     ["default", "error"],
+    "tags": ["usgs", "national-map", "tnm", "elevation", "topo", "geospatial", "download"],
+    "license": "MIT",
+    "website": "https://apps.nationalmap.gov/tnmaccess/",
+    "actions": ["default", "error"],
     "properties": {
         "bbox_key": {
-            "type":        "string",
-            "default":     "bbox",
+            "type": "string",
+            "default": "bbox",
             "description": "Shared-store key holding bounding box as [west, south, east, north] in decimal degrees.",
         },
         "dataset": {
-            "type":        "choice",
-            "default":     "Digital Elevation Model (DEM) 1 meter",
-            "choices":     [
+            "type": "choice",
+            "default": "Digital Elevation Model (DEM) 1 meter",
+            "choices": [
                 "Digital Elevation Model (DEM) 1 meter",
                 "National Hydrography Dataset (NHD)",
                 "National Structures Dataset",
@@ -30,18 +30,18 @@ __node_meta__ = {
             "description": "Dataset type to search.",
         },
         "download": {
-            "type":        "bool",
-            "default":     "false",
+            "type": "bool",
+            "default": "false",
             "description": "If true, download the first result to output_dir.",
         },
         "output_dir_key": {
-            "type":        "string",
-            "default":     "tnm_output_dir",
+            "type": "string",
+            "default": "tnm_output_dir",
             "description": "Shared-store key holding the local directory for downloads.",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "tnm_result",
+            "type": "string",
+            "default": "tnm_result",
             "description": "Shared-store key to write product list and download path.",
         },
     },
@@ -58,9 +58,9 @@ class NationalMapDownloadNode:
 
     def prep(self, shared: dict) -> dict:
         return {
-            "bbox":       shared.get("bbox", [-77.5, 38.5, -77.0, 39.0]),
-            "dataset":    shared.get("tnm_dataset", "Digital Elevation Model (DEM) 1 meter"),
-            "download":   bool(shared.get("tnm_download", False)),
+            "bbox": shared.get("bbox", [-77.5, 38.5, -77.0, 39.0]),
+            "dataset": shared.get("tnm_dataset", "Digital Elevation Model (DEM) 1 meter"),
+            "download": bool(shared.get("tnm_download", False)),
             "output_dir": shared.get("tnm_output_dir", "."),
             "result_key": shared.get("tnm_result_key", "tnm_result"),
         }
@@ -70,24 +70,24 @@ class NationalMapDownloadNode:
         import pathlib
         import urllib.parse
         import urllib.request
+
         bbox = prep_res["bbox"]
         try:
-            params = urllib.parse.urlencode({
-                "datasets": prep_res["dataset"],
-                "bbox":     ",".join(str(c) for c in bbox),
-                "max":      10,
-                "offset":   0,
-                "outputFormat": "JSON",
-            })
+            params = urllib.parse.urlencode(
+                {
+                    "datasets": prep_res["dataset"],
+                    "bbox": ",".join(str(c) for c in bbox),
+                    "max": 10,
+                    "offset": 0,
+                    "outputFormat": "JSON",
+                }
+            )
             url = f"{self._API}?{params}"
             req = urllib.request.Request(url, headers={"Accept": "application/json"})
             with urllib.request.urlopen(req, timeout=30) as r:
                 data = json.loads(r.read())
             items = data.get("items", [])
-            products = [
-                {"title": it.get("title"), "url": it.get("downloadURL"), "size_b": it.get("sizeInBytes")}
-                for it in items
-            ]
+            products = [{"title": it.get("title"), "url": it.get("downloadURL"), "size_b": it.get("sizeInBytes")} for it in items]
             result: dict = {"n_products": len(products), "products": products}
             if prep_res["download"] and products and products[0]["url"]:
                 dl_url = products[0]["url"]

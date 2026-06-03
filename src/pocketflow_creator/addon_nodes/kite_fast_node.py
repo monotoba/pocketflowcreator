@@ -4,24 +4,24 @@ built on the OpenFAST framework.
 Requires KiteFAST binary on PATH."""
 
 __node_meta__ = {
-    "node":        "KiteFAST",
-    "category":    "Wind Energy",
-    "version":     "1.0.0",
+    "node": "KiteFAST",
+    "category": "Wind Energy",
+    "version": "1.0.0",
     "description": "Runs an NREL KiteFAST airborne-wind-energy (AWE) simulation and returns tether tension and power.",
-    "tags":        ["kitefast", "awe", "airborne-wind", "kite", "nrel", "simulation"],
-    "license":     "MIT",
-    "website":     "https://github.com/OpenFAST/KiteFAST",
-    "repo":        "https://github.com/OpenFAST/KiteFAST",
-    "actions":     ["default", "error"],
+    "tags": ["kitefast", "awe", "airborne-wind", "kite", "nrel", "simulation"],
+    "license": "MIT",
+    "website": "https://github.com/OpenFAST/KiteFAST",
+    "repo": "https://github.com/OpenFAST/KiteFAST",
+    "actions": ["default", "error"],
     "properties": {
         "input_path_key": {
-            "type":        "string",
-            "default":     "kitefast_input_path",
+            "type": "string",
+            "default": "kitefast_input_path",
             "description": "Shared-store key holding path to the KiteFAST main input file.",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "kitefast_result",
+            "type": "string",
+            "default": "kitefast_result",
             "description": "Shared-store key to write simulation summary (tether tension, power, etc.).",
         },
     },
@@ -44,14 +44,18 @@ class KiteFASTNode:
         import os
         import pathlib
         import subprocess
+
         inp = pathlib.Path(prep_res["input_path"])
         if not inp.exists():
             return {"error": f"KiteFAST input file not found: {inp}"}
         try:
             proc = subprocess.run(
                 ["KiteFAST", str(inp)],
-                cwd=inp.parent, capture_output=True, text=True,
-                timeout=3600, env=os.environ.copy(),
+                cwd=inp.parent,
+                capture_output=True,
+                text=True,
+                timeout=3600,
+                env=os.environ.copy(),
             )
             if proc.returncode != 0:
                 return {"error": proc.stderr or "KiteFAST returned non-zero."}

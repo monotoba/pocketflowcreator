@@ -1,4 +1,5 @@
 """Dialogs for the human_input_node — form and list collection modes."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -74,9 +75,7 @@ class FormInputDialog(QDialog):
         field_defs = parse_fields(fields_str)
 
         if not field_defs:
-            layout.addWidget(
-                QLabel("No fields configured.\nSet the 'fields' property in the Inspector.")
-            )
+            layout.addWidget(QLabel("No fields configured.\nSet the 'fields' property in the Inspector."))
         else:
             for fd in field_defs:
                 widget: QWidget
@@ -113,9 +112,7 @@ class FormInputDialog(QDialog):
                 form.addRow(fd.name + ":", widget)
                 self._field_widgets[fd.key] = (widget, fd.dtype, fd.choices)
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self._accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)

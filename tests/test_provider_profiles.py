@@ -1,4 +1,5 @@
 """Tests for ProviderProfile model, factory, project IO, and per-node resolver."""
+
 from __future__ import annotations
 
 import json
@@ -20,6 +21,7 @@ from pocketflow_creator.runtime.providers import (
 )
 
 # ── ProviderProfile ────────────────────────────────────────────────────────────
+
 
 def test_new_profile_has_uuid_id() -> None:
     p = ProviderProfile.new("My API", "openai_compat")
@@ -74,6 +76,7 @@ def test_from_dict_round_trip() -> None:
 
 
 # ── ProjectProviders ───────────────────────────────────────────────────────────
+
 
 def test_project_providers_default_profile() -> None:
     p1 = ProviderProfile.new("A")
@@ -130,14 +133,13 @@ def test_project_providers_from_dict_round_trip() -> None:
 
 # ── Project IO serialization ───────────────────────────────────────────────────
 
+
 def test_project_saves_and_loads_providers(tmp_path: Path) -> None:
     from pocketflow_creator.model.project import ProjectModel
 
     p = ProviderProfile.new("Sonnet", "anthropic")
     p.model = "claude-sonnet-4-6"
-    providers = ProjectProviders(
-        profiles=[p], default_profile_id=p.id, include_api_keys=False
-    )
+    providers = ProjectProviders(profiles=[p], default_profile_id=p.id, include_api_keys=False)
     project = ProjectModel(
         name="TestProject",
         package_name="test_project",
@@ -161,9 +163,7 @@ def test_project_api_key_excluded_when_flag_false(tmp_path: Path) -> None:
     p = ProviderProfile.new("GPT", "openai_compat")
     p.api_key = "sk-secret"
     providers = ProjectProviders(profiles=[p], default_profile_id=p.id, include_api_keys=False)
-    project = ProjectModel(
-        name="Proj", package_name="proj", root=tmp_path, providers=providers
-    )
+    project = ProjectModel(name="Proj", package_name="proj", root=tmp_path, providers=providers)
     save_path = tmp_path / "Proj.pfcproj.yaml"
     ProjectSaver().save(project, save_path)
 
@@ -180,9 +180,7 @@ def test_project_api_key_included_when_flag_true(tmp_path: Path) -> None:
     p = ProviderProfile.new("GPT", "openai_compat")
     p.api_key = "sk-visible"
     providers = ProjectProviders(profiles=[p], default_profile_id=p.id, include_api_keys=True)
-    project = ProjectModel(
-        name="Proj2", package_name="proj2", root=tmp_path, providers=providers
-    )
+    project = ProjectModel(name="Proj2", package_name="proj2", root=tmp_path, providers=providers)
     save_path = tmp_path / "Proj2.pfcproj.yaml"
     ProjectSaver().save(project, save_path)
 
@@ -195,13 +193,7 @@ def test_project_api_key_included_when_flag_true(tmp_path: Path) -> None:
 
 def test_legacy_schema_loads_without_providers(tmp_path: Path) -> None:
     legacy = tmp_path / "legacy.pfcproj.yaml"
-    legacy.write_text(
-        "schema_version: '0.1'\n"
-        "name: Legacy\n"
-        "package_name: legacy\n"
-        "default_provider: ollama_local\n"
-        "default_model: llama3\n"
-    )
+    legacy.write_text("schema_version: '0.1'\nname: Legacy\npackage_name: legacy\ndefault_provider: ollama_local\ndefault_model: llama3\n")
     loaded = ProjectLoader().load(legacy)
     assert loaded.name == "Legacy"
     assert loaded.default_provider == "ollama_local"
@@ -209,6 +201,7 @@ def test_legacy_schema_loads_without_providers(tmp_path: Path) -> None:
 
 
 # ── build_provider_from_profile factory ───────────────────────────────────────
+
 
 def test_factory_openai_compat() -> None:
     p = ProviderProfile.new("OpenAI", "openai_compat")
@@ -221,8 +214,7 @@ def test_factory_openai_compat() -> None:
 
 
 def test_factory_anthropic() -> None:
-    p = ProviderProfile(id="x", name="Claude", type="anthropic",
-                        model="claude-haiku-4-5", timeout=60)
+    p = ProviderProfile(id="x", name="Claude", type="anthropic", model="claude-haiku-4-5", timeout=60)
     provider = build_provider_from_profile(p, "ant-key")
     assert isinstance(provider, AnthropicProvider)
     assert provider.api_key == "ant-key"
@@ -231,8 +223,7 @@ def test_factory_anthropic() -> None:
 
 
 def test_factory_gemini() -> None:
-    p = ProviderProfile(id="y", name="Gemini", type="gemini",
-                        model="gemini-2.0-flash", timeout=90)
+    p = ProviderProfile(id="y", name="Gemini", type="gemini", model="gemini-2.0-flash", timeout=90)
     provider = build_provider_from_profile(p, "gem-key")
     assert isinstance(provider, GeminiProvider)
     assert provider.api_key == "gem-key"
@@ -263,6 +254,7 @@ def test_factory_unknown_type_falls_back_to_openai_compat() -> None:
 
 # ── FlowRunner per-node resolver ───────────────────────────────────────────────
 
+
 def _mock_http(content: str) -> MagicMock:
     body = json.dumps({"choices": [{"message": {"content": content}}]}).encode()
     cm = MagicMock()
@@ -278,8 +270,7 @@ def test_runner_uses_default_provider_when_no_override() -> None:
     default = MockProvider(response="default-answer")
     node = NodeModel(id="n1", type_id="llm_prompt_node", title="LLM")
     node.properties["prompt_file"] = "say something"
-    graph = GraphModel(id="g", title="G", start_node="n1",
-                       nodes=[node], edges=[])
+    graph = GraphModel(id="g", title="G", start_node="n1", nodes=[node], edges=[])
 
     steps = list(FlowRunner().steps(graph, default))
     assert steps[0].response == "default-answer"

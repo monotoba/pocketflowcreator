@@ -3,33 +3,33 @@ calls the StreamStats REST API to delineate a watershed and compute
 basin characteristics and flow statistics for a pour point."""
 
 __node_meta__ = {
-    "node":        "StreamStats Basin",
-    "category":    "Hydrology / Water",
-    "version":     "1.0.0",
+    "node": "StreamStats Basin",
+    "category": "Hydrology / Water",
+    "version": "1.0.0",
     "description": "Delineates a watershed and computes basin characteristics via the USGS StreamStats REST API.",
-    "tags":        ["streamstats", "usgs", "watershed", "basin", "hydrology", "delineation"],
-    "license":     "MIT",
-    "website":     "https://streamstats.usgs.gov/docs/streamstatsservices/",
-    "actions":     ["default", "error"],
+    "tags": ["streamstats", "usgs", "watershed", "basin", "hydrology", "delineation"],
+    "license": "MIT",
+    "website": "https://streamstats.usgs.gov/docs/streamstatsservices/",
+    "actions": ["default", "error"],
     "properties": {
         "lat_key": {
-            "type":        "string",
-            "default":     "lat",
+            "type": "string",
+            "default": "lat",
             "description": "Shared-store key holding pour-point latitude.",
         },
         "lon_key": {
-            "type":        "string",
-            "default":     "lon",
+            "type": "string",
+            "default": "lon",
             "description": "Shared-store key holding pour-point longitude.",
         },
         "state_cd": {
-            "type":        "string",
-            "default":     "VA",
+            "type": "string",
+            "default": "VA",
             "description": "Two-letter state code (upper-case) for the StreamStats region.",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "streamstats_result",
+            "type": "string",
+            "default": "streamstats_result",
             "description": "Shared-store key to write watershed delineation and basin characteristics.",
         },
     },
@@ -46,9 +46,9 @@ class StreamStatsBasinNode:
 
     def prep(self, shared: dict) -> dict:
         return {
-            "lat":        float(shared.get("lat", 38.9072)),
-            "lon":        float(shared.get("lon", -77.0369)),
-            "state_cd":   str(shared.get("streamstats_state_cd", "VA")).upper(),
+            "lat": float(shared.get("lat", 38.9072)),
+            "lon": float(shared.get("lon", -77.0369)),
+            "state_cd": str(shared.get("streamstats_state_cd", "VA")).upper(),
             "result_key": shared.get("streamstats_result_key", "streamstats_result"),
         }
 
@@ -56,18 +56,21 @@ class StreamStatsBasinNode:
         import json
         import urllib.parse
         import urllib.request
+
         lat, lon, state = prep_res["lat"], prep_res["lon"], prep_res["state_cd"]
         try:
-            params = urllib.parse.urlencode({
-                "rcode":       state,
-                "xlocation":   lon,
-                "ylocation":   lat,
-                "crs":         4326,
-                "includeparameters": "true",
-                "includeflowtypes":  "false",
-                "includefeatures":   "false",
-                "simplify":          "true",
-            })
+            params = urllib.parse.urlencode(
+                {
+                    "rcode": state,
+                    "xlocation": lon,
+                    "ylocation": lat,
+                    "crs": 4326,
+                    "includeparameters": "true",
+                    "includeflowtypes": "false",
+                    "includefeatures": "false",
+                    "simplify": "true",
+                }
+            )
             url = f"{self._BASE}/watershed.geojson?{params}"
             req = urllib.request.Request(url, headers={"Accept": "application/json"})
             with urllib.request.urlopen(req, timeout=120) as r:
@@ -75,16 +78,16 @@ class StreamStatsBasinNode:
             params_out = {}
             for p in data.get("parameters", []):
                 params_out[p["code"]] = {
-                    "name":  p["name"],
+                    "name": p["name"],
                     "value": p["value"],
-                    "unit":  p.get("units", ""),
+                    "unit": p.get("units", ""),
                 }
             return {
-                "state":            state,
-                "lat":              lat,
-                "lon":              lon,
+                "state": state,
+                "lat": lat,
+                "lon": lon,
                 "basin_parameters": params_out,
-                "workspace_id":     data.get("workspaceID", ""),
+                "workspace_id": data.get("workspaceID", ""),
             }
         except Exception as exc:  # noqa: BLE001
             return {"error": str(exc)}

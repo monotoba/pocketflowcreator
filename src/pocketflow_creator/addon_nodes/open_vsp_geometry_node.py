@@ -3,30 +3,30 @@ analysis, and exports surface/mesh files.  Requires OpenVSP with the
 openvsp Python bindings installed."""
 
 __node_meta__ = {
-    "node":        "OpenVSP Geometry",
-    "category":    "Aerospace",
-    "version":     "1.0.0",
+    "node": "OpenVSP Geometry",
+    "category": "Aerospace",
+    "version": "1.0.0",
     "description": "Loads a VSP3 model, updates design variables, and exports geometry files.",
-    "tags":        ["openvsp", "vsp", "geometry", "aerospace", "cad", "nasa"],
-    "license":     "MIT",
-    "website":     "https://openvsp.org/",
-    "repo":        "https://github.com/OpenVSP/OpenVSP",
-    "actions":     ["default", "error"],
+    "tags": ["openvsp", "vsp", "geometry", "aerospace", "cad", "nasa"],
+    "license": "MIT",
+    "website": "https://openvsp.org/",
+    "repo": "https://github.com/OpenVSP/OpenVSP",
+    "actions": ["default", "error"],
     "properties": {
         "vsp3_path_key": {
-            "type":        "string",
-            "default":     "vsp3_path",
+            "type": "string",
+            "default": "vsp3_path",
             "description": "Shared-store key holding the path to the .vsp3 model file.",
         },
         "export_format": {
-            "type":        "choice",
-            "default":     "stl",
-            "choices":     ["stl", "degen_geom", "stp", "iges", "obj"],
+            "type": "choice",
+            "default": "stl",
+            "choices": ["stl", "degen_geom", "stp", "iges", "obj"],
             "description": "Geometry export format.",
         },
         "output_path_key": {
-            "type":        "string",
-            "default":     "vsp_output_path",
+            "type": "string",
+            "default": "vsp_output_path",
             "description": "Shared-store key to write the path of the exported file.",
         },
     },
@@ -41,8 +41,8 @@ class OpenVSPGeometryNode:
 
     def prep(self, shared: dict) -> dict:
         return {
-            "vsp3_path":       shared.get("vsp3_path", ""),
-            "export_format":   shared.get("vsp_export_format", "stl"),
+            "vsp3_path": shared.get("vsp3_path", ""),
+            "export_format": shared.get("vsp_export_format", "stl"),
             "output_path_key": shared.get("vsp_output_path_key", "vsp_output_path"),
         }
 
@@ -56,6 +56,7 @@ class OpenVSPGeometryNode:
             return {"error": "openvsp Python bindings not found.  Install OpenVSP and its Python API."}
         try:
             import pathlib
+
             vsp.ClearVSPModel()
             vsp.ReadVSPFile(vsp3_path)
             vsp.Update()

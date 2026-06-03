@@ -46,10 +46,11 @@ def provider_profile_api_key_skey(profile_id: str) -> str:
     """Return the QSettings key for a provider profile's API key."""
     return f"provider_profiles/{profile_id}/api_key"
 
+
 # ── UI state ──────────────────────────────────────────────────────────────────
 _SKEY_RECENT = "recent_projects"
 _SKEY_THEME = "ui/theme"
-_SKEY_DARK_MODE = "ui/dark_mode"       # legacy key — read-once migration only
+_SKEY_DARK_MODE = "ui/dark_mode"  # legacy key — read-once migration only
 _SKEY_LOCALE = "ui/locale"
 
 # ── Window layout ─────────────────────────────────────────────────────────────

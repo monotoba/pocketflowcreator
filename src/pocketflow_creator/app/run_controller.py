@@ -6,6 +6,7 @@ This module owns:
   - ``start_run``        — fire a background run thread and return the signal object
   - ``start_debug``      — fire a background debug thread and return the signal object
 """
+
 from __future__ import annotations
 
 import os
@@ -42,6 +43,7 @@ def _load_api_key(profile_id: str) -> str:
     """Load a profile's API key from QSettings, resolving env: references."""
     try:
         from PySide6.QtCore import QSettings
+
         settings = QSettings(_ORG, _APP)
         raw = str(settings.value(provider_profile_api_key_skey(profile_id), ""))
     except Exception:
@@ -109,8 +111,10 @@ def make_input_callback(
     try:
         from PySide6.QtWidgets import QDialog
     except ImportError:  # pragma: no cover
+
         def _noop(props: dict, shared_store: dict) -> object:
             return None
+
         return _noop
 
     _event = threading.Event()
@@ -118,6 +122,7 @@ def make_input_callback(
 
     def _on_input_requested_gui(props: object, store_snap: object) -> None:
         from pocketflow_creator.app.human_input_dialog import create_human_input_dialog
+
         p = props if isinstance(props, dict) else {}
         s = store_snap if isinstance(store_snap, dict) else {}
         dlg = create_human_input_dialog(str(p.get("input_type", "form")), p, s, parent)

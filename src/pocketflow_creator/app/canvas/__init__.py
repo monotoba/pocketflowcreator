@@ -4,6 +4,7 @@ This package replaces the monolithic ``app/canvas.py`` module.  All names that
 were previously importable as ``pocketflow_creator.app.canvas.<name>`` remain
 available from this package, so no external import needs to change.
 """
+
 from __future__ import annotations
 
 from pocketflow_creator.app.canvas.icons import (

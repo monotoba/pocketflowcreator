@@ -63,10 +63,7 @@ class NodeTypeDefinition:
                     kwargs[f.name] = dict(val) if isinstance(val, dict) else {}
                 else:
                     kwargs[f.name] = list(val) if val is not None else []
-            elif (
-                f.default is not dataclasses.MISSING
-                and isinstance(f.default, bool)
-            ):
+            elif f.default is not dataclasses.MISSING and isinstance(f.default, bool):
                 # bool field: use _coerce_bool so "false" strings map to False
                 kwargs[f.name] = _coerce_bool(val)
             elif val is not None:

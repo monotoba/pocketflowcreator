@@ -1,4 +1,5 @@
 """PaletteWidget — the drag-source list widget for node types and snippets."""
+
 from __future__ import annotations
 
 import json

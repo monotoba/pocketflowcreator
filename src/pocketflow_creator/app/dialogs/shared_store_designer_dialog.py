@@ -1,4 +1,5 @@
 """SharedStoreDesignerDialog — visual editor for a shared-store YAML schema file."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -107,9 +108,7 @@ def open_shared_store_designer(
     add_btn.clicked.connect(_add_row)
     remove_btn.clicked.connect(_remove_row)
 
-    _VALID_TYPES = frozenset(
-        {"string", "integer", "number", "boolean", "array", "object", "null"}
-    )
+    _VALID_TYPES = frozenset({"string", "integer", "number", "boolean", "array", "object", "null"})
 
     validation_label = QLabel("")
     validation_label.setWordWrap(True)
@@ -152,10 +151,7 @@ def open_shared_store_designer(
             if not key:
                 errors.append(f"Row {r + 1}: Key is required.")
             if type_str and type_str not in _VALID_TYPES:
-                errors.append(
-                    f"Row {r + 1}: '{type_str}' is not a valid JSON Schema type. "
-                    f"Valid types: {', '.join(sorted(_VALID_TYPES))}"
-                )
+                errors.append(f"Row {r + 1}: '{type_str}' is not a valid JSON Schema type. Valid types: {', '.join(sorted(_VALID_TYPES))}")
         return errors
 
     def _on_validate() -> None:
@@ -169,9 +165,7 @@ def open_shared_store_designer(
     validate_btn.clicked.connect(_on_validate)
     btn_row.addWidget(validate_btn)
 
-    dialog_btns = QDialogButtonBox(
-        QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-    )
+    dialog_btns = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
     help_btn = dialog_btns.addButton("?", QDialogButtonBox.ButtonRole.HelpRole)
     help_btn.clicked.connect(lambda: open_help("context/shared_store.md"))
     dialog_btns.accepted.connect(dlg.accept)

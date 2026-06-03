@@ -3,29 +3,29 @@ using the FloPy library and returns head arrays and budget data.
 Install: pip install flopy"""
 
 __node_meta__ = {
-    "node":        "FloPy Model",
-    "category":    "Hydrology / Water",
-    "version":     "1.0.0",
+    "node": "FloPy Model",
+    "category": "Hydrology / Water",
+    "version": "1.0.0",
     "description": "Builds and runs a MODFLOW model via FloPy and returns simulated head and budget arrays.",
-    "tags":        ["flopy", "modflow", "groundwater", "usgs", "python", "hydrogeology"],
-    "license":     "MIT",
-    "website":     "https://flopy.readthedocs.io/",
-    "repo":        "https://github.com/modflowpy/flopy",
-    "actions":     ["default", "error"],
+    "tags": ["flopy", "modflow", "groundwater", "usgs", "python", "hydrogeology"],
+    "license": "MIT",
+    "website": "https://flopy.readthedocs.io/",
+    "repo": "https://github.com/modflowpy/flopy",
+    "actions": ["default", "error"],
     "properties": {
         "model_key": {
-            "type":        "string",
-            "default":     "flopy_model",
+            "type": "string",
+            "default": "flopy_model",
             "description": "Shared-store key holding a configured flopy.modflow.Modflow or flopy.mf6.MFSimulation instance.",
         },
         "exe_name": {
-            "type":        "string",
-            "default":     "mf6",
+            "type": "string",
+            "default": "mf6",
             "description": "MODFLOW executable name (mf6, mf2005, mfnwt, etc.).",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "flopy_result",
+            "type": "string",
+            "default": "flopy_result",
             "description": "Shared-store key to write head statistics and budget summary.",
         },
     },
@@ -40,8 +40,8 @@ class FloPyModelNode:
 
     def prep(self, shared: dict) -> dict:
         return {
-            "model":      shared.get("flopy_model"),
-            "exe_name":   shared.get("flopy_exe_name", "mf6"),
+            "model": shared.get("flopy_model"),
+            "exe_name": shared.get("flopy_exe_name", "mf6"),
             "result_key": shared.get("flopy_result_key", "flopy_result"),
         }
 

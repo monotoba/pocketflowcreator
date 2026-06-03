@@ -54,9 +54,7 @@ def test_generator_flow_py_wires_edges_for_example() -> None:
             if edge.action in ("default", ""):
                 assert ">>" in code
             else:
-                assert f'"{edge.action}"' in code or f"'{edge.action}'" in code, (
-                    f"action {edge.action!r} not in generated flow.py for {rel}"
-                )
+                assert f'"{edge.action}"' in code or f"'{edge.action}'" in code, f"action {edge.action!r} not in generated flow.py for {rel}"
 
 
 def test_exporter_writes_all_expected_files_for_example(tmp_path: Path) -> None:

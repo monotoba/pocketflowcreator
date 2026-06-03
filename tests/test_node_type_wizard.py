@@ -86,13 +86,8 @@ class TestNodeTypeLibraryLoad:
 
         nt_dir = tmp_path / "node_types"
         nt_dir.mkdir()
-        (nt_dir / "test_type.yaml").write_text(
-            yaml.dump(_valid_defn()), encoding="utf-8"
-        )
-        project = ProjectModel(
-            name="P", package_name="p", root=tmp_path,
-            node_types=["node_types/test_type.yaml"]
-        )
+        (nt_dir / "test_type.yaml").write_text(yaml.dump(_valid_defn()), encoding="utf-8")
+        project = ProjectModel(name="P", package_name="p", root=tmp_path, node_types=["node_types/test_type.yaml"])
         # Exercise the loading logic directly
         registry: dict[str, NodeTypeDefinition] = {}
         for rel in project.node_types:

@@ -3,31 +3,28 @@ retrieves aerodynamic force/moment history.  Requires FUN3D installed
 and licensed from NASA LaRC."""
 
 __node_meta__ = {
-    "node":        "FUN3D Run",
-    "category":    "Aerospace",
-    "version":     "1.0.0",
+    "node": "FUN3D Run",
+    "category": "Aerospace",
+    "version": "1.0.0",
     "description": "Runs a NASA FUN3D CFD case (steady or unsteady) and returns integrated forces.",
-    "tags":        ["fun3d", "cfd", "rans", "les", "aerodynamics", "nasa", "high-fidelity"],
-    "license":     "MIT",
-    "website":     "https://fun3d.larc.nasa.gov/",
-    "actions":     ["default", "error"],
+    "tags": ["fun3d", "cfd", "rans", "les", "aerodynamics", "nasa", "high-fidelity"],
+    "license": "MIT",
+    "website": "https://fun3d.larc.nasa.gov/",
+    "actions": ["default", "error"],
     "properties": {
         "case_dir_key": {
-            "type":        "string",
-            "default":     "fun3d_case_dir",
-            "description": (
-                "Shared-store key holding path to the FUN3D case directory "
-                "(contains fun3d.nml)."
-            ),
+            "type": "string",
+            "default": "fun3d_case_dir",
+            "description": ("Shared-store key holding path to the FUN3D case directory (contains fun3d.nml)."),
         },
         "nprocs": {
-            "type":        "integer",
-            "default":     "4",
+            "type": "integer",
+            "default": "4",
             "description": "Number of MPI processes for mpirun.",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "fun3d_result",
+            "type": "string",
+            "default": "fun3d_result",
             "description": "Shared-store key to write force history and run status.",
         },
     },
@@ -42,8 +39,8 @@ class FUN3DRunNode:
 
     def prep(self, shared: dict) -> dict:
         return {
-            "case_dir":  shared.get("fun3d_case_dir", ""),
-            "nprocs":    int(shared.get("fun3d_nprocs", 4)),
+            "case_dir": shared.get("fun3d_case_dir", ""),
+            "nprocs": int(shared.get("fun3d_nprocs", 4)),
             "result_key": shared.get("fun3d_result_key", "fun3d_result"),
         }
 
@@ -52,6 +49,7 @@ class FUN3DRunNode:
         import os
         import pathlib
         import subprocess
+
         case_dir = pathlib.Path(prep_res["case_dir"])
         if not case_dir.is_dir():
             return {"error": f"FUN3D case directory not found: {case_dir}"}
@@ -61,8 +59,12 @@ class FUN3DRunNode:
         try:
             cmd = ["mpirun", "-np", str(prep_res["nprocs"]), "nodet_mpi"]
             proc = subprocess.run(
-                cmd, cwd=case_dir, capture_output=True, text=True,
-                timeout=7200, env=os.environ.copy(),
+                cmd,
+                cwd=case_dir,
+                capture_output=True,
+                text=True,
+                timeout=7200,
+                env=os.environ.copy(),
             )
             # Look for *_hist.dat
             hist_files = list(case_dir.glob("*_hist.dat"))
@@ -82,8 +84,8 @@ class FUN3DRunNode:
                             forces.append(dict(zip(headers, row, strict=False)))
             return {
                 "returncode": proc.returncode,
-                "n_iter":     len(forces),
-                "last_iter":  forces[-1] if forces else {},
+                "n_iter": len(forces),
+                "last_iter": forces[-1] if forces else {},
             }
         except FileNotFoundError:
             return {"error": "mpirun or nodet_mpi not found on PATH."}

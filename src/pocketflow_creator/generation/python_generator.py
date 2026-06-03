@@ -46,15 +46,15 @@ class PythonGenerator:
             src = index.get(edge.from_node)
             tgt = index.get(edge.to_node)
             if src and tgt:
-                edges.append({
-                    "from_var": self._var_name(src),
-                    "to_var": self._var_name(tgt),
-                    "action": edge.action,
-                })
+                edges.append(
+                    {
+                        "from_var": self._var_name(src),
+                        "to_var": self._var_name(tgt),
+                        "action": edge.action,
+                    }
+                )
 
-        start_node = index.get(graph.start_node or "") or (
-            graph.nodes[0] if graph.nodes else None
-        )
+        start_node = index.get(graph.start_node or "") or (graph.nodes[0] if graph.nodes else None)
         start_var = self._var_name(start_node) if start_node else "None"
 
         return tmpl.render(

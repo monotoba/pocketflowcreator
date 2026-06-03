@@ -1,4 +1,5 @@
 """ProviderManagerDialog — manage named LLM provider profiles for a project."""
+
 from __future__ import annotations
 
 import copy
@@ -77,6 +78,7 @@ else:
 
 # ── small helpers ─────────────────────────────────────────────────────────────
 
+
 def _key_field(placeholder: str = "sk-…") -> QLineEdit:
     f: QLineEdit = QLineEdit()
     f.setEchoMode(QLineEdit.EchoMode.Password)
@@ -108,7 +110,7 @@ def _load_key(profile_id: str) -> str:
 def _resolve_key(raw: str) -> str:
     """Resolve a raw stored value to an actual API key."""
     if raw.startswith(_ENV_PREFIX):
-        return os.environ.get(raw[len(_ENV_PREFIX):], "")
+        return os.environ.get(raw[len(_ENV_PREFIX) :], "")
     return raw
 
 
@@ -140,6 +142,7 @@ def _test_profile(profile: ProviderProfile, api_key: str, status: QLabel) -> Non
     def _run() -> None:
         try:
             from pocketflow_creator.runtime.providers import build_provider_from_profile
+
             p = build_provider_from_profile(profile, api_key)
             p.complete("Reply with the single word: ok")
             result_queue.put("✓ Connection successful")
@@ -182,6 +185,7 @@ def _test_profile(profile: ProviderProfile, api_key: str, status: QLabel) -> Non
 
 
 # ── profile edit panel ────────────────────────────────────────────────────────
+
 
 class _ProfileEditPanel(QWidget):
     """Right-hand panel for editing one provider profile."""
@@ -234,10 +238,10 @@ class _ProfileEditPanel(QWidget):
 
         self._key_bg: QButtonGroup = QButtonGroup(self)
         self._rb_direct: QRadioButton = QRadioButton("Enter key directly:")
-        self._rb_env:    QRadioButton = QRadioButton("Read from environment variable:")
+        self._rb_env: QRadioButton = QRadioButton("Read from environment variable:")
         self._rb_direct.setChecked(True)
         self._key_bg.addButton(self._rb_direct, 0)
-        self._key_bg.addButton(self._rb_env,    1)
+        self._key_bg.addButton(self._rb_env, 1)
         key_vbox.addWidget(self._rb_direct)
 
         self._key_field = _key_field()
@@ -300,7 +304,7 @@ class _ProfileEditPanel(QWidget):
 
         if raw_key.startswith(_ENV_PREFIX):
             self._rb_env.setChecked(True)
-            self._env_field.setText(raw_key[len(_ENV_PREFIX):])
+            self._env_field.setText(raw_key[len(_ENV_PREFIX) :])
             self._key_field.setText("")
         else:
             self._rb_direct.setChecked(True)
@@ -381,6 +385,7 @@ class _ProfileEditPanel(QWidget):
 
 # ── public entry point ────────────────────────────────────────────────────────
 
+
 def exec_provider_manager(
     parent: QMainWindow,
     open_help: Callable[[str], None],
@@ -395,10 +400,7 @@ def exec_provider_manager(
 
     # api_keys tracks the key for each profile id separately from the profile object.
     # Keys come from QSettings, or from the profile if include_api_keys was True.
-    api_keys: dict[str, str] = {
-        p.id: (p.api_key or _load_key(p.id))
-        for p in working.profiles
-    }
+    api_keys: dict[str, str] = {p.id: (p.api_key or _load_key(p.id)) for p in working.profiles}
 
     dlg: QDialog = QDialog(parent)
     dlg.setWindowTitle("Provider Manager")
@@ -436,8 +438,7 @@ def exec_provider_manager(
     include_key_chk: QCheckBox = QCheckBox("Include API keys in project file")
     include_key_chk.setChecked(working.include_api_keys)
     include_key_chk.setToolTip(
-        "When checked, API keys are saved in plain text in the .pfcproj.yaml.\n"
-        "Leave unchecked to keep keys on this machine only (in app settings)."
+        "When checked, API keys are saved in plain text in the .pfcproj.yaml.\nLeave unchecked to keep keys on this machine only (in app settings)."
     )
     left_layout.addWidget(include_key_chk)
 
@@ -446,9 +447,7 @@ def exec_provider_manager(
     content_row.addWidget(edit_panel, 2)
 
     # Bottom buttons
-    buttons: QDialogButtonBox = QDialogButtonBox(
-        QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-    )
+    buttons: QDialogButtonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
     help_btn = buttons.addButton("?", QDialogButtonBox.ButtonRole.HelpRole)
     help_btn.clicked.connect(lambda: open_help("context/provider_manager.md"))
     buttons.accepted.connect(dlg.accept)

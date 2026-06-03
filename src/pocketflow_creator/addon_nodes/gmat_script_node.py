@@ -3,29 +3,29 @@
 Requires GMAT R2022a+ with the Python API enabled."""
 
 __node_meta__ = {
-    "node":        "GMAT Script",
-    "category":    "Aerospace",
-    "version":     "1.0.0",
+    "node": "GMAT Script",
+    "category": "Aerospace",
+    "version": "1.0.0",
     "description": "Runs a GMAT mission analysis script and returns selected report file data.",
-    "tags":        ["gmat", "orbital-mechanics", "astrodynamics", "mission-analysis", "nasa"],
-    "license":     "MIT",
-    "website":     "https://gmat.gsfc.nasa.gov/",
-    "repo":        "https://sourceforge.net/projects/gmat/",
-    "actions":     ["default", "error"],
+    "tags": ["gmat", "orbital-mechanics", "astrodynamics", "mission-analysis", "nasa"],
+    "license": "MIT",
+    "website": "https://gmat.gsfc.nasa.gov/",
+    "repo": "https://sourceforge.net/projects/gmat/",
+    "actions": ["default", "error"],
     "properties": {
         "script_path_key": {
-            "type":        "string",
-            "default":     "gmat_script_path",
+            "type": "string",
+            "default": "gmat_script_path",
             "description": "Shared-store key holding the path to the GMAT .script file.",
         },
         "report_path_key": {
-            "type":        "string",
-            "default":     "gmat_report_path",
+            "type": "string",
+            "default": "gmat_report_path",
             "description": "Shared-store key holding the path to the expected output report file (optional).",
         },
         "result_key": {
-            "type":        "string",
-            "default":     "gmat_result",
+            "type": "string",
+            "default": "gmat_result",
             "description": "Shared-store key to write parsed report data or run status.",
         },
     },
@@ -42,7 +42,7 @@ class GMATScriptNode:
         return {
             "script_path": shared.get("gmat_script_path", ""),
             "report_path": shared.get("gmat_report_path", ""),
-            "result_key":  shared.get("gmat_result_key", "gmat_result"),
+            "result_key": shared.get("gmat_result_key", "gmat_result"),
         }
 
     def exec(self, prep_res: dict):
@@ -52,16 +52,20 @@ class GMATScriptNode:
         # Try the gmat Python API first, fall back to subprocess
         try:
             import gmat_py_simple as gmat  # type: ignore[import]
+
             gmat.LoadApplicationData()
             gmat.RunScript(script)
             result: dict = {"status": "success", "script": script}
         except ImportError:
             import pathlib
             import subprocess
+
             try:
                 proc = subprocess.run(
                     ["GMAT", "--run", "--script", script, "--exit"],
-                    capture_output=True, text=True, timeout=300,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
                 )
                 if proc.returncode != 0:
                     return {"error": proc.stderr or "GMAT exited with non-zero code."}
@@ -76,6 +80,7 @@ class GMATScriptNode:
         report = prep_res["report_path"]
         if report:
             import pathlib
+
             p = pathlib.Path(report)
             if p.exists():
                 lines = p.read_text().strip().splitlines()
