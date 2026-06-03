@@ -39,6 +39,8 @@ class OllamaProvider:
         payload = json.dumps(
             {"model": model_name, "prompt": prompt, "stream": False}
         ).encode()
+        print(f"[OllamaProvider] URL: {url}", file=sys.stderr)
+        print(f"[OllamaProvider] Request: {payload.decode()}", file=sys.stderr)
         req = urllib.request.Request(
             url, data=payload, headers={"Content-Type": "application/json"}, method="POST"
         )
@@ -48,6 +50,8 @@ class OllamaProvider:
                 return str(body.get("response", ""))
         except urllib.error.HTTPError as exc:
             print(f"[OllamaProvider] HTTPError: {exc.code} {exc.reason}", file=sys.stderr)
+            print(f"[OllamaProvider] URL was: {url}", file=sys.stderr)
+            print(f"[OllamaProvider] Request was: {payload.decode()}", file=sys.stderr)
             # Try to extract error details from response
             detail = f"{exc.code} {exc.reason}"  # fallback to HTTP status
             try:
