@@ -322,7 +322,7 @@ class NodeItem(QGraphicsItem):
 
     def mousePressEvent(self, event: Any) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            self._drag_start_pos = self.pos()
+            self._drag_start_pos = self.pos()  # type: ignore[assignment]
             from pocketflow_creator.app.canvas.scene import GraphScene  # lazy – avoids circular import
             scene = self.scene()
             if isinstance(scene, GraphScene):

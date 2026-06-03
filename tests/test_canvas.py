@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from PySide6.QtCore import QPointF
 from PySide6.QtWidgets import QApplication
 
 from pocketflow_creator.app.canvas import EdgeItem, GraphScene, GraphView, NodeItem
 from pocketflow_creator.graph_io import GraphLoader
+
+pytestmark = pytest.mark.gui
 
 _EXAMPLE = Path(__file__).parent.parent / "examples" / "document_summarizer"
 

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import pytest
 from PySide6.QtWidgets import QApplication, QPlainTextEdit
 
 from pocketflow_creator.app.editors import PythonHighlighter, YamlHighlighter
+
+pytestmark = pytest.mark.gui
 
 _app = QApplication.instance() or QApplication([])
 
