@@ -381,6 +381,8 @@ class _ProfileEditPanel(QWidget):
     def _on_test(self) -> None:
         if self._profile is None:
             return
+        # Flush current UI state to profile before testing
+        self.flush()
         api_key = self.resolved_api_key()
         _test_profile(self._profile, api_key, self._status_label)
 
