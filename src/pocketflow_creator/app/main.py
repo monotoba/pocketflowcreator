@@ -2459,7 +2459,6 @@ class MainWindow(QMainWindow):
         if updated is not None:
             if self._project:
                 self._project.providers = updated
-                self._mark_dirty()
             self.statusBar().showMessage("Provider settings saved.")
 
     def _on_tool_registry(self) -> None:
