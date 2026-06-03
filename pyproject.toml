@@ -44,8 +44,12 @@ Issues = "https://github.com/Monotoba/PocketFlowCreator/issues"
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "pytest-cov>=4.1",
     "ruff>=0.5",
     "mypy>=1.8",
+    "bandit>=1.7",
+    "build>=1.0",
+    "twine>=4.0",
 ]
 
 [project.scripts]
@@ -88,3 +92,29 @@ python_version = "3.10"
 warn_unused_configs = true
 ignore_missing_imports = true
 disable_error_code = "call-overload,assignment,attr-defined,union-attr"
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "*/site-packages/*",
+    "*/__pycache__/*",
+    "tests/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "if sys.platform",
+    "@abstractmethod",
+]
+precision = 2
+show_missing = true
+
+[tool.coverage.html]
+directory = "htmlcov"
