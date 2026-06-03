@@ -4,7 +4,7 @@
 [![Build](https://github.com/Monotoba/PocketFlowCreator/actions/workflows/build.yml/badge.svg)](https://github.com/Monotoba/PocketFlowCreator/actions/workflows/build.yml)
 [![Security](https://github.com/Monotoba/PocketFlowCreator/actions/workflows/security.yml/badge.svg)](https://github.com/Monotoba/PocketFlowCreator/actions/workflows/security.yml)
 [![codecov](https://codecov.io/gh/Monotoba/PocketFlowCreator/branch/main/graph/badge.svg)](https://codecov.io/gh/Monotoba/PocketFlowCreator)
-[![PyPI version](https://badge.fury.io/py/pocketflow-creator.svg)](https://badge.fury.io/py/pocketflow-creator)
+[![PyPI version](https://badge.fury.io/py/pocketflow-creator.svg)](https://badge.fury.io/py/pocketflow-creator/)
 [![Python versions](https://img.shields.io/pypi/pyversions/pocketflow-creator.svg)](https://pypi.org/project/pocketflow-creator/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
