@@ -144,7 +144,6 @@ def _test_profile(profile: ProviderProfile, api_key: str, status: QLabel) -> Non
             if len(error_msg) > 300:
                 error_msg = error_msg[:297] + "…"
             status.setText(f"✗ {error_msg}")
-            status.setWordWrap(True)
 
     threading.Thread(target=_run, daemon=True).start()
 
@@ -228,6 +227,9 @@ class _ProfileEditPanel(QWidget):
         # Test
         self._test_btn: QPushButton = QPushButton("Test Connection")
         self._status_label: QLabel = QLabel()
+        self._status_label.setWordWrap(True)
+        self._status_label.setMinimumHeight(60)
+        self._status_label.setAlignment(self._status_label.alignment() | 0x0001)  # top-align
         test_row: QHBoxLayout = QHBoxLayout()
         test_row.addWidget(self._test_btn)
         test_row.addWidget(self._status_label, 1)
