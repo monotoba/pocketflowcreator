@@ -47,7 +47,8 @@ class NOAAWeatherNode:
         }
 
     def exec(self, prep_res: dict):
-        import json, urllib.request
+        import json
+        import urllib.request
         lat, lon = prep_res["lat"], prep_res["lon"]
         headers = {"User-Agent": self._UA, "Accept": "application/geo+json"}
 

@@ -46,7 +46,10 @@ class SU2CFDNode:
         }
 
     def exec(self, prep_res: dict):
-        import subprocess, pathlib, csv, os
+        import csv
+        import os
+        import pathlib
+        import subprocess
         cfg_path = pathlib.Path(prep_res["config_path"])
         if not cfg_path.exists():
             return {"error": f"SU2 config file not found: {cfg_path}"}

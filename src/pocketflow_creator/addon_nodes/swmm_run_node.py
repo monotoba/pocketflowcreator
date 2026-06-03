@@ -54,7 +54,7 @@ class SWMMRunNode:
         if not inp.exists():
             return {"error": f"SWMM input file not found: {inp}"}
         try:
-            from pyswmm import Simulation, Links  # type: ignore[import]
+            from pyswmm import Links, Simulation  # type: ignore[import]
             with Simulation(str(inp)) as sim:
                 links = Links(sim)
                 sim.execute()
@@ -67,7 +67,8 @@ class SWMMRunNode:
             return {"links": summary, "n_links": len(summary)}
         except ImportError:
             # Fall back to subprocess swmm5
-            import subprocess, os
+            import os
+            import subprocess
             try:
                 out_rpt = prep_res["rpt_path"]
                 proc = subprocess.run(

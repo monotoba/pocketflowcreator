@@ -41,7 +41,9 @@ class KiteFASTNode:
         }
 
     def exec(self, prep_res: dict):
-        import subprocess, pathlib, os
+        import os
+        import pathlib
+        import subprocess
         inp = pathlib.Path(prep_res["input_path"])
         if not inp.exists():
             return {"error": f"KiteFAST input file not found: {inp}"}

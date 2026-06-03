@@ -72,7 +72,8 @@ class LandsatSearchDownloadNode:
         }
 
     def exec(self, prep_res: dict):
-        import json, urllib.request
+        import json
+        import urllib.request
         if not prep_res["username"] or not prep_res["token"]:
             return {"error": "USGS username and token required.  Get a token at https://m2m.cr.usgs.gov/"}
 

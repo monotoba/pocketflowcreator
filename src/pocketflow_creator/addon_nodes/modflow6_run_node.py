@@ -40,7 +40,10 @@ class MODFLOW6RunNode:
         }
 
     def exec(self, prep_res: dict):
-        import subprocess, pathlib, os, re
+        import os
+        import pathlib
+        import re
+        import subprocess
         sim_dir = pathlib.Path(prep_res["sim_dir"])
         if not sim_dir.is_dir():
             return {"error": f"MODFLOW 6 simulation directory not found: {sim_dir}"}

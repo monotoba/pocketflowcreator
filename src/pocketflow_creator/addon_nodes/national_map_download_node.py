@@ -66,7 +66,10 @@ class NationalMapDownloadNode:
         }
 
     def exec(self, prep_res: dict):
-        import json, urllib.request, urllib.parse, pathlib
+        import json
+        import pathlib
+        import urllib.parse
+        import urllib.request
         bbox = prep_res["bbox"]
         try:
             params = urllib.parse.urlencode({

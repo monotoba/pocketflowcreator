@@ -79,7 +79,7 @@ class FUN3DRunNode:
                             headers = row[1:]
                             continue
                         if headers:
-                            forces.append(dict(zip(headers, row)))
+                            forces.append(dict(zip(headers, row, strict=False)))
             return {
                 "returncode": proc.returncode,
                 "n_iter":     len(forces),

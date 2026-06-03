@@ -55,7 +55,7 @@ class OpenVSPGeometryNode:
         except ImportError:
             return {"error": "openvsp Python bindings not found.  Install OpenVSP and its Python API."}
         try:
-            import os, pathlib
+            import pathlib
             vsp.ClearVSPModel()
             vsp.ReadVSPFile(vsp3_path)
             vsp.Update()

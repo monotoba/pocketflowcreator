@@ -60,7 +60,9 @@ class USGSWaterDataNode:
         }
 
     def exec(self, prep_res: dict):
-        import json, urllib.request, urllib.parse
+        import json
+        import urllib.parse
+        import urllib.request
         params = urllib.parse.urlencode({
             "sites":   prep_res["site"],
             "parameterCd": prep_res["param_cd"],

@@ -57,7 +57,10 @@ class Cart3DAnalysisNode:
         }
 
     def exec(self, prep_res: dict):
-        import subprocess, pathlib, os, re
+        import os
+        import pathlib
+        import re
+        import subprocess
         case_dir = pathlib.Path(prep_res["case_dir"])
         if not case_dir.is_dir():
             return {"error": f"Cart3D case directory not found: {case_dir}"}

@@ -57,7 +57,6 @@ class VSPAeroAnalysisNode:
             return {"error": "No DegenGeom path provided."}
         try:
             import openvsp as vsp  # type: ignore[import]
-            import pathlib
             # Build a simple single-point analysis
             setup = vsp.vspaero.SetupFile(degen)
             setup.AlphaDeg = prep_res["alpha"]

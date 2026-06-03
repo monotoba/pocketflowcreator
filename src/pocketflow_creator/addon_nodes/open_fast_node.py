@@ -41,7 +41,9 @@ class OpenFASTNode:
         }
 
     def exec(self, prep_res: dict):
-        import subprocess, pathlib, os
+        import os
+        import pathlib
+        import subprocess
         fst_path = pathlib.Path(prep_res["fst_path"])
         if not fst_path.exists():
             return {"error": f".fst file not found: {fst_path}"}
@@ -54,7 +56,6 @@ class OpenFASTNode:
             if proc.returncode != 0:
                 return {"error": proc.stderr or "openfast returned non-zero."}
             # Parse .outb with openfast_toolbox if available
-            outb = fst_path.with_suffix(".outb")
             out_dat = fst_path.with_suffix(".out")
             summary: dict = {"returncode": proc.returncode}
             try:

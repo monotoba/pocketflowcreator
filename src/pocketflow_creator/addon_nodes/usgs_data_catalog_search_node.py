@@ -53,7 +53,9 @@ class USGSDataCatalogSearchNode:
         }
 
     def exec(self, prep_res: dict):
-        import json, urllib.request, urllib.parse
+        import json
+        import urllib.parse
+        import urllib.request
         if not prep_res["query"]:
             return {"error": "No search query provided."}
         params = urllib.parse.urlencode({

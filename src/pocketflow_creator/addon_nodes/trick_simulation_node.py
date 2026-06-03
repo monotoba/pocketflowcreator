@@ -52,7 +52,9 @@ class TrickSimulationNode:
         }
 
     def exec(self, prep_res: dict):
-        import subprocess, pathlib, os
+        import os
+        import pathlib
+        import subprocess
         sim_dir = pathlib.Path(prep_res["sim_dir"])
         if not sim_dir.is_dir():
             return {"error": f"Simulation directory not found: {sim_dir}"}

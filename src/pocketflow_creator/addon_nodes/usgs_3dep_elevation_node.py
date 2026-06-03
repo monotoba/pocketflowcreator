@@ -47,7 +47,8 @@ class USGS3DEPElevationNode:
     _WCS = "https://elevation.nationalmap.gov/arcgis/services/3DEPElevation/ImageServer/WCSServer"
 
     def prep(self, shared: dict) -> dict:
-        import pathlib, tempfile
+        import pathlib
+        import tempfile
         bbox = shared.get("bbox", [-77.1, 38.85, -77.0, 38.95])
         out = shared.get("dem_output_path", str(pathlib.Path(tempfile.mkdtemp()) / "dem.tif"))
         return {
@@ -58,7 +59,9 @@ class USGS3DEPElevationNode:
         }
 
     def exec(self, prep_res: dict):
-        import urllib.request, urllib.parse, pathlib
+        import pathlib
+        import urllib.parse
+        import urllib.request
         bbox  = prep_res["bbox"]
         res   = prep_res["resolution"]
         out_p = pathlib.Path(prep_res["output_path"])

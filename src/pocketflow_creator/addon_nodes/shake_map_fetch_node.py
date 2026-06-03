@@ -62,7 +62,9 @@ class ShakeMapFetchNode:
         }
 
     def exec(self, prep_res: dict):
-        import json, urllib.request, pathlib
+        import json
+        import pathlib
+        import urllib.request
         event_id = prep_res["event_id"]
         if not event_id:
             return {"error": "No earthquake event ID provided."}

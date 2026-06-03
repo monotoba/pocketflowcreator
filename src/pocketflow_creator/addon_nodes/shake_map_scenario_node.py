@@ -46,7 +46,9 @@ class ShakeMapScenarioNode:
         }
 
     def exec(self, prep_res: dict):
-        import subprocess, pathlib, os, glob
+        import os
+        import pathlib
+        import subprocess
         event_dir = pathlib.Path(prep_res["event_dir"])
         if not event_dir.is_dir():
             return {"error": f"ShakeMap event directory not found: {event_dir}"}

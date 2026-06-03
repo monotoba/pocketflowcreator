@@ -56,7 +56,8 @@ class GMATScriptNode:
             gmat.RunScript(script)
             result: dict = {"status": "success", "script": script}
         except ImportError:
-            import subprocess, pathlib
+            import pathlib
+            import subprocess
             try:
                 proc = subprocess.run(
                     ["GMAT", "--run", "--script", script, "--exit"],

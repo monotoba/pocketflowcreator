@@ -55,8 +55,8 @@ class OptimizationNode:
         if fn is None:
             return {"error": "No objective function found in shared store."}
         try:
-            from scipy.optimize import minimize  # type: ignore[import]
             import numpy as np
+            from scipy.optimize import minimize  # type: ignore[import]
             x0 = np.asarray(prep_res["x0"], dtype=float)
             res = minimize(fn, x0, method=prep_res["method"])
             return {

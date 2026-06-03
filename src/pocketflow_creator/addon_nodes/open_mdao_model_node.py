@@ -51,7 +51,7 @@ class OpenMDAOModelNode:
         if prob is None:
             return {"error": "No openmdao.Problem found in shared store."}
         try:
-            import openmdao.api as om  # type: ignore[import]
+            import openmdao.api  # type: ignore[import]  # noqa: F401
             if not getattr(prob, "_metadata", None):
                 prob.setup()
             if prep_res["driver"] == "run_driver":

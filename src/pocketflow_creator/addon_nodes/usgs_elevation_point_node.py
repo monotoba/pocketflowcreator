@@ -54,7 +54,9 @@ class USGSElevationPointNode:
         }
 
     def exec(self, prep_res: dict):
-        import json, urllib.request, urllib.parse
+        import json
+        import urllib.parse
+        import urllib.request
         params = urllib.parse.urlencode({
             "x":           prep_res["lon"],
             "y":           prep_res["lat"],

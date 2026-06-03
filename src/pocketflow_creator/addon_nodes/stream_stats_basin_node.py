@@ -53,7 +53,9 @@ class StreamStatsBasinNode:
         }
 
     def exec(self, prep_res: dict):
-        import json, urllib.request, urllib.parse
+        import json
+        import urllib.parse
+        import urllib.request
         lat, lon, state = prep_res["lat"], prep_res["lon"], prep_res["state_cd"]
         try:
             params = urllib.parse.urlencode({

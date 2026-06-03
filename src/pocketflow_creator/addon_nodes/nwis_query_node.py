@@ -55,7 +55,8 @@ class NWISQueryNode:
         }
 
     def exec(self, prep_res: dict):
-        import json, urllib.request, urllib.parse
+        import urllib.parse
+        import urllib.request
         qt = prep_res["query_type"]
         site = prep_res["site"]
         try:
@@ -68,7 +69,7 @@ class NWISQueryNode:
                 req = urllib.request.Request(url)
                 with urllib.request.urlopen(req, timeout=30) as r:
                     text = r.read().decode()
-                lines = [l for l in text.splitlines() if not l.startswith("#") and l.strip()]
+                lines = [line for line in text.splitlines() if not line.startswith("#") and line.strip()]
                 return {"site": site, "query": "peak", "raw_lines": lines[:50]}
             else:
                 # site or stat
@@ -83,7 +84,7 @@ class NWISQueryNode:
                 req = urllib.request.Request(url)
                 with urllib.request.urlopen(req, timeout=30) as r:
                     text = r.read().decode()
-                lines = [l for l in text.splitlines() if not l.startswith("#") and l.strip()]
+                lines = [line for line in text.splitlines() if not line.startswith("#") and line.strip()]
                 return {"site": site, "query": qt, "raw_lines": lines[:50]}
         except Exception as exc:  # noqa: BLE001
             return {"error": str(exc)}

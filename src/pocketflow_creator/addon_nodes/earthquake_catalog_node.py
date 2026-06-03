@@ -65,7 +65,9 @@ class EarthquakeCatalogNode:
         }
 
     def exec(self, prep_res: dict):
-        import json, urllib.request, urllib.parse
+        import json
+        import urllib.parse
+        import urllib.request
         bbox = prep_res["bbox"]
         params = urllib.parse.urlencode({
             "format":     "geojson",

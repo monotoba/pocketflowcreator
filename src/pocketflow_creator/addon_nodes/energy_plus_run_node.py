@@ -45,7 +45,7 @@ class EnergyPlusRunNode:
     """Run EnergyPlus and parse the HTML/csv summary for total energy use."""
 
     def prep(self, shared: dict) -> dict:
-        import pathlib, tempfile
+        import tempfile
         return {
             "idf_path":     shared.get("eplus_idf_path", ""),
             "weather_path": shared.get("eplus_weather_path", ""),
@@ -54,7 +54,10 @@ class EnergyPlusRunNode:
         }
 
     def exec(self, prep_res: dict):
-        import subprocess, pathlib, os, shutil
+        import os
+        import pathlib
+        import shutil
+        import subprocess
         idf = pathlib.Path(prep_res["idf_path"])
         epw = pathlib.Path(prep_res["weather_path"])
         out_dir = pathlib.Path(prep_res["output_dir"])
