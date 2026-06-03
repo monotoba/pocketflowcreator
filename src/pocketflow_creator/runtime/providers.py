@@ -29,10 +29,11 @@ class OllamaProvider:
     """Ollama native API — /api/generate endpoint."""
 
     base_url: str = "http://localhost:11434"
-    default_model: str = "qwen2.5"
+    default_model: str = "qwen2.5-coder:14b"
     timeout: int = 120
 
     def complete(self, prompt: str, *, model: str | None = None) -> str:
+        import sys
         url = f"{self.base_url.rstrip('/')}/api/generate"
         model_name = model or self.default_model
         payload = json.dumps(
@@ -46,23 +47,28 @@ class OllamaProvider:
                 body = json.loads(resp.read())
                 return str(body.get("response", ""))
         except urllib.error.HTTPError as exc:
+            print(f"[OllamaProvider] HTTPError: {exc.code} {exc.reason}", file=sys.stderr)
             # Try to extract error details from response
             try:
                 resp_body = exc.read().decode("utf-8", errors="replace")
+                print(f"[OllamaProvider] Response body: {resp_body[:500]}", file=sys.stderr)
                 try:
                     error_data = json.loads(resp_body)
                     detail = error_data.get("error", resp_body[:200])
                 except json.JSONDecodeError:
                     detail = resp_body[:200]
-            except Exception:
+            except Exception as e:
+                print(f"[OllamaProvider] Error reading response: {e}", file=sys.stderr)
                 detail = str(exc)
             # Provide context about the model if it's likely the issue
             if "not found" in detail.lower() or "unknown" in detail.lower():
                 detail = f"{detail}. Make sure '{model_name}' is installed in Ollama (ollama pull {model_name})"
             raise RuntimeError(f"Ollama request failed: {detail}") from exc
         except urllib.error.URLError as exc:
-            raise RuntimeError(f"Ollama request failed: {exc}") from exc
+            print(f"[OllamaProvider] URLError: {exc.reason}", file=sys.stderr)
+            raise RuntimeError(f"Ollama request failed: {exc.reason}") from exc
         except (json.JSONDecodeError, KeyError, ValueError) as exc:
+            print(f"[OllamaProvider] Response parsing error: {exc}", file=sys.stderr)
             raise RuntimeError(f"Ollama returned unexpected response: {exc}") from exc
 
 

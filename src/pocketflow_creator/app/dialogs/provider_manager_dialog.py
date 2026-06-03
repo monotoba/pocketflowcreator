@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import queue
 import sys
 import threading
 import urllib.request
@@ -134,14 +135,14 @@ def _test_profile(profile: ProviderProfile, api_key: str, status: QLabel) -> Non
     from PySide6.QtCore import QTimer
 
     status.setText("Testing…")
-    result_holder: list[tuple[str, str] | None] = [None]
+    result_queue: queue.Queue[str] = queue.Queue()
 
     def _run() -> None:
         try:
             from pocketflow_creator.runtime.providers import build_provider_from_profile
             p = build_provider_from_profile(profile, api_key)
             p.complete("Reply with the single word: ok")
-            result_holder[0] = ("success", "✓ Connection successful")
+            result_queue.put("✓ Connection successful")
         except Exception as exc:
             error_msg = str(exc) or f"{type(exc).__name__}: (no message)"
             # Log to stderr for debugging
@@ -149,20 +150,31 @@ def _test_profile(profile: ProviderProfile, api_key: str, status: QLabel) -> Non
             # Show full error, or truncate only if extremely long
             if len(error_msg) > 300:
                 error_msg = error_msg[:297] + "…"
-            result_holder[0] = ("error", f"✗ {error_msg}")
+            result_queue.put(f"✗ {error_msg}")
 
-    def _update_ui() -> None:
-        """Update UI on the main thread."""
-        if result_holder[0]:
-            _, msg = result_holder[0]
+    def _check_queue() -> None:
+        """Check if result is ready and update UI."""
+        try:
+            msg = result_queue.get_nowait()
             status.setText(msg)
+            return  # Stop checking
+        except queue.Empty:
+            pass
+        # Try again in 100ms
+        QTimer.singleShot(100, _check_queue)
 
-    def _thread_wrapper() -> None:
-        """Run the test and schedule UI update on main thread."""
-        _run()
-        QTimer.singleShot(0, _update_ui)
+    threading.Thread(target=_run, daemon=True).start()
+    QTimer.singleShot(100, _check_queue)
 
-    threading.Thread(target=_thread_wrapper, daemon=True).start()
+    # Safety timeout: if the background thread hangs (e.g. network stall,
+    # Ollama service that accepts the request but never responds), cap the
+    # wait so the button never shows "Testing…" forever.
+    def _on_timeout() -> None:
+        # Only show timeout if no result has been set yet
+        if status.text() == "Testing…":
+            status.setText("✗ Test timed out (30 s)")
+
+    QTimer.singleShot(30_000, _on_timeout)
 
 
 # ── profile edit panel ────────────────────────────────────────────────────────
