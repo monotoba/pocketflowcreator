@@ -6,19 +6,20 @@ from dataclasses import dataclass, field
 from typing import Any
 
 # Supported API protocol types.
-# "openai_compat" covers OpenAI, DeepSeek, LM Studio, Ollama /v1, Azure, Groq, etc.
-PROVIDER_TYPES = ("openai_compat", "anthropic", "gemini")
+PROVIDER_TYPES = ("openai_compat", "anthropic", "gemini", "ollama")
 
 # Human-readable labels shown in the dialog dropdown.
 PROVIDER_TYPE_LABELS = {
-    "openai_compat": "OpenAI-compatible (OpenAI, DeepSeek, Ollama /v1, …)",
+    "openai_compat": "OpenAI-compatible (OpenAI, DeepSeek, LM Studio, Azure, Groq, …)",
     "anthropic":     "Anthropic (Claude)",
     "gemini":        "Google Gemini",
+    "ollama":        "Ollama (local)",
 }
 
-# Default base URLs per type (openai_compat only; others have a fixed endpoint).
+# Default base URLs per type.
 DEFAULT_BASE_URLS = {
     "openai_compat": "https://api.openai.com/v1",
+    "ollama":        "http://localhost:11434",
 }
 
 # Default model per type.
@@ -26,6 +27,7 @@ DEFAULT_MODELS = {
     "openai_compat": "gpt-4o-mini",
     "anthropic":     "claude-haiku-4-5",
     "gemini":        "gemini-2.0-flash",
+    "ollama":        "qwen2.5",
 }
 
 

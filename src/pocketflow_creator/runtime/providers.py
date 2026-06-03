@@ -26,8 +26,10 @@ class MockProvider:
 
 @dataclass(slots=True)
 class OllamaProvider:
+    """Ollama native API — /api/generate endpoint."""
+
     base_url: str = "http://localhost:11434"
-    default_model: str = "qwen2.5-coder:14b"
+    default_model: str = "qwen2.5"
     timeout: int = 120
 
     def complete(self, prompt: str, *, model: str | None = None) -> str:
@@ -42,10 +44,16 @@ class OllamaProvider:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 body = json.loads(resp.read())
                 return str(body.get("response", ""))
+        except urllib.error.HTTPError as exc:
+            try:
+                detail = json.loads(exc.read()).get("error", str(exc))
+            except Exception:
+                detail = str(exc)
+            raise RuntimeError(f"Ollama request failed: {detail}") from exc
         except urllib.error.URLError as exc:
             raise RuntimeError(f"Ollama request failed: {exc}") from exc
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(f"Ollama returned invalid JSON: {exc}") from exc
+        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+            raise RuntimeError(f"Ollama returned unexpected response: {exc}") from exc
 
 
 @dataclass(slots=True)
@@ -81,7 +89,7 @@ class OpenAIProvider:
             raise RuntimeError(f"OpenAI request failed: {detail}") from exc
         except urllib.error.URLError as exc:
             raise RuntimeError(f"OpenAI request failed: {exc}") from exc
-        except (json.JSONDecodeError, KeyError, IndexError) as exc:
+        except (json.JSONDecodeError, KeyError, IndexError, ValueError) as exc:
             raise RuntimeError(f"OpenAI returned unexpected response: {exc}") from exc
 
 
@@ -200,7 +208,7 @@ class DeepSeekProvider:
             raise RuntimeError(f"DeepSeek request failed: {detail}") from exc
         except urllib.error.URLError as exc:
             raise RuntimeError(f"DeepSeek request failed: {exc}") from exc
-        except (json.JSONDecodeError, KeyError, IndexError) as exc:
+        except (json.JSONDecodeError, KeyError, IndexError, ValueError) as exc:
             raise RuntimeError(f"DeepSeek returned unexpected response: {exc}") from exc
 
 
@@ -209,7 +217,7 @@ class DeepSeekProvider:
 def build_provider_from_profile(
     profile: ProviderProfile,
     api_key: str = "",
-) -> OpenAIProvider | AnthropicProvider | GeminiProvider:
+) -> OpenAIProvider | AnthropicProvider | GeminiProvider | OllamaProvider:
     """Construct the right provider from a ProviderProfile.
 
     *api_key* overrides the profile's own api_key (used when the key is
@@ -228,7 +236,13 @@ def build_provider_from_profile(
             default_model=profile.model,
             timeout=profile.timeout,
         )
-    # Default: openai_compat covers OpenAI, DeepSeek, Ollama /v1, etc.
+    if profile.type == "ollama":
+        return OllamaProvider(
+            base_url=profile.base_url or "http://localhost:11434",
+            default_model=profile.model,
+            timeout=profile.timeout,
+        )
+    # Default: openai_compat covers OpenAI, DeepSeek, LM Studio, etc.
     return OpenAIProvider(
         api_key=key,
         base_url=profile.base_url or "https://api.openai.com/v1",
