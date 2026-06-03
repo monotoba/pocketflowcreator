@@ -14,6 +14,7 @@ def test_project_load_fields() -> None:
     project = ProjectLoader().load(EXAMPLE_DIR / "DocumentSummarizer.pfcproj.yaml")
     assert project.name == "DocumentSummarizer"
     assert project.package_name == "document_summarizer"
+    # Legacy fields still populated from schema 0.1 file for migration awareness
     assert project.default_provider == "ollama_local"
     assert project.default_model == "qwen2.5-coder:14b"
     assert project.graphs == ["graphs/main.pfcgraph.yaml"]
@@ -30,12 +31,13 @@ def test_project_round_trip(tmp_path: Path) -> None:
 
     assert reloaded.name == original.name
     assert reloaded.package_name == original.package_name
-    assert reloaded.default_provider == original.default_provider
-    assert reloaded.default_model == original.default_model
+    # After round-trip through schema 0.2, legacy fields are gone from YAML;
+    # providers block is present instead.
     assert reloaded.graphs == original.graphs
     assert reloaded.prompts == original.prompts
     assert reloaded.node_types == original.node_types
     assert reloaded.shared_store_schema == original.shared_store_schema
+    assert isinstance(reloaded.providers.profiles, list)
 
 
 def test_graph_load_fields() -> None:

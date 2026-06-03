@@ -4,7 +4,10 @@ import json
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from pocketflow_creator.model.provider_profile import ProviderProfile
 
 
 class LLMProvider(Protocol):
@@ -209,3 +212,36 @@ class DeepSeekProvider:
             raise RuntimeError(f"DeepSeek request failed: {exc}") from exc
         except (json.JSONDecodeError, KeyError, IndexError) as exc:
             raise RuntimeError(f"DeepSeek returned unexpected response: {exc}") from exc
+
+
+# ── profile factory ───────────────────────────────────────────────────────────
+
+def build_provider_from_profile(
+    profile: ProviderProfile,
+    api_key: str = "",
+) -> OpenAIProvider | AnthropicProvider | GeminiProvider:
+    """Construct the right provider from a ProviderProfile.
+
+    *api_key* overrides the profile's own api_key (used when the key is
+    stored in QSettings rather than the project file).
+    """
+    key = api_key or profile.api_key
+    if profile.type == "anthropic":
+        return AnthropicProvider(
+            api_key=key,
+            default_model=profile.model,
+            timeout=profile.timeout,
+        )
+    if profile.type == "gemini":
+        return GeminiProvider(
+            api_key=key,
+            default_model=profile.model,
+            timeout=profile.timeout,
+        )
+    # Default: openai_compat covers OpenAI, DeepSeek, Ollama /v1, etc.
+    return OpenAIProvider(
+        api_key=key,
+        base_url=profile.base_url or "https://api.openai.com/v1",
+        default_model=profile.model,
+        timeout=profile.timeout,
+    )

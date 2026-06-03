@@ -1,4 +1,4 @@
-"""ProviderManagerDialog — configure the active LLM provider and its settings."""
+"""ProviderManagerDialog — manage named LLM provider profiles for a project."""
 from __future__ import annotations
 
 import json
@@ -10,30 +10,21 @@ from typing import TYPE_CHECKING
 from pocketflow_creator.app.settings_keys import (
     _APP,
     _ORG,
-    _SKEY_ANTHROPIC_API_KEY,
-    _SKEY_ANTHROPIC_MODEL,
-    _SKEY_ANTHROPIC_TIMEOUT,
-    _SKEY_DEEPSEEK_API_KEY,
-    _SKEY_DEEPSEEK_BASE_URL,
-    _SKEY_DEEPSEEK_MODEL,
-    _SKEY_DEEPSEEK_TIMEOUT,
-    _SKEY_GEMINI_API_KEY,
-    _SKEY_GEMINI_MODEL,
-    _SKEY_GEMINI_TIMEOUT,
-    _SKEY_MOCK_RESPONSE,
-    _SKEY_OLLAMA_MODEL,
-    _SKEY_OLLAMA_TIMEOUT,
-    _SKEY_OLLAMA_URL,
-    _SKEY_OPENAI_API_KEY,
-    _SKEY_OPENAI_BASE_URL,
-    _SKEY_OPENAI_MODEL,
-    _SKEY_OPENAI_TIMEOUT,
-    _SKEY_PROVIDER,
+    provider_profile_api_key_skey,
+)
+from pocketflow_creator.model.provider_profile import (
+    DEFAULT_BASE_URLS,
+    DEFAULT_MODELS,
+    PROVIDER_TYPE_LABELS,
+    PROVIDER_TYPES,
+    ProjectProviders,
+    ProviderProfile,
 )
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QSettings
     from PySide6.QtWidgets import (
+        QCheckBox,
         QComboBox,
         QDialog,
         QDialogButtonBox,
@@ -42,9 +33,10 @@ if TYPE_CHECKING:
         QHBoxLayout,
         QLabel,
         QLineEdit,
+        QListWidget,
+        QListWidgetItem,
         QMainWindow,
         QPushButton,
-        QRadioButton,
         QSpinBox,
         QVBoxLayout,
         QWidget,
@@ -53,6 +45,7 @@ else:
     try:
         from PySide6.QtCore import QSettings
         from PySide6.QtWidgets import (
+            QCheckBox,
             QComboBox,
             QDialog,
             QDialogButtonBox,
@@ -61,9 +54,10 @@ else:
             QHBoxLayout,
             QLabel,
             QLineEdit,
+            QListWidget,
+            QListWidgetItem,
             QMainWindow,
             QPushButton,
-            QRadioButton,
             QSpinBox,
             QVBoxLayout,
             QWidget,
@@ -72,27 +66,41 @@ else:
         QDialog = object  # type: ignore[assignment,misc]
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
+# ── small helpers ─────────────────────────────────────────────────────────────
 
-def _api_key_field(placeholder: str = "sk-…") -> QLineEdit:
-    """Return a password-mode QLineEdit for an API key."""
-    field: QLineEdit = QLineEdit()
-    field.setEchoMode(QLineEdit.EchoMode.Password)
-    field.setPlaceholderText(placeholder)
-    return field
+def _key_field(placeholder: str = "sk-…") -> QLineEdit:
+    f: QLineEdit = QLineEdit()
+    f.setEchoMode(QLineEdit.EchoMode.Password)
+    f.setPlaceholderText(placeholder)
+    return f
 
 
-def _spin(lo: int, hi: int, step: int, suffix: str, value: int) -> QSpinBox:
+def _spin(lo: int, hi: int, step: int, suffix: str, val: int) -> QSpinBox:
     s: QSpinBox = QSpinBox()
     s.setRange(lo, hi)
     s.setSingleStep(step)
     s.setSuffix(suffix)
-    s.setValue(value)
+    s.setValue(val)
     return s
 
 
+def _load_key(profile_id: str) -> str:
+    try:
+        settings = QSettings(_ORG, _APP)
+        return str(settings.value(provider_profile_api_key_skey(profile_id), ""))
+    except Exception:
+        return ""
+
+
+def _save_key(profile_id: str, key: str) -> None:
+    try:
+        settings = QSettings(_ORG, _APP)
+        settings.setValue(provider_profile_api_key_skey(profile_id), key)
+    except Exception:
+        pass
+
+
 def fetch_ollama_models(base_url: str) -> list[str]:
-    """Return a sorted list of model names from the Ollama /api/tags endpoint."""
     try:
         url = f"{base_url.rstrip('/')}/api/tags"
         with urllib.request.urlopen(url, timeout=5) as resp:
@@ -102,259 +110,130 @@ def fetch_ollama_models(base_url: str) -> list[str]:
         return []
 
 
-def _test_provider(prov_type: str, fields: dict[str, QLineEdit | QSpinBox | QComboBox],
-                   status_label: QLabel) -> None:
-    """Fire a cheap test call in a background thread and update status_label."""
-    status_label.setText("Testing…")
+def _test_profile(profile: ProviderProfile, api_key: str, status: QLabel) -> None:
+    """Fire a cheap probe request in a background thread."""
+    status.setText("Testing…")
 
     def _run() -> None:
         try:
-            from pocketflow_creator.runtime.providers import (
-                AnthropicProvider,
-                DeepSeekProvider,
-                GeminiProvider,
-                OllamaProvider,
-                OpenAIProvider,
-            )
-            prompt = "Reply with the single word: ok"
-
-            def _str(key: str) -> str:
-                w = fields[key]
-                if isinstance(w, QLineEdit):
-                    return w.text().strip()
-                if isinstance(w, QComboBox):
-                    return w.currentText().strip()
-                return ""
-
-            def _int(key: str, default: int) -> int:
-                w = fields.get(key)
-                if isinstance(w, QSpinBox):
-                    return w.value()
-                return default
-
-            if prov_type == "ollama":
-                p = OllamaProvider(
-                    base_url=_str("base_url"),
-                    default_model=_str("model"),
-                    timeout=_int("timeout", 30),
-                )
-            elif prov_type == "openai":
-                p = OpenAIProvider(
-                    api_key=_str("api_key"),
-                    base_url=_str("base_url"),
-                    default_model=_str("model"),
-                    timeout=_int("timeout", 30),
-                )
-            elif prov_type == "anthropic":
-                p = AnthropicProvider(
-                    api_key=_str("api_key"),
-                    default_model=_str("model"),
-                    timeout=_int("timeout", 30),
-                )
-            elif prov_type == "gemini":
-                p = GeminiProvider(
-                    api_key=_str("api_key"),
-                    default_model=_str("model"),
-                    timeout=_int("timeout", 30),
-                )
-            elif prov_type == "deepseek":
-                p = DeepSeekProvider(
-                    api_key=_str("api_key"),
-                    base_url=_str("base_url"),
-                    default_model=_str("model"),
-                    timeout=_int("timeout", 30),
-                )
-            else:
-                status_label.setText("⚠ Unknown provider")
-                return
-
-            p.complete(prompt)
-            status_label.setText("✓ Connection successful")
+            from pocketflow_creator.runtime.providers import build_provider_from_profile
+            p = build_provider_from_profile(profile, api_key)
+            p.complete("Reply with the single word: ok")
+            status.setText("✓ Connection successful")
         except Exception as exc:
-            short = str(exc)[:120]
-            status_label.setText(f"✗ {short}")
+            status.setText(f"✗ {str(exc)[:120]}")
 
     threading.Thread(target=_run, daemon=True).start()
 
 
-# ── group builders ────────────────────────────────────────────────────────────
+# ── profile edit panel ────────────────────────────────────────────────────────
 
-def _ollama_group(settings: QSettings) -> tuple[QGroupBox, dict]:
-    saved_url = str(settings.value(_SKEY_OLLAMA_URL, "http://localhost:11434"))
-    saved_model = str(settings.value(_SKEY_OLLAMA_MODEL, "qwen2.5-coder:14b"))
-    saved_timeout = int(str(settings.value(_SKEY_OLLAMA_TIMEOUT, 120)))
+class _ProfileEditPanel(QWidget):
+    """Right-hand panel for editing one provider profile."""
 
-    grp: QGroupBox = QGroupBox("Ollama Settings")
-    form: QFormLayout = QFormLayout(grp)
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._profile: ProviderProfile | None = None
+        self._api_key: str = ""
 
-    url_field: QLineEdit = QLineEdit(saved_url)
-    form.addRow("Base URL:", url_field)
+        layout: QVBoxLayout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-    model_row: QHBoxLayout = QHBoxLayout()
-    model_combo: QComboBox = QComboBox()
-    model_combo.setEditable(True)
-    model_combo.setMinimumWidth(220)
-    refresh_btn: QPushButton = QPushButton("Refresh")
-    model_row.addWidget(model_combo)
-    model_row.addWidget(refresh_btn)
-    form.addRow("Default model:", model_row)
+        form_grp: QGroupBox = QGroupBox("Profile Settings")
+        self._form: QFormLayout = QFormLayout(form_grp)
 
-    timeout_spin = _spin(5, 3600, 15, " s", saved_timeout)
-    timeout_spin.setToolTip("Maximum seconds to wait for a response.")
-    form.addRow("Timeout:", timeout_spin)
+        # Name
+        self._name_field: QLineEdit = QLineEdit()
+        self._form.addRow("Name:", self._name_field)
 
-    status: QLabel = QLabel()
-    test_btn: QPushButton = QPushButton("Test Connection")
-    test_row: QHBoxLayout = QHBoxLayout()
-    test_row.addWidget(test_btn)
-    test_row.addWidget(status)
-    test_row.addStretch()
-    form.addRow("", test_row)
+        # Type
+        self._type_combo: QComboBox = QComboBox()
+        for t in PROVIDER_TYPES:
+            self._type_combo.addItem(PROVIDER_TYPE_LABELS[t], t)
+        self._form.addRow("API type:", self._type_combo)
 
-    fields = {"base_url": url_field, "model": model_combo, "timeout": timeout_spin}
+        # Base URL (openai_compat only)
+        self._base_url_label: QLabel = QLabel("Base URL:")
+        self._base_url_field: QLineEdit = QLineEdit()
+        self._base_url_field.setPlaceholderText("https://api.openai.com/v1")
+        self._form.addRow(self._base_url_label, self._base_url_field)
 
-    def _populate(select: str = "") -> None:
-        models = fetch_ollama_models(url_field.text().strip())
-        model_combo.clear()
-        if models:
-            model_combo.addItems(models)
-            idx = model_combo.findText(select or saved_model)
-            model_combo.setCurrentIndex(max(idx, 0))
-        else:
-            model_combo.addItem(select or saved_model)
-            model_combo.setCurrentIndex(0)
+        # Model
+        self._model_field: QLineEdit = QLineEdit()
+        self._form.addRow("Default model:", self._model_field)
 
-    _populate(saved_model)
-    refresh_btn.clicked.connect(lambda: _populate(model_combo.currentText()))
-    test_btn.clicked.connect(lambda: _test_provider("ollama", fields, status))
+        # Timeout
+        self._timeout_spin = _spin(5, 3600, 15, " s", 120)
+        self._form.addRow("Timeout:", self._timeout_spin)
 
-    return grp, fields
+        # API key
+        self._key_field = _key_field()
+        self._form.addRow("API key:", self._key_field)
 
+        # Test
+        self._test_btn: QPushButton = QPushButton("Test Connection")
+        self._status_label: QLabel = QLabel()
+        test_row: QHBoxLayout = QHBoxLayout()
+        test_row.addWidget(self._test_btn)
+        test_row.addWidget(self._status_label)
+        test_row.addStretch()
+        self._form.addRow("", test_row)
 
-def _openai_group(settings: QSettings) -> tuple[QGroupBox, dict]:
-    grp: QGroupBox = QGroupBox("OpenAI Settings")
-    form: QFormLayout = QFormLayout(grp)
+        layout.addWidget(form_grp)
+        layout.addStretch()
 
-    key_field = _api_key_field()
-    key_field.setText(str(settings.value(_SKEY_OPENAI_API_KEY, "")))
-    form.addRow("API Key:", key_field)
+        self._type_combo.currentIndexChanged.connect(self._on_type_changed)
+        self._test_btn.clicked.connect(self._on_test)
 
-    base_url: QLineEdit = QLineEdit(str(settings.value(_SKEY_OPENAI_BASE_URL, "https://api.openai.com/v1")))
-    base_url.setToolTip("Change for Azure OpenAI or other OpenAI-compatible endpoints.")
-    form.addRow("Base URL:", base_url)
+        self.setEnabled(False)
 
-    model_field: QLineEdit = QLineEdit(str(settings.value(_SKEY_OPENAI_MODEL, "gpt-4o-mini")))
-    form.addRow("Default model:", model_field)
+    def _on_type_changed(self) -> None:
+        ptype = self._type_combo.currentData()
+        is_compat = ptype == "openai_compat"
+        self._base_url_label.setVisible(is_compat)
+        self._base_url_field.setVisible(is_compat)
+        if is_compat and not self._base_url_field.text().strip():
+            self._base_url_field.setText(DEFAULT_BASE_URLS.get("openai_compat", ""))
+        if self._profile is not None and not self._model_field.text().strip():
+            self._model_field.setText(DEFAULT_MODELS.get(ptype, ""))
 
-    timeout_spin = _spin(5, 3600, 15, " s", int(str(settings.value(_SKEY_OPENAI_TIMEOUT, 120))))
-    form.addRow("Timeout:", timeout_spin)
+    def load(self, profile: ProviderProfile) -> None:
+        self._profile = profile
+        self._api_key = _load_key(profile.id) or profile.api_key
+        self.setEnabled(True)
 
-    status: QLabel = QLabel()
-    test_btn: QPushButton = QPushButton("Test Connection")
-    test_row: QHBoxLayout = QHBoxLayout()
-    test_row.addWidget(test_btn)
-    test_row.addWidget(status)
-    test_row.addStretch()
-    form.addRow("", test_row)
+        self._name_field.setText(profile.name)
 
-    fields = {"api_key": key_field, "base_url": base_url, "model": model_field, "timeout": timeout_spin}
-    test_btn.clicked.connect(lambda: _test_provider("openai", fields, status))
-    return grp, fields
+        idx = self._type_combo.findData(profile.type)
+        self._type_combo.setCurrentIndex(max(idx, 0))
 
+        self._base_url_field.setText(profile.base_url)
+        self._model_field.setText(profile.model)
+        self._timeout_spin.setValue(profile.timeout)
+        self._key_field.setText(self._api_key)
+        self._status_label.setText("")
+        self._on_type_changed()
 
-def _anthropic_group(settings: QSettings) -> tuple[QGroupBox, dict]:
-    grp: QGroupBox = QGroupBox("Anthropic Settings")
-    form: QFormLayout = QFormLayout(grp)
+    def flush_to_profile(self) -> None:
+        """Write widget values back into self._profile."""
+        if self._profile is None:
+            return
+        self._profile.name = self._name_field.text().strip() or self._profile.name
+        self._profile.type = self._type_combo.currentData() or "openai_compat"
+        self._profile.base_url = self._base_url_field.text().strip()
+        self._profile.model = self._model_field.text().strip()
+        self._profile.timeout = self._timeout_spin.value()
+        # api_key is written to QSettings on save; stored here for in-dialog test
+        self._api_key = self._key_field.text().strip()
 
-    key_field = _api_key_field()
-    key_field.setText(str(settings.value(_SKEY_ANTHROPIC_API_KEY, "")))
-    form.addRow("API Key:", key_field)
+    def get_api_key(self) -> str:
+        return self._key_field.text().strip()
 
-    model_field: QLineEdit = QLineEdit(str(settings.value(_SKEY_ANTHROPIC_MODEL, "claude-haiku-4-5")))
-    model_field.setToolTip("e.g. claude-haiku-4-5, claude-sonnet-4-6, claude-opus-4-8")
-    form.addRow("Default model:", model_field)
-
-    timeout_spin = _spin(5, 3600, 15, " s", int(str(settings.value(_SKEY_ANTHROPIC_TIMEOUT, 120))))
-    form.addRow("Timeout:", timeout_spin)
-
-    status: QLabel = QLabel()
-    test_btn: QPushButton = QPushButton("Test Connection")
-    test_row: QHBoxLayout = QHBoxLayout()
-    test_row.addWidget(test_btn)
-    test_row.addWidget(status)
-    test_row.addStretch()
-    form.addRow("", test_row)
-
-    fields = {"api_key": key_field, "model": model_field, "timeout": timeout_spin}
-    test_btn.clicked.connect(lambda: _test_provider("anthropic", fields, status))
-    return grp, fields
-
-
-def _gemini_group(settings: QSettings) -> tuple[QGroupBox, dict]:
-    grp: QGroupBox = QGroupBox("Gemini Settings")
-    form: QFormLayout = QFormLayout(grp)
-
-    key_field = _api_key_field("AIza…")
-    key_field.setText(str(settings.value(_SKEY_GEMINI_API_KEY, "")))
-    form.addRow("API Key:", key_field)
-
-    model_field: QLineEdit = QLineEdit(str(settings.value(_SKEY_GEMINI_MODEL, "gemini-2.0-flash")))
-    model_field.setToolTip("e.g. gemini-2.0-flash, gemini-1.5-pro")
-    form.addRow("Default model:", model_field)
-
-    timeout_spin = _spin(5, 3600, 15, " s", int(str(settings.value(_SKEY_GEMINI_TIMEOUT, 120))))
-    form.addRow("Timeout:", timeout_spin)
-
-    status: QLabel = QLabel()
-    test_btn: QPushButton = QPushButton("Test Connection")
-    test_row: QHBoxLayout = QHBoxLayout()
-    test_row.addWidget(test_btn)
-    test_row.addWidget(status)
-    test_row.addStretch()
-    form.addRow("", test_row)
-
-    fields = {"api_key": key_field, "model": model_field, "timeout": timeout_spin}
-    test_btn.clicked.connect(lambda: _test_provider("gemini", fields, status))
-    return grp, fields
-
-
-def _deepseek_group(settings: QSettings) -> tuple[QGroupBox, dict]:
-    grp: QGroupBox = QGroupBox("DeepSeek Settings")
-    form: QFormLayout = QFormLayout(grp)
-
-    key_field = _api_key_field()
-    key_field.setText(str(settings.value(_SKEY_DEEPSEEK_API_KEY, "")))
-    form.addRow("API Key:", key_field)
-
-    base_url: QLineEdit = QLineEdit(str(settings.value(_SKEY_DEEPSEEK_BASE_URL, "https://api.deepseek.com/v1")))
-    form.addRow("Base URL:", base_url)
-
-    model_field: QLineEdit = QLineEdit(str(settings.value(_SKEY_DEEPSEEK_MODEL, "deepseek-chat")))
-    model_field.setToolTip("e.g. deepseek-chat, deepseek-reasoner")
-    form.addRow("Default model:", model_field)
-
-    timeout_spin = _spin(5, 3600, 15, " s", int(str(settings.value(_SKEY_DEEPSEEK_TIMEOUT, 120))))
-    form.addRow("Timeout:", timeout_spin)
-
-    status: QLabel = QLabel()
-    test_btn: QPushButton = QPushButton("Test Connection")
-    test_row: QHBoxLayout = QHBoxLayout()
-    test_row.addWidget(test_btn)
-    test_row.addWidget(status)
-    test_row.addStretch()
-    form.addRow("", test_row)
-
-    fields = {"api_key": key_field, "base_url": base_url, "model": model_field, "timeout": timeout_spin}
-    test_btn.clicked.connect(lambda: _test_provider("deepseek", fields, status))
-    return grp, fields
-
-
-def _mock_group(settings: QSettings) -> tuple[QGroupBox, dict]:
-    grp: QGroupBox = QGroupBox("Mock Settings")
-    form: QFormLayout = QFormLayout(grp)
-    resp_field: QLineEdit = QLineEdit(str(settings.value(_SKEY_MOCK_RESPONSE, "mock response")))
-    form.addRow("Fixed response:", resp_field)
-    return grp, {"response": resp_field}
+    def _on_test(self) -> None:
+        if self._profile is None:
+            return
+        self.flush_to_profile()
+        _test_profile(self._profile, self.get_api_key(), self._status_label)
 
 
 # ── public entry point ────────────────────────────────────────────────────────
@@ -362,74 +241,60 @@ def _mock_group(settings: QSettings) -> tuple[QGroupBox, dict]:
 def exec_provider_manager(
     parent: QMainWindow,
     open_help: Callable[[str], None],
-) -> bool:
+    providers: ProjectProviders | None = None,
+) -> ProjectProviders | None:
     """Show the Provider Manager dialog.
 
-    Reads and writes QSettings directly.  Returns True if accepted.
+    *providers* is the current project's provider config.
+    Returns an updated ``ProjectProviders`` on accept, or ``None`` on cancel.
     """
-    settings = QSettings(_ORG, _APP)
+    # Work on a deep copy so Cancel truly cancels.
+    import copy
+    working = copy.deepcopy(providers) if providers else ProjectProviders()
+
     dlg: QDialog = QDialog(parent)
     dlg.setWindowTitle("Provider Manager")
-    dlg.setMinimumWidth(480)
-    root: QVBoxLayout = QVBoxLayout(dlg)
+    dlg.resize(700, 480)
 
-    # ── active provider radio group ──────────────────────────────────────────
-    active_grp: QGroupBox = QGroupBox("Active Provider")
-    active_layout: QVBoxLayout = QVBoxLayout(active_grp)
+    root: QHBoxLayout = QHBoxLayout(dlg)
 
-    providers = [
-        ("mock",      "Mock (for testing)"),
-        ("ollama",    "Ollama  (local)"),
-        ("openai",    "OpenAI"),
-        ("anthropic", "Anthropic (Claude)"),
-        ("gemini",    "Google Gemini"),
-        ("deepseek",  "DeepSeek"),
-    ]
+    # ── left: profile list ────────────────────────────────────────────────────
+    left: QVBoxLayout = QVBoxLayout()
+    root.addLayout(left, 1)
 
-    radios: dict[str, QRadioButton] = {}
-    for key, label in providers:
-        rb: QRadioButton = QRadioButton(label)
-        active_layout.addWidget(rb)
-        radios[key] = rb
+    list_grp: QGroupBox = QGroupBox("Profiles")
+    list_layout: QVBoxLayout = QVBoxLayout(list_grp)
 
-    current_prov = str(settings.value(_SKEY_PROVIDER, "mock"))
-    if current_prov not in radios:
-        current_prov = "mock"
-    radios[current_prov].setChecked(True)
-    root.addWidget(active_grp)
+    profile_list: QListWidget = QListWidget()
+    list_layout.addWidget(profile_list)
 
-    # ── per-provider settings groups (show/hide) ─────────────────────────────
-    ollama_grp, ollama_fields = _ollama_group(settings)
-    openai_grp, openai_fields = _openai_group(settings)
-    anthropic_grp, anthropic_fields = _anthropic_group(settings)
-    gemini_grp, gemini_fields = _gemini_group(settings)
-    deepseek_grp, deepseek_fields = _deepseek_group(settings)
-    mock_grp, mock_fields = _mock_group(settings)
+    btn_row: QHBoxLayout = QHBoxLayout()
+    add_btn: QPushButton = QPushButton("+ Add")
+    del_btn: QPushButton = QPushButton("Delete")
+    default_btn: QPushButton = QPushButton("Set Default")
+    btn_row.addWidget(add_btn)
+    btn_row.addWidget(del_btn)
+    btn_row.addWidget(default_btn)
+    list_layout.addLayout(btn_row)
 
-    grp_map: dict[str, QWidget] = {
-        "mock":      mock_grp,
-        "ollama":    ollama_grp,
-        "openai":    openai_grp,
-        "anthropic": anthropic_grp,
-        "gemini":    gemini_grp,
-        "deepseek":  deepseek_grp,
-    }
+    left.addWidget(list_grp)
 
-    for grp in grp_map.values():
-        root.addWidget(grp)
+    # include_api_keys checkbox
+    include_key_chk: QCheckBox = QCheckBox("Include API keys in project file")
+    include_key_chk.setChecked(working.include_api_keys)
+    include_key_chk.setToolTip(
+        "When checked, API keys are saved in plain text inside the .pfcproj.yaml file.\n"
+        "Leave unchecked to keep keys local to this machine (stored in app settings)."
+    )
+    left.addWidget(include_key_chk)
 
-    def _update_visibility() -> None:
-        chosen = next((k for k, rb in radios.items() if rb.isChecked()), "mock")
-        for key, grp in grp_map.items():
-            grp.setVisible(key == chosen)
-        dlg.adjustSize()
+    # ── right: edit panel ─────────────────────────────────────────────────────
+    edit_panel = _ProfileEditPanel()
+    root.addWidget(edit_panel, 2)
 
-    for rb in radios.values():
-        rb.toggled.connect(lambda _checked: _update_visibility())
-
-    _update_visibility()
-
-    # ── buttons ──────────────────────────────────────────────────────────────
+    # ── buttons ───────────────────────────────────────────────────────────────
+    outer: QVBoxLayout = QVBoxLayout()
+    root.addLayout(outer)
     buttons: QDialogButtonBox = QDialogButtonBox(
         QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
     )
@@ -437,50 +302,105 @@ def exec_provider_manager(
     help_btn.clicked.connect(lambda: open_help("context/provider_manager.md"))
     buttons.accepted.connect(dlg.accept)
     buttons.rejected.connect(dlg.reject)
-    root.addWidget(buttons)
+
+    # Re-layout: buttons at bottom spanning full width
+    wrapper: QVBoxLayout = QVBoxLayout()
+    h: QHBoxLayout = QHBoxLayout()
+    h.addLayout(left)
+    h.addWidget(edit_panel, 2)
+    wrapper.addLayout(h)
+    wrapper.addWidget(buttons)
+    # Replace root with wrapper
+    # (Qt doesn't allow replacing a layout, so we set it via a container widget)
+    dlg.setLayout(wrapper)
+
+    # ── populate list ─────────────────────────────────────────────────────────
+
+    def _item_text(p: ProviderProfile) -> str:
+        star = " ★" if p.id == working.default_profile_id else ""
+        return f"{p.name}{star}"
+
+    def _repopulate(select_id: str = "") -> None:
+        profile_list.blockSignals(True)
+        profile_list.clear()
+        for p in working.profiles:
+            item: QListWidgetItem = QListWidgetItem(_item_text(p))
+            item.setData(256, p.id)
+            profile_list.addItem(item)
+        if select_id:
+            for i in range(profile_list.count()):
+                if profile_list.item(i).data(256) == select_id:
+                    profile_list.setCurrentRow(i)
+                    break
+        elif profile_list.count():
+            profile_list.setCurrentRow(0)
+        profile_list.blockSignals(False)
+        _on_selection_changed()
+
+    def _on_selection_changed() -> None:
+        item = profile_list.currentItem()
+        if item is None:
+            edit_panel.setEnabled(False)
+            return
+        pid = item.data(256)
+        profile = working.by_id(pid)
+        if profile:
+            # flush current panel before switching
+            edit_panel.flush_to_profile()
+            edit_panel.load(profile)
+
+    def _on_add() -> None:
+        edit_panel.flush_to_profile()
+        p = ProviderProfile.new("New Profile")
+        working.profiles.append(p)
+        if not working.default_profile_id:
+            working.default_profile_id = p.id
+        _repopulate(p.id)
+
+    def _on_delete() -> None:
+        item = profile_list.currentItem()
+        if item is None:
+            return
+        pid = item.data(256)
+        working.profiles = [p for p in working.profiles if p.id != pid]
+        if working.default_profile_id == pid:
+            working.default_profile_id = working.profiles[0].id if working.profiles else ""
+        _repopulate(working.default_profile_id)
+
+    def _on_set_default() -> None:
+        item = profile_list.currentItem()
+        if item is None:
+            return
+        working.default_profile_id = item.data(256)
+        # Refresh labels
+        for i in range(profile_list.count()):
+            it = profile_list.item(i)
+            pid = it.data(256)
+            p = working.by_id(pid)
+            if p:
+                it.setText(_item_text(p))
+
+    profile_list.currentItemChanged.connect(lambda *_: _on_selection_changed())
+    add_btn.clicked.connect(_on_add)
+    del_btn.clicked.connect(_on_delete)
+    default_btn.clicked.connect(_on_set_default)
+
+    _repopulate(working.default_profile_id)
 
     if dlg.exec() != QDialog.DialogCode.Accepted:
-        return False
+        return None
 
-    # ── persist ──────────────────────────────────────────────────────────────
-    chosen = next((k for k, rb in radios.items() if rb.isChecked()), "mock")
-    settings.setValue(_SKEY_PROVIDER, chosen)
+    # Flush the currently-displayed panel
+    edit_panel.flush_to_profile()
 
-    def _text(fields: dict, key: str, default: str = "") -> str:
-        w = fields.get(key)
-        if isinstance(w, QLineEdit):
-            return w.text().strip()
-        if isinstance(w, QComboBox):
-            return w.currentText().strip()
-        return default
+    # Persist API keys to QSettings; update profile name in list
+    working.include_api_keys = include_key_chk.isChecked()
+    for p in working.profiles:
+        api_key = edit_panel.get_api_key() if working.by_id(p.id) is p else _load_key(p.id)
+        _save_key(p.id, api_key)
+        if working.include_api_keys:
+            p.api_key = api_key
+        else:
+            p.api_key = ""
 
-    def _int_val(fields: dict, key: str, default: int = 120) -> int:
-        w = fields.get(key)
-        if isinstance(w, QSpinBox):
-            return w.value()
-        return default
-
-    settings.setValue(_SKEY_OLLAMA_URL,        _text(ollama_fields, "base_url"))
-    settings.setValue(_SKEY_OLLAMA_MODEL,      _text(ollama_fields, "model"))
-    settings.setValue(_SKEY_OLLAMA_TIMEOUT,    _int_val(ollama_fields, "timeout"))
-
-    settings.setValue(_SKEY_OPENAI_API_KEY,    _text(openai_fields, "api_key"))
-    settings.setValue(_SKEY_OPENAI_BASE_URL,   _text(openai_fields, "base_url"))
-    settings.setValue(_SKEY_OPENAI_MODEL,      _text(openai_fields, "model"))
-    settings.setValue(_SKEY_OPENAI_TIMEOUT,    _int_val(openai_fields, "timeout"))
-
-    settings.setValue(_SKEY_ANTHROPIC_API_KEY, _text(anthropic_fields, "api_key"))
-    settings.setValue(_SKEY_ANTHROPIC_MODEL,   _text(anthropic_fields, "model"))
-    settings.setValue(_SKEY_ANTHROPIC_TIMEOUT, _int_val(anthropic_fields, "timeout"))
-
-    settings.setValue(_SKEY_GEMINI_API_KEY,    _text(gemini_fields, "api_key"))
-    settings.setValue(_SKEY_GEMINI_MODEL,      _text(gemini_fields, "model"))
-    settings.setValue(_SKEY_GEMINI_TIMEOUT,    _int_val(gemini_fields, "timeout"))
-
-    settings.setValue(_SKEY_DEEPSEEK_API_KEY,  _text(deepseek_fields, "api_key"))
-    settings.setValue(_SKEY_DEEPSEEK_BASE_URL, _text(deepseek_fields, "base_url"))
-    settings.setValue(_SKEY_DEEPSEEK_MODEL,    _text(deepseek_fields, "model"))
-    settings.setValue(_SKEY_DEEPSEEK_TIMEOUT,  _int_val(deepseek_fields, "timeout"))
-
-    settings.setValue(_SKEY_MOCK_RESPONSE,     _text(mock_fields, "response"))
-    return True
+    return working

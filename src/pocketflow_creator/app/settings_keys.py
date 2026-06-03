@@ -41,6 +41,11 @@ _SKEY_DEEPSEEK_BASE_URL = "deepseek/base_url"
 _SKEY_DEEPSEEK_MODEL = "deepseek/default_model"
 _SKEY_DEEPSEEK_TIMEOUT = "deepseek/timeout"
 
+
+def provider_profile_api_key_skey(profile_id: str) -> str:
+    """Return the QSettings key for a provider profile's API key."""
+    return f"provider_profiles/{profile_id}/api_key"
+
 # ── UI state ──────────────────────────────────────────────────────────────────
 _SKEY_RECENT = "recent_projects"
 _SKEY_THEME = "ui/theme"

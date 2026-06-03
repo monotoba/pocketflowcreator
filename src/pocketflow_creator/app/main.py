@@ -29,6 +29,7 @@ try:
     from PySide6.QtWidgets import (
         QApplication,
         QButtonGroup,
+        QCheckBox,
         QComboBox,
         QDialog,
         QDialogButtonBox,
@@ -1276,6 +1277,29 @@ class MainWindow(QMainWindow):
         if not self._graphs:
             self.statusBar().showMessage("No graphs to export.")
             return
+
+        # Warn if the project will export API keys in plain text
+        providers = self._project.providers
+        if providers.include_api_keys and any(p.api_key for p in providers.profiles):
+            warn_dlg = QDialog(self)
+            warn_dlg.setWindowTitle("API Key Security Warning")
+            warn_layout = QVBoxLayout(warn_dlg)
+            warn_layout.addWidget(QLabel(
+                "<b>This project contains API keys that will be exported in plain text.</b><br><br>"
+                "Anyone who receives the exported files will have access to your credentials.<br>"
+                "Consider unchecking <i>Include API keys in project file</i> in the Provider Manager."
+            ))
+            chk = QCheckBox("I understand and accept responsibility for sharing these API keys.")
+            warn_layout.addWidget(chk)
+            bbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+            bbox.accepted.connect(warn_dlg.accept)
+            bbox.rejected.connect(warn_dlg.reject)
+            warn_layout.addWidget(bbox)
+            bbox.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
+            chk.toggled.connect(lambda checked: bbox.button(QDialogButtonBox.StandardButton.Ok).setEnabled(checked))
+            if warn_dlg.exec() != QDialog.DialogCode.Accepted:
+                return
+
         try:
             result = Exporter().export(self._project, self._graphs)
         except Exception as exc:
@@ -1422,6 +1446,7 @@ class MainWindow(QMainWindow):
             project_root=project_root,
             parent=self,
             on_complete=_on_run_complete,
+            project=self._project,
         )
         _runner_ref.append(_run)
 
@@ -1504,6 +1529,7 @@ class MainWindow(QMainWindow):
             parent=self,
             on_step=_on_step,
             on_finished=_on_finished,
+            project=self._project,
         )
         self._stop_action.setEnabled(True)
         self._resume_action.setEnabled(True)
@@ -1898,6 +1924,47 @@ class MainWindow(QMainWindow):
 
                 _make_handler(node, prop_name, combo)
                 self._inspector.setItemWidget(prop_row, 1, combo)
+
+        # Provider override dropdown — shown for all LLM-type nodes
+        _LLM_TYPE_IDS = {"llm_prompt_node", "json_llm_node", "classifier_node",
+                         "judge_node", "agent_node"}
+        is_llm_node = (node.type_id in _LLM_TYPE_IDS or "llm" in node.type_id.lower()
+                       or node.type_id in {"classifier_node", "judge_node", "agent_node"})
+        if is_llm_node and self._project is not None:
+            prov_section = QTreeWidgetItem(["[Provider]", ""])
+            prov_section.setFlags(prov_section.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+            prov_row = QTreeWidgetItem(["provider", ""])
+            prov_section.addChild(prov_row)
+            self._inspector.addTopLevelItem(prov_section)
+            prov_section.setExpanded(True)
+            self._inspector.blockSignals(False)
+
+            prov_combo = QComboBox()
+            profiles = self._project.providers.profiles
+            default_name = "Default"
+            if profiles:
+                default_profile = self._project.providers.default_profile
+                if default_profile:
+                    default_name = f"Default ({default_profile.name})"
+            prov_combo.addItem(default_name, "")
+            for p in profiles:
+                prov_combo.addItem(p.name, p.id)
+
+            current_id = str(node.properties.get("provider_id", ""))
+            idx = prov_combo.findData(current_id)
+            prov_combo.setCurrentIndex(max(idx, 0))
+
+            def _provider_changed(text: str) -> None:
+                selected_id = prov_combo.currentData() or ""
+                if selected_id:
+                    node.properties["provider_id"] = selected_id
+                elif "provider_id" in node.properties:
+                    del node.properties["provider_id"]
+                self._live_validate()
+
+            prov_combo.currentTextChanged.connect(_provider_changed)
+            self._inspector.setItemWidget(prov_row, 1, prov_combo)
+            return  # blockSignals already released above
 
         self._inspector.blockSignals(False)
 
@@ -2387,7 +2454,12 @@ class MainWindow(QMainWindow):
     # ----------------------------------------------- tools menu handlers
 
     def _on_provider_manager(self) -> None:
-        if exec_provider_manager(self, self._open_help):
+        providers = self._project.providers if self._project else None
+        updated = exec_provider_manager(self, self._open_help, providers=providers)
+        if updated is not None:
+            if self._project:
+                self._project.providers = updated
+                self._mark_dirty()
             self.statusBar().showMessage("Provider settings saved.")
 
     def _on_tool_registry(self) -> None:

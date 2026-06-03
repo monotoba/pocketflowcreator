@@ -5,12 +5,15 @@ import json
 import re
 import threading
 from collections.abc import Callable, Generator
+from collections.abc import Callable as _Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
 from pocketflow_creator.model.graph_model import GraphModel, NodeModel
 from pocketflow_creator.runtime.providers import LLMProvider
+
+ProviderResolver = _Callable[[str], LLMProvider]
 
 
 @dataclass
@@ -90,6 +93,27 @@ class FlowRunner:
     # ------------------------------------------------------------------ helpers
 
     @staticmethod
+    def _provider_for_node(
+        node: NodeModel,
+        default_provider: LLMProvider,
+        resolver: ProviderResolver | None,
+    ) -> LLMProvider:
+        """Return the provider to use for *node*.
+
+        If the node has a non-empty ``provider_id`` property and a resolver
+        is available, delegate to the resolver.  Otherwise return the default.
+        """
+        if resolver is None:
+            return default_provider
+        profile_id = str(node.properties.get("provider_id", "")).strip()
+        if not profile_id:
+            return default_provider
+        try:
+            return resolver(profile_id)
+        except Exception:
+            return default_provider
+
+    @staticmethod
     def _resolve_prompt(node_props: dict[str, object], project_root: Path | None) -> str:
         """Return the prompt string for an LLM node, handling both string and path types."""
         prompt_type = str(node_props.get("prompt_type", "string"))
@@ -145,6 +169,7 @@ class FlowRunner:
         project_root: Path | None,
         input_callback: Callable[[dict, dict], object] | None,
         chosen_action: str,
+        resolver: ProviderResolver | None = None,
     ) -> tuple[list[RunStep], str, str, str]:
         """Execute a subflow inline; return (inner_steps, prompt, response, chosen_action).
 
@@ -161,7 +186,7 @@ class FlowRunner:
                 self.steps(
                     subgraph, provider, shared=shared_store,
                     known_graphs=known_graphs, project_root=project_root,
-                    input_callback=input_callback,
+                    input_callback=input_callback, provider_resolver=resolver,
                 )
             )
             if inner_steps:
@@ -316,6 +341,7 @@ class FlowRunner:
         known_graphs: dict[str, GraphModel] | None = None,
         project_root: Path | None = None,
         input_callback: Callable[[dict, dict], object] | None = None,
+        provider_resolver: ProviderResolver | None = None,
     ) -> Generator[RunStep, None, None]:
         """Yield one RunStep per executed node. Non-blocking; consumer controls pacing.
 
@@ -342,27 +368,29 @@ class FlowRunner:
             chosen_action = outgoing[0].action if outgoing else "default"
             inner_steps: list[RunStep] = []
 
+            node_provider = self._provider_for_node(node, provider, provider_resolver)
+
             if node.type_id == "subflow_node":
                 inner_steps, prompt, response, chosen_action = self._handle_subflow_node(
-                    node, shared_store, provider, known_graphs, project_root,
-                    input_callback, chosen_action,
+                    node, shared_store, node_provider, known_graphs, project_root,
+                    input_callback, chosen_action, provider_resolver,
                 )
                 yield from inner_steps
             elif "llm" in node.type_id.lower():
                 prompt, response, chosen_action = self._handle_llm_node(
-                    node, shared_store, provider, project_root, chosen_action,
+                    node, shared_store, node_provider, project_root, chosen_action,
                 )
             elif node.type_id == "classifier_node":
                 prompt, response, chosen_action = self._handle_classifier_node(
-                    node, shared_store, available_actions, provider, project_root,
+                    node, shared_store, available_actions, node_provider, project_root,
                 )
             elif node.type_id == "judge_node":
                 prompt, response, chosen_action = self._handle_judge_node(
-                    node, shared_store, available_actions, provider, project_root, chosen_action,
+                    node, shared_store, available_actions, node_provider, project_root, chosen_action,
                 )
             elif node.type_id == "agent_node":
                 prompt, response, chosen_action = self._handle_agent_node(
-                    node, shared_store, available_actions, provider, project_root, chosen_action,
+                    node, shared_store, available_actions, node_provider, project_root, chosen_action,
                 )
             elif node.type_id == "human_input_node":
                 prompt, response, chosen_action = self._handle_human_input_node(
@@ -402,6 +430,7 @@ class FlowRunner:
         known_graphs: dict[str, GraphModel] | None = None,
         project_root: Path | None = None,
         input_callback: Callable[[dict, dict], object] | None = None,
+        provider_resolver: ProviderResolver | None = None,
     ) -> RunTrace:
         started_at = datetime.now(tz=timezone.utc).isoformat()
         return RunTrace(
@@ -412,7 +441,7 @@ class FlowRunner:
                 self.steps(
                     graph, provider,
                     shared=shared, known_graphs=known_graphs, project_root=project_root,
-                    input_callback=input_callback,
+                    input_callback=input_callback, provider_resolver=provider_resolver,
                 )
             ),
         )
@@ -430,6 +459,7 @@ class FlowRunner:
         known_graphs: dict[str, GraphModel] | None = None,
         project_root: Path | None = None,
         input_callback: Callable[[dict, dict], object] | None = None,
+        provider_resolver: ProviderResolver | None = None,
     ) -> RunTrace:
         """Run the graph in debug mode; pauses at breakpoints via controller.
 
@@ -443,6 +473,7 @@ class FlowRunner:
         for step in self.steps(
             graph, provider, shared=shared, known_graphs=known_graphs,
             project_root=project_root, input_callback=input_callback,
+            provider_resolver=provider_resolver,
         ):
             if controller.is_stopped:
                 break

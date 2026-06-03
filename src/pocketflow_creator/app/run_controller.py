@@ -19,40 +19,47 @@ if TYPE_CHECKING:
 from pocketflow_creator.app.settings_keys import (
     _APP,
     _ORG,
-    _SKEY_ANTHROPIC_API_KEY,
-    _SKEY_ANTHROPIC_MODEL,
-    _SKEY_ANTHROPIC_TIMEOUT,
-    _SKEY_DEEPSEEK_API_KEY,
-    _SKEY_DEEPSEEK_BASE_URL,
-    _SKEY_DEEPSEEK_MODEL,
-    _SKEY_DEEPSEEK_TIMEOUT,
-    _SKEY_GEMINI_API_KEY,
-    _SKEY_GEMINI_MODEL,
-    _SKEY_GEMINI_TIMEOUT,
     _SKEY_MOCK_RESPONSE,
     _SKEY_OLLAMA_MODEL,
     _SKEY_OLLAMA_TIMEOUT,
     _SKEY_OLLAMA_URL,
-    _SKEY_OPENAI_API_KEY,
-    _SKEY_OPENAI_BASE_URL,
-    _SKEY_OPENAI_MODEL,
-    _SKEY_OPENAI_TIMEOUT,
     _SKEY_PROVIDER,
+    provider_profile_api_key_skey,
 )
 from pocketflow_creator.model.graph_model import GraphModel
+from pocketflow_creator.model.project import ProjectModel
 from pocketflow_creator.runtime.providers import (
-    AnthropicProvider,
-    DeepSeekProvider,
-    GeminiProvider,
+    LLMProvider,
     MockProvider,
     OllamaProvider,
-    OpenAIProvider,
+    build_provider_from_profile,
 )
-from pocketflow_creator.runtime.runner import FlowRunner, RunStep, StepController
+from pocketflow_creator.runtime.runner import FlowRunner, ProviderResolver, RunStep, StepController
 
 
-def build_provider() -> MockProvider | OllamaProvider | OpenAIProvider | AnthropicProvider | GeminiProvider | DeepSeekProvider:
-    """Construct the active LLM provider from QSettings."""
+def _load_api_key(profile_id: str) -> str:
+    """Load a profile's API key from QSettings (returns '' if unavailable)."""
+    try:
+        from PySide6.QtCore import QSettings
+        settings = QSettings(_ORG, _APP)
+        return str(settings.value(provider_profile_api_key_skey(profile_id), ""))
+    except Exception:
+        return ""
+
+
+def build_default_provider(project: ProjectModel | None = None) -> LLMProvider:
+    """Return the default provider for *project*.
+
+    Falls back to the legacy QSettings-based provider selection when the
+    project has no provider profiles configured.
+    """
+    if project is not None and project.providers.profiles:
+        profile = project.providers.default_profile
+        if profile is not None:
+            api_key = profile.api_key or _load_api_key(profile.id)
+            return build_provider_from_profile(profile, api_key)
+
+    # Legacy / no-project path: read from QSettings global provider setting.
     try:
         from PySide6.QtCore import QSettings
     except ImportError:  # pragma: no cover
@@ -65,33 +72,25 @@ def build_provider() -> MockProvider | OllamaProvider | OpenAIProvider | Anthrop
             default_model=str(settings.value(_SKEY_OLLAMA_MODEL, "qwen2.5-coder:14b")),
             timeout=int(settings.value(_SKEY_OLLAMA_TIMEOUT, 120)),  # type: ignore[arg-type]
         )
-    if prov_type == "openai":
-        return OpenAIProvider(
-            api_key=str(settings.value(_SKEY_OPENAI_API_KEY, "")),
-            base_url=str(settings.value(_SKEY_OPENAI_BASE_URL, "https://api.openai.com/v1")),
-            default_model=str(settings.value(_SKEY_OPENAI_MODEL, "gpt-4o-mini")),
-            timeout=int(settings.value(_SKEY_OPENAI_TIMEOUT, 120)),  # type: ignore[arg-type]
-        )
-    if prov_type == "anthropic":
-        return AnthropicProvider(
-            api_key=str(settings.value(_SKEY_ANTHROPIC_API_KEY, "")),
-            default_model=str(settings.value(_SKEY_ANTHROPIC_MODEL, "claude-haiku-4-5")),
-            timeout=int(settings.value(_SKEY_ANTHROPIC_TIMEOUT, 120)),  # type: ignore[arg-type]
-        )
-    if prov_type == "gemini":
-        return GeminiProvider(
-            api_key=str(settings.value(_SKEY_GEMINI_API_KEY, "")),
-            default_model=str(settings.value(_SKEY_GEMINI_MODEL, "gemini-2.0-flash")),
-            timeout=int(settings.value(_SKEY_GEMINI_TIMEOUT, 120)),  # type: ignore[arg-type]
-        )
-    if prov_type == "deepseek":
-        return DeepSeekProvider(
-            api_key=str(settings.value(_SKEY_DEEPSEEK_API_KEY, "")),
-            base_url=str(settings.value(_SKEY_DEEPSEEK_BASE_URL, "https://api.deepseek.com/v1")),
-            default_model=str(settings.value(_SKEY_DEEPSEEK_MODEL, "deepseek-chat")),
-            timeout=int(settings.value(_SKEY_DEEPSEEK_TIMEOUT, 120)),  # type: ignore[arg-type]
-        )
     return MockProvider(response=str(settings.value(_SKEY_MOCK_RESPONSE, "mock response")))
+
+
+def build_provider_resolver(project: ProjectModel | None) -> ProviderResolver | None:
+    """Return a resolver callable for per-node provider overrides, or None."""
+    if project is None or not project.providers.profiles:
+        return None
+    profile_map = {p.id: p for p in project.providers.profiles}
+    if not profile_map:
+        return None
+
+    def _resolve(profile_id: str) -> LLMProvider:
+        profile = profile_map.get(profile_id)
+        if profile is None:
+            return MockProvider(response="[unknown provider profile]")
+        api_key = profile.api_key or _load_api_key(profile.id)
+        return build_provider_from_profile(profile, api_key)
+
+    return _resolve
 
 
 def make_input_callback(
@@ -141,6 +140,7 @@ def start_run(
     project_root: Path | None,
     parent: QMainWindow,
     on_complete: Callable[[object], None],
+    project: ProjectModel | None = None,
 ) -> tuple[Any, FlowRunner]:
     """Start a background run thread.
 
@@ -156,7 +156,8 @@ def start_run(
 
     signals = _RunSignals()
     runner = FlowRunner()
-    provider = build_provider()
+    provider = build_default_provider(project)
+    resolver = build_provider_resolver(project)
     input_cb = make_input_callback(signals, parent)
 
     def _on_result(result: object) -> None:
@@ -173,6 +174,7 @@ def start_run(
                 known_graphs=known_graphs or None,
                 project_root=project_root,
                 input_callback=input_cb,
+                provider_resolver=resolver,
             )
             signals.result_ready.emit(trace)
         except Exception as exc:
@@ -192,6 +194,7 @@ def start_debug(
     parent: QMainWindow,
     on_step: Callable[[RunStep], None],
     on_finished: Callable[[], None],
+    project: ProjectModel | None = None,
 ) -> Any:
     """Start a background debug thread.
 
@@ -208,7 +211,8 @@ def start_debug(
 
     signals = _DbgSignals()
     runner = FlowRunner()
-    provider = build_provider()
+    provider = build_default_provider(project)
+    resolver = build_provider_resolver(project)
     dbg_input_cb = make_input_callback(signals, parent)
 
     def _on_step_gui(step: object) -> None:
@@ -232,6 +236,7 @@ def start_debug(
             known_graphs=known_graphs or None,
             project_root=project_root,
             input_callback=dbg_input_cb,
+            provider_resolver=resolver,
         )
         signals.run_finished.emit()
 
