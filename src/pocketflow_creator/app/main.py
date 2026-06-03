@@ -74,6 +74,7 @@ try:
     from pocketflow_creator.app.node_type_wizard import NodeTypeWizard
 except Exception:  # pragma: no cover - permits import in non-GUI test environments
     QApplication = None  # type: ignore[assignment,misc]
+    QMainWindow = None  # type: ignore[assignment,misc]
 
 from pocketflow_creator.app import code_manager, run_controller
 from pocketflow_creator.app.dialogs.auto_arrange_dialog import AutoArrangeDialog
