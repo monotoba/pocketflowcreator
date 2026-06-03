@@ -94,7 +94,7 @@ topic: "penguins"
 fact: "[MockProvider response to: Tell me a fun fact about penguins.]"
 ```
 
-> ⚠️ **Note:** The MockProvider is for testing flow *topology* — it validates that nodes are wired correctly and data flows to the right places. To see a real LLM response, configure an Ollama provider via **Tools > Provider Manager** and change the **model** property to an Ollama model name such as `llama3`. Re-run the flow; this time `shared["fact"]` will contain a genuine AI-generated fact.
+> ⚠️ **Note:** The MockProvider is for testing flow *topology* — it validates that nodes are wired correctly and data flows to the right places. To see a real LLM response, configure a provider via **Tools > Provider Manager** (see [Provider Setup Guide](../../docs/13_provider_setup.md) for detailed instructions). Then change the **model** property to a real model name (e.g., `qwen2.5-coder:14b` for Ollama, `gpt-4o-mini` for OpenAI). Re-run the flow; this time `shared["fact"]` will contain a genuine AI-generated response.
 
 **Step 7: Try a path-based prompt**
 
