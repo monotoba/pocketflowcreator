@@ -184,7 +184,7 @@ PocketFlow Creator supports multiple LLM providers. Configure them via **Tools �
    - Enter your API Key
 3. **Test**: Click "Test Connection"
 
-For detailed setup instructions for all providers, custom ports, environment variables, and troubleshooting, see [docs/13_provider_setup.md](docs/13_provider_setup.md).
+For detailed setup instructions for all providers, custom ports, environment variables, and troubleshooting, see [docs/13_provider_setup.md](https://github.com/Monotoba/PocketFlowCreator/blob/main/docs/13_provider_setup.md).
 
 ---
 
@@ -288,4 +288,4 @@ Lint policy: 0 ruff errors, 0 mypy errors. Pyright "possibly unbound" warnings i
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/Monotoba/PocketFlowCreator/blob/main/LICENSE).
