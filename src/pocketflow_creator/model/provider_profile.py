@@ -29,7 +29,7 @@ DEFAULT_MODELS = {
     "openai_compat": "gpt-4o-mini",
     "anthropic":     "claude-haiku-4-5",
     "gemini":        "gemini-2.0-flash",
-    "ollama":        "qwen2.5",
+    "ollama":        "qwen2.5-coder:14b",
     "lm_studio":     "meta-llama-3.1-8b",
 }
 
