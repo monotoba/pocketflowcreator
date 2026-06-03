@@ -1,6 +1,7 @@
 """ProviderManagerDialog — manage named LLM provider profiles for a project."""
 from __future__ import annotations
 
+import copy
 import json
 import threading
 import urllib.request
@@ -134,16 +135,16 @@ class _ProfileEditPanel(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._profile: ProviderProfile | None = None
-        self._api_key: str = ""
-
-        layout: QVBoxLayout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        # api_key is kept separately so it never leaks into the profile object
+        # until the user explicitly saves with include_api_keys=True
+        self._current_api_key: str = ""
 
         form_grp: QGroupBox = QGroupBox("Profile Settings")
         self._form: QFormLayout = QFormLayout(form_grp)
 
         # Name
         self._name_field: QLineEdit = QLineEdit()
+        self._name_field.setPlaceholderText("e.g. My OpenAI Account")
         self._form.addRow("Name:", self._name_field)
 
         # Type
@@ -160,6 +161,7 @@ class _ProfileEditPanel(QWidget):
 
         # Model
         self._model_field: QLineEdit = QLineEdit()
+        self._model_field.setPlaceholderText("e.g. gpt-4o-mini")
         self._form.addRow("Default model:", self._model_field)
 
         # Timeout
@@ -175,17 +177,57 @@ class _ProfileEditPanel(QWidget):
         self._status_label: QLabel = QLabel()
         test_row: QHBoxLayout = QHBoxLayout()
         test_row.addWidget(self._test_btn)
-        test_row.addWidget(self._status_label)
-        test_row.addStretch()
+        test_row.addWidget(self._status_label, 1)
         self._form.addRow("", test_row)
 
-        layout.addWidget(form_grp)
-        layout.addStretch()
+        # Outer layout
+        outer: QVBoxLayout = QVBoxLayout(self)
+        outer.addWidget(form_grp)
+        outer.addStretch()
 
         self._type_combo.currentIndexChanged.connect(self._on_type_changed)
         self._test_btn.clicked.connect(self._on_test)
 
         self.setEnabled(False)
+
+    # ── public API ────────────────────────────────────────────────────────────
+
+    def load(self, profile: ProviderProfile, api_key: str) -> None:
+        """Populate fields from *profile*. *api_key* comes from the caller's dict."""
+        self._profile = profile
+        self._current_api_key = api_key
+        self.setEnabled(True)
+
+        self._name_field.setText(profile.name)
+
+        idx = self._type_combo.findData(profile.type)
+        self._type_combo.setCurrentIndex(max(idx, 0))
+
+        self._base_url_field.setText(profile.base_url)
+        self._model_field.setText(profile.model)
+        self._timeout_spin.setValue(profile.timeout)
+        self._key_field.setText(api_key)
+        self._status_label.setText("")
+        self._on_type_changed()
+
+    def flush(self) -> str:
+        """Write widget values back to self._profile. Returns the current api_key."""
+        if self._profile is None:
+            return ""
+        name = self._name_field.text().strip()
+        if name:
+            self._profile.name = name
+        self._profile.type = self._type_combo.currentData() or "openai_compat"
+        self._profile.base_url = self._base_url_field.text().strip()
+        self._profile.model = self._model_field.text().strip()
+        self._profile.timeout = self._timeout_spin.value()
+        self._current_api_key = self._key_field.text().strip()
+        return self._current_api_key
+
+    def current_profile_id(self) -> str:
+        return self._profile.id if self._profile else ""
+
+    # ── private ───────────────────────────────────────────────────────────────
 
     def _on_type_changed(self) -> None:
         ptype = self._type_combo.currentData()
@@ -197,43 +239,11 @@ class _ProfileEditPanel(QWidget):
         if self._profile is not None and not self._model_field.text().strip():
             self._model_field.setText(DEFAULT_MODELS.get(ptype, ""))
 
-    def load(self, profile: ProviderProfile) -> None:
-        self._profile = profile
-        self._api_key = _load_key(profile.id) or profile.api_key
-        self.setEnabled(True)
-
-        self._name_field.setText(profile.name)
-
-        idx = self._type_combo.findData(profile.type)
-        self._type_combo.setCurrentIndex(max(idx, 0))
-
-        self._base_url_field.setText(profile.base_url)
-        self._model_field.setText(profile.model)
-        self._timeout_spin.setValue(profile.timeout)
-        self._key_field.setText(self._api_key)
-        self._status_label.setText("")
-        self._on_type_changed()
-
-    def flush_to_profile(self) -> None:
-        """Write widget values back into self._profile."""
-        if self._profile is None:
-            return
-        self._profile.name = self._name_field.text().strip() or self._profile.name
-        self._profile.type = self._type_combo.currentData() or "openai_compat"
-        self._profile.base_url = self._base_url_field.text().strip()
-        self._profile.model = self._model_field.text().strip()
-        self._profile.timeout = self._timeout_spin.value()
-        # api_key is written to QSettings on save; stored here for in-dialog test
-        self._api_key = self._key_field.text().strip()
-
-    def get_api_key(self) -> str:
-        return self._key_field.text().strip()
-
     def _on_test(self) -> None:
         if self._profile is None:
             return
-        self.flush_to_profile()
-        _test_profile(self._profile, self.get_api_key(), self._status_label)
+        api_key = self.flush()
+        _test_profile(self._profile, api_key, self._status_label)
 
 
 # ── public entry point ────────────────────────────────────────────────────────
@@ -248,53 +258,61 @@ def exec_provider_manager(
     *providers* is the current project's provider config.
     Returns an updated ``ProjectProviders`` on accept, or ``None`` on cancel.
     """
-    # Work on a deep copy so Cancel truly cancels.
-    import copy
     working = copy.deepcopy(providers) if providers else ProjectProviders()
+
+    # api_keys tracks the key for each profile id separately from the profile object.
+    # Keys come from QSettings, or from the profile if include_api_keys was True.
+    api_keys: dict[str, str] = {
+        p.id: (p.api_key or _load_key(p.id))
+        for p in working.profiles
+    }
 
     dlg: QDialog = QDialog(parent)
     dlg.setWindowTitle("Provider Manager")
-    dlg.resize(700, 480)
+    dlg.setMinimumSize(680, 400)
+    dlg.resize(760, 500)
 
-    root: QHBoxLayout = QHBoxLayout(dlg)
+    # ── single layout hierarchy ───────────────────────────────────────────────
+    main_layout: QVBoxLayout = QVBoxLayout(dlg)
 
-    # ── left: profile list ────────────────────────────────────────────────────
-    left: QVBoxLayout = QVBoxLayout()
-    root.addLayout(left, 1)
+    content_row: QHBoxLayout = QHBoxLayout()
+    main_layout.addLayout(content_row, 1)
+
+    # Left panel
+    left_layout: QVBoxLayout = QVBoxLayout()
+    content_row.addLayout(left_layout, 1)
 
     list_grp: QGroupBox = QGroupBox("Profiles")
-    list_layout: QVBoxLayout = QVBoxLayout(list_grp)
+    list_vbox: QVBoxLayout = QVBoxLayout(list_grp)
 
     profile_list: QListWidget = QListWidget()
-    list_layout.addWidget(profile_list)
+    profile_list.setMinimumWidth(180)
+    list_vbox.addWidget(profile_list)
 
     btn_row: QHBoxLayout = QHBoxLayout()
     add_btn: QPushButton = QPushButton("+ Add")
     del_btn: QPushButton = QPushButton("Delete")
-    default_btn: QPushButton = QPushButton("Set Default")
+    default_btn: QPushButton = QPushButton("Set Default ★")
     btn_row.addWidget(add_btn)
     btn_row.addWidget(del_btn)
     btn_row.addWidget(default_btn)
-    list_layout.addLayout(btn_row)
+    list_vbox.addLayout(btn_row)
 
-    left.addWidget(list_grp)
+    left_layout.addWidget(list_grp)
 
-    # include_api_keys checkbox
     include_key_chk: QCheckBox = QCheckBox("Include API keys in project file")
     include_key_chk.setChecked(working.include_api_keys)
     include_key_chk.setToolTip(
-        "When checked, API keys are saved in plain text inside the .pfcproj.yaml file.\n"
-        "Leave unchecked to keep keys local to this machine (stored in app settings)."
+        "When checked, API keys are saved in plain text in the .pfcproj.yaml.\n"
+        "Leave unchecked to keep keys on this machine only (in app settings)."
     )
-    left.addWidget(include_key_chk)
+    left_layout.addWidget(include_key_chk)
 
-    # ── right: edit panel ─────────────────────────────────────────────────────
+    # Right panel
     edit_panel = _ProfileEditPanel()
-    root.addWidget(edit_panel, 2)
+    content_row.addWidget(edit_panel, 2)
 
-    # ── buttons ───────────────────────────────────────────────────────────────
-    outer: QVBoxLayout = QVBoxLayout()
-    root.addLayout(outer)
+    # Bottom buttons
     buttons: QDialogButtonBox = QDialogButtonBox(
         QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
     )
@@ -302,23 +320,20 @@ def exec_provider_manager(
     help_btn.clicked.connect(lambda: open_help("context/provider_manager.md"))
     buttons.accepted.connect(dlg.accept)
     buttons.rejected.connect(dlg.reject)
+    main_layout.addWidget(buttons)
 
-    # Re-layout: buttons at bottom spanning full width
-    wrapper: QVBoxLayout = QVBoxLayout()
-    h: QHBoxLayout = QHBoxLayout()
-    h.addLayout(left)
-    h.addWidget(edit_panel, 2)
-    wrapper.addLayout(h)
-    wrapper.addWidget(buttons)
-    # Replace root with wrapper
-    # (Qt doesn't allow replacing a layout, so we set it via a container widget)
-    dlg.setLayout(wrapper)
-
-    # ── populate list ─────────────────────────────────────────────────────────
+    # ── list helpers ──────────────────────────────────────────────────────────
 
     def _item_text(p: ProviderProfile) -> str:
         star = " ★" if p.id == working.default_profile_id else ""
         return f"{p.name}{star}"
+
+    def _flush_panel() -> None:
+        """Save panel state to profile and api_keys dict."""
+        pid = edit_panel.current_profile_id()
+        if pid:
+            key = edit_panel.flush()
+            api_keys[pid] = key
 
     def _repopulate(select_id: str = "") -> None:
         profile_list.blockSignals(True)
@@ -327,13 +342,14 @@ def exec_provider_manager(
             item: QListWidgetItem = QListWidgetItem(_item_text(p))
             item.setData(256, p.id)
             profile_list.addItem(item)
+        target_row = 0
         if select_id:
             for i in range(profile_list.count()):
                 if profile_list.item(i).data(256) == select_id:
-                    profile_list.setCurrentRow(i)
+                    target_row = i
                     break
-        elif profile_list.count():
-            profile_list.setCurrentRow(0)
+        if profile_list.count():
+            profile_list.setCurrentRow(target_row)
         profile_list.blockSignals(False)
         _on_selection_changed()
 
@@ -344,14 +360,15 @@ def exec_provider_manager(
             return
         pid = item.data(256)
         profile = working.by_id(pid)
-        if profile:
-            # flush current panel before switching
-            edit_panel.flush_to_profile()
-            edit_panel.load(profile)
+        if profile is None:
+            return
+        _flush_panel()  # save previous panel before switching
+        edit_panel.load(profile, api_keys.get(pid, ""))
 
     def _on_add() -> None:
-        edit_panel.flush_to_profile()
+        _flush_panel()
         p = ProviderProfile.new("New Profile")
+        api_keys[p.id] = ""
         working.profiles.append(p)
         if not working.default_profile_id:
             working.default_profile_id = p.id
@@ -363,6 +380,7 @@ def exec_provider_manager(
             return
         pid = item.data(256)
         working.profiles = [p for p in working.profiles if p.id != pid]
+        api_keys.pop(pid, None)
         if working.default_profile_id == pid:
             working.default_profile_id = working.profiles[0].id if working.profiles else ""
         _repopulate(working.default_profile_id)
@@ -372,11 +390,9 @@ def exec_provider_manager(
         if item is None:
             return
         working.default_profile_id = item.data(256)
-        # Refresh labels
         for i in range(profile_list.count()):
             it = profile_list.item(i)
-            pid = it.data(256)
-            p = working.by_id(pid)
+            p = working.by_id(it.data(256))
             if p:
                 it.setText(_item_text(p))
 
@@ -390,17 +406,14 @@ def exec_provider_manager(
     if dlg.exec() != QDialog.DialogCode.Accepted:
         return None
 
-    # Flush the currently-displayed panel
-    edit_panel.flush_to_profile()
+    # Flush the currently-displayed panel one last time
+    _flush_panel()
 
-    # Persist API keys to QSettings; update profile name in list
+    # Persist all api_keys to QSettings
     working.include_api_keys = include_key_chk.isChecked()
     for p in working.profiles:
-        api_key = edit_panel.get_api_key() if working.by_id(p.id) is p else _load_key(p.id)
-        _save_key(p.id, api_key)
-        if working.include_api_keys:
-            p.api_key = api_key
-        else:
-            p.api_key = ""
+        key = api_keys.get(p.id, "")
+        _save_key(p.id, key)
+        p.api_key = key if working.include_api_keys else ""
 
     return working
