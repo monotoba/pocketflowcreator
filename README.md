@@ -1,5 +1,10 @@
 # PocketFlow Creator
 
+[![Tests](https://github.com/Monotoba/PocketFlowCreator/actions/workflows/tests.yml/badge.svg)](https://github.com/Monotoba/PocketFlowCreator/actions/workflows/tests.yml)
+[![PyPI version](https://badge.fury.io/py/pocketflow-creator.svg)](https://badge.fury.io/py/pocketflow-creator)
+[![Python versions](https://img.shields.io/pypi/pyversions/pocketflow-creator.svg)](https://pypi.org/project/pocketflow-creator/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A RAD-style visual designer for building [PocketFlow](https://github.com/The-Pocket/PocketFlow)
 LLM workflows and agentic applications. Design flows on a live canvas, run them against Ollama or
 a mock provider, inspect shared-store state step-by-step, and export a runnable Python package —
