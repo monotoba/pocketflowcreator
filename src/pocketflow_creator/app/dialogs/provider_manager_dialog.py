@@ -209,10 +209,10 @@ class _ProfileEditPanel(QWidget):
             self._type_combo.addItem(label, t)
         self._form.addRow("API type:", self._type_combo)
 
-        # Base URL (openai_compat only)
+        # Base URL
         self._base_url_label: QLabel = QLabel("Base URL:")
         self._base_url_field: QLineEdit = QLineEdit()
-        self._base_url_field.setPlaceholderText("https://api.openai.com/v1")
+        self._base_url_field.setPlaceholderText("https://api.openai.com/v1 (or http://localhost:11434 for Ollama)")
         self._form.addRow(self._base_url_label, self._base_url_field)
 
         # Model
@@ -315,13 +315,9 @@ class _ProfileEditPanel(QWidget):
             self._profile.name = name
         ptype = self._type_combo.currentData() or "openai_compat"
         self._profile.type = ptype
-        # For openai_compat, use the visible field; for others, always use default
-        # (the field is hidden so user can't edit it)
-        if ptype == "openai_compat":
-            self._profile.base_url = self._base_url_field.text().strip()
-        else:
-            # For hidden provider types (ollama, lm_studio), always use the type's default
-            self._profile.base_url = DEFAULT_BASE_URLS.get(ptype, "")
+        # Always use the base_url field value; apply default if empty
+        base_url = self._base_url_field.text().strip()
+        self._profile.base_url = base_url or DEFAULT_BASE_URLS.get(ptype, "")
         self._profile.model = self._model_field.text().strip()
         self._profile.timeout = self._timeout_spin.value()
         if self._rb_env.isChecked():
@@ -343,15 +339,12 @@ class _ProfileEditPanel(QWidget):
 
     def _on_type_changed(self) -> None:
         ptype = self._type_combo.currentData()
-        is_compat = ptype == "openai_compat"
-        self._base_url_label.setVisible(is_compat)
-        self._base_url_field.setVisible(is_compat)
-        if is_compat and not self._base_url_field.text().strip():
-            self._base_url_field.setText(DEFAULT_BASE_URLS.get("openai_compat", ""))
-        # For non-openai_compat types (ollama, lm_studio), always use the type's default base_url
-        # since the field is hidden and user can't edit it
+        # Always show base_url field, but pre-populate with type's default
+        if not self._base_url_field.text().strip():
+            self._base_url_field.setText(DEFAULT_BASE_URLS.get(ptype, ""))
+        # Also update profile's base_url for consistency
         if self._profile is not None:
-            if not is_compat:
+            if not self._profile.base_url:
                 self._profile.base_url = DEFAULT_BASE_URLS.get(ptype, "")
             if not self._model_field.text().strip():
                 self._model_field.setText(DEFAULT_MODELS.get(ptype, ""))
