@@ -313,8 +313,18 @@ class _ProfileEditPanel(QWidget):
         name = self._name_field.text().strip()
         if name:
             self._profile.name = name
-        self._profile.type = self._type_combo.currentData() or "openai_compat"
-        self._profile.base_url = self._base_url_field.text().strip()
+        ptype = self._type_combo.currentData() or "openai_compat"
+        self._profile.type = ptype
+        # For openai_compat, use the visible field; for others, preserve default or use field if set
+        if ptype == "openai_compat":
+            self._profile.base_url = self._base_url_field.text().strip()
+        else:
+            # For hidden provider types, keep existing base_url or use default
+            field_url = self._base_url_field.text().strip()
+            if field_url:
+                self._profile.base_url = field_url
+            elif not self._profile.base_url:
+                self._profile.base_url = DEFAULT_BASE_URLS.get(ptype, "")
         self._profile.model = self._model_field.text().strip()
         self._profile.timeout = self._timeout_spin.value()
         if self._rb_env.isChecked():
@@ -341,8 +351,12 @@ class _ProfileEditPanel(QWidget):
         self._base_url_field.setVisible(is_compat)
         if is_compat and not self._base_url_field.text().strip():
             self._base_url_field.setText(DEFAULT_BASE_URLS.get("openai_compat", ""))
-        if self._profile is not None and not self._model_field.text().strip():
-            self._model_field.setText(DEFAULT_MODELS.get(ptype, ""))
+        # For non-openai_compat types (ollama, lm_studio), ensure base_url is set from defaults
+        if self._profile is not None:
+            if not is_compat and not self._profile.base_url:
+                self._profile.base_url = DEFAULT_BASE_URLS.get(ptype, "")
+            if not self._model_field.text().strip():
+                self._model_field.setText(DEFAULT_MODELS.get(ptype, ""))
 
     def _on_source_changed(self) -> None:
         direct = self._rb_direct.isChecked()
