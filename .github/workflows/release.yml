@@ -7,7 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: release
+    environment: pypi
 
     permissions:
       contents: read
