@@ -72,7 +72,7 @@ try:
     from pocketflow_creator.app.editors import PythonHighlighter, YamlHighlighter
     from pocketflow_creator.app.help_browser import HelpBrowser
     from pocketflow_creator.app.node_type_wizard import NodeTypeWizard
-except Exception:  # pragma: no cover - permits import in non-GUI test environments
+except ModuleNotFoundError:  # pragma: no cover - permits import in non-GUI test environments
     QApplication = None  # type: ignore[assignment,misc]
     QMainWindow = None  # type: ignore[assignment,misc]
 
