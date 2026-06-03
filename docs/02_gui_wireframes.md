@@ -385,11 +385,34 @@ The Custom Node Type Wizard creates reusable components. Custom nodes may inheri
 ## Provider Manager
 
 ```text
-Provider Profiles: Ollama Local, OpenAI Compatible, Mock Provider
-Settings: base URL, default model, timeout, keep alive, test connection
++─────────────────────────────────────────────────────────────────+
+| Provider Manager                                          [X]    |
++─────────────────────┬───────────────────────────────────────────+
+| Profiles            | Profile Settings                          |
+| ├─ Local Ollama ★   | Name: Local Ollama                       |
+| ├─ OpenAI Prod      | API type: Ollama (local)                |
+| └─ Claude Haiku     | Base URL: http://localhost:11434        |
+|                     | Default model: qwen2.5-coder:14b       |
+| [+ Add]             | Timeout: 120 s                          |
+| [Delete]            | API Key: (none)                         |
+| [Set Default ★]     |                                         |
+|                     | [Test Connection] ✓ Connection OK      |
+|                     |                                         |
+|                     | ☐ Include API keys in project file     |
+|                     |                                    [OK] |
++─────────────────────────────────────────────────────────────────+
 ```
 
-The Provider Manager stores provider profiles. Ollama should be first-class, but provider access should remain pluggable.
+The Provider Manager allows users to:
+- Create named provider profiles (Ollama, LM Studio, OpenAI, Anthropic, Google Gemini, etc.)
+- Configure base URL (with sensible defaults for each type, customizable for custom ports/hostnames)
+- Set default model for each provider
+- Store API keys securely (in system settings by default, or environment variables)
+- Test connections before use with immediate feedback
+- Set a default provider for workflows
+- Optionally include API keys in project files for portable/shareable projects
+
+See [docs/13_provider_setup.md](../docs/13_provider_setup.md) for comprehensive provider setup instructions.
 
 ## Tool Registry
 

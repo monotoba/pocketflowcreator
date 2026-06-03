@@ -154,6 +154,37 @@ pocketflow-creator          # or: python -m pocketflow_creator
 
 ---
 
+## Provider Setup
+
+PocketFlow Creator supports multiple LLM providers. Configure them via **Tools → Provider Manager**.
+
+### Quick Setup
+
+**To use Ollama locally** (recommended for getting started):
+
+1. **Install Ollama** from [ollama.ai](https://ollama.ai)
+2. **Start Ollama**: `ollama serve`
+3. **Pull a model**: `ollama pull qwen2.5-coder:14b`
+4. **In PocketFlow Creator**: Tools → Provider Manager → + Add
+   - Name: "Local Ollama"
+   - Type: "Ollama (local)"
+   - Base URL: `http://localhost:11434` (auto-filled)
+   - Model: `qwen2.5-coder:14b` (auto-filled)
+5. **Test**: Click "Test Connection" → should show ✓ Connection successful
+
+**To use cloud providers** (OpenAI, Claude, etc.):
+
+1. Generate an API key from your provider
+2. **In PocketFlow Creator**: Tools → Provider Manager → + Add
+   - Name: e.g., "OpenAI Production"
+   - Type: Select your provider
+   - Enter your API Key
+3. **Test**: Click "Test Connection"
+
+For detailed setup instructions for all providers, custom ports, environment variables, and troubleshooting, see [docs/13_provider_setup.md](docs/13_provider_setup.md).
+
+---
+
 ## Running Tests
 
 ```bash
