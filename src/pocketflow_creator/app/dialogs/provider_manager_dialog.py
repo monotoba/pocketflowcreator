@@ -315,16 +315,13 @@ class _ProfileEditPanel(QWidget):
             self._profile.name = name
         ptype = self._type_combo.currentData() or "openai_compat"
         self._profile.type = ptype
-        # For openai_compat, use the visible field; for others, preserve default or use field if set
+        # For openai_compat, use the visible field; for others, always use default
+        # (the field is hidden so user can't edit it)
         if ptype == "openai_compat":
             self._profile.base_url = self._base_url_field.text().strip()
         else:
-            # For hidden provider types, keep existing base_url or use default
-            field_url = self._base_url_field.text().strip()
-            if field_url:
-                self._profile.base_url = field_url
-            elif not self._profile.base_url:
-                self._profile.base_url = DEFAULT_BASE_URLS.get(ptype, "")
+            # For hidden provider types (ollama, lm_studio), always use the type's default
+            self._profile.base_url = DEFAULT_BASE_URLS.get(ptype, "")
         self._profile.model = self._model_field.text().strip()
         self._profile.timeout = self._timeout_spin.value()
         if self._rb_env.isChecked():
