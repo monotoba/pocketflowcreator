@@ -15,7 +15,10 @@ __node_meta__ = {
         "case_dir_key": {
             "type":        "string",
             "default":     "fun3d_case_dir",
-            "description": "Shared-store key holding path to the FUN3D case directory (contains fun3d.nml).",
+            "description": (
+                "Shared-store key holding path to the FUN3D case directory "
+                "(contains fun3d.nml)."
+            ),
         },
         "nprocs": {
             "type":        "integer",
@@ -45,7 +48,10 @@ class FUN3DRunNode:
         }
 
     def exec(self, prep_res: dict):
-        import subprocess, pathlib, os, csv
+        import csv
+        import os
+        import pathlib
+        import subprocess
         case_dir = pathlib.Path(prep_res["case_dir"])
         if not case_dir.is_dir():
             return {"error": f"FUN3D case directory not found: {case_dir}"}

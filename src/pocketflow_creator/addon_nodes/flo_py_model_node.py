@@ -50,8 +50,7 @@ class FloPyModelNode:
         if model is None:
             return {"error": "No FloPy model instance found in shared store."}
         try:
-            import flopy  # type: ignore[import]
-            import numpy as np
+            import numpy as np  # noqa: F401
         except ImportError:
             return {"error": "flopy not installed.  Run: pip install flopy"}
         try:
