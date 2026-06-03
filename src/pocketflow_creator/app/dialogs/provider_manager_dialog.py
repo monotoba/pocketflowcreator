@@ -339,13 +339,11 @@ class _ProfileEditPanel(QWidget):
 
     def _on_type_changed(self) -> None:
         ptype = self._type_combo.currentData()
-        # Always show base_url field, but pre-populate with type's default
-        if not self._base_url_field.text().strip():
-            self._base_url_field.setText(DEFAULT_BASE_URLS.get(ptype, ""))
+        # Always update base_url field to the type's default when type changes
+        self._base_url_field.setText(DEFAULT_BASE_URLS.get(ptype, ""))
         # Also update profile's base_url for consistency
         if self._profile is not None:
-            if not self._profile.base_url:
-                self._profile.base_url = DEFAULT_BASE_URLS.get(ptype, "")
+            self._profile.base_url = DEFAULT_BASE_URLS.get(ptype, "")
             if not self._model_field.text().strip():
                 self._model_field.setText(DEFAULT_MODELS.get(ptype, ""))
 
