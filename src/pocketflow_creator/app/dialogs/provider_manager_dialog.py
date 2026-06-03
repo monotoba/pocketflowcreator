@@ -171,8 +171,12 @@ def _test_profile(profile: ProviderProfile, api_key: str, status: QLabel) -> Non
     # wait so the button never shows "Testing…" forever.
     def _on_timeout() -> None:
         # Only show timeout if no result has been set yet
-        if status.text() == "Testing…":
-            status.setText("✗ Test timed out (30 s)")
+        # Wrap in try-except in case the widget was deleted before timeout fired
+        try:
+            if status.text() == "Testing…":
+                status.setText("✗ Test timed out (30 s)")
+        except RuntimeError:
+            pass  # Widget already deleted, ignore
 
     QTimer.singleShot(30_000, _on_timeout)
 
@@ -339,13 +343,13 @@ class _ProfileEditPanel(QWidget):
 
     def _on_type_changed(self) -> None:
         ptype = self._type_combo.currentData()
-        # Always update base_url field to the type's default when type changes
+        # Always update base_url and model fields to the type's defaults when type changes
         self._base_url_field.setText(DEFAULT_BASE_URLS.get(ptype, ""))
-        # Also update profile's base_url for consistency
+        self._model_field.setText(DEFAULT_MODELS.get(ptype, ""))
+        # Also update profile for consistency
         if self._profile is not None:
             self._profile.base_url = DEFAULT_BASE_URLS.get(ptype, "")
-            if not self._model_field.text().strip():
-                self._model_field.setText(DEFAULT_MODELS.get(ptype, ""))
+            self._profile.model = DEFAULT_MODELS.get(ptype, "")
 
     def _on_source_changed(self) -> None:
         direct = self._rb_direct.isChecked()
