@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import threading
 import urllib.request
 from collections.abc import Callable
@@ -25,6 +26,7 @@ from pocketflow_creator.model.provider_profile import (
 if TYPE_CHECKING:
     from PySide6.QtCore import QSettings
     from PySide6.QtWidgets import (
+        QButtonGroup,
         QCheckBox,
         QComboBox,
         QDialog,
@@ -38,6 +40,7 @@ if TYPE_CHECKING:
         QListWidgetItem,
         QMainWindow,
         QPushButton,
+        QRadioButton,
         QSpinBox,
         QVBoxLayout,
         QWidget,
@@ -46,6 +49,7 @@ else:
     try:
         from PySide6.QtCore import QSettings
         from PySide6.QtWidgets import (
+            QButtonGroup,
             QCheckBox,
             QComboBox,
             QDialog,
@@ -59,6 +63,7 @@ else:
             QListWidgetItem,
             QMainWindow,
             QPushButton,
+            QRadioButton,
             QSpinBox,
             QVBoxLayout,
             QWidget,
@@ -85,12 +90,23 @@ def _spin(lo: int, hi: int, step: int, suffix: str, val: int) -> QSpinBox:
     return s
 
 
+_ENV_PREFIX = "env:"
+
+
 def _load_key(profile_id: str) -> str:
+    """Return raw stored value (key or 'env:VAR_NAME')."""
     try:
         settings = QSettings(_ORG, _APP)
         return str(settings.value(provider_profile_api_key_skey(profile_id), ""))
     except Exception:
         return ""
+
+
+def _resolve_key(raw: str) -> str:
+    """Resolve a raw stored value to an actual API key."""
+    if raw.startswith(_ENV_PREFIX):
+        return os.environ.get(raw[len(_ENV_PREFIX):], "")
+    return raw
 
 
 def _save_key(profile_id: str, key: str) -> None:
@@ -135,9 +151,7 @@ class _ProfileEditPanel(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._profile: ProviderProfile | None = None
-        # api_key is kept separately so it never leaks into the profile object
-        # until the user explicitly saves with include_api_keys=True
-        self._current_api_key: str = ""
+        self._current_raw_key: str = ""  # either the key value or "env:VAR_NAME"
 
         form_grp: QGroupBox = QGroupBox("Profile Settings")
         self._form: QFormLayout = QFormLayout(form_grp)
@@ -168,9 +182,34 @@ class _ProfileEditPanel(QWidget):
         self._timeout_spin = _spin(5, 3600, 15, " s", 120)
         self._form.addRow("Timeout:", self._timeout_spin)
 
-        # API key
+        # ── API key source ────────────────────────────────────────────────────
+        self._key_grp: QGroupBox = QGroupBox("API Key")
+        key_vbox: QVBoxLayout = QVBoxLayout(self._key_grp)
+
+        self._key_bg: QButtonGroup = QButtonGroup(self)
+        self._rb_direct: QRadioButton = QRadioButton("Enter key directly:")
+        self._rb_env:    QRadioButton = QRadioButton("Read from environment variable:")
+        self._rb_direct.setChecked(True)
+        self._key_bg.addButton(self._rb_direct, 0)
+        self._key_bg.addButton(self._rb_env,    1)
+        key_vbox.addWidget(self._rb_direct)
+
         self._key_field = _key_field()
-        self._form.addRow("API key:", self._key_field)
+        key_vbox.addWidget(self._key_field)
+
+        key_vbox.addWidget(self._rb_env)
+
+        self._env_field: QLineEdit = QLineEdit()
+        self._env_field.setPlaceholderText("e.g. OPENAI_API_KEY")
+        self._env_field.setVisible(False)
+        key_vbox.addWidget(self._env_field)
+
+        # Live env var preview
+        self._env_preview: QLabel = QLabel()
+        self._env_preview.setVisible(False)
+        key_vbox.addWidget(self._env_preview)
+
+        self._form.addRow(self._key_grp)
 
         # Test
         self._test_btn: QPushButton = QPushButton("Test Connection")
@@ -186,16 +225,18 @@ class _ProfileEditPanel(QWidget):
         outer.addStretch()
 
         self._type_combo.currentIndexChanged.connect(self._on_type_changed)
+        self._rb_direct.toggled.connect(self._on_source_changed)
+        self._env_field.textChanged.connect(self._on_env_changed)
         self._test_btn.clicked.connect(self._on_test)
 
         self.setEnabled(False)
 
     # ── public API ────────────────────────────────────────────────────────────
 
-    def load(self, profile: ProviderProfile, api_key: str) -> None:
-        """Populate fields from *profile*. *api_key* comes from the caller's dict."""
+    def load(self, profile: ProviderProfile, raw_key: str) -> None:
+        """Populate fields. *raw_key* is either a direct key or 'env:VAR_NAME'."""
         self._profile = profile
-        self._current_api_key = api_key
+        self._current_raw_key = raw_key
         self.setEnabled(True)
 
         self._name_field.setText(profile.name)
@@ -206,12 +247,22 @@ class _ProfileEditPanel(QWidget):
         self._base_url_field.setText(profile.base_url)
         self._model_field.setText(profile.model)
         self._timeout_spin.setValue(profile.timeout)
-        self._key_field.setText(api_key)
         self._status_label.setText("")
+
+        if raw_key.startswith(_ENV_PREFIX):
+            self._rb_env.setChecked(True)
+            self._env_field.setText(raw_key[len(_ENV_PREFIX):])
+            self._key_field.setText("")
+        else:
+            self._rb_direct.setChecked(True)
+            self._key_field.setText(raw_key)
+            self._env_field.setText("")
+
         self._on_type_changed()
+        self._on_source_changed()
 
     def flush(self) -> str:
-        """Write widget values back to self._profile. Returns the current api_key."""
+        """Write widget values back to self._profile. Returns raw key storage value."""
         if self._profile is None:
             return ""
         name = self._name_field.text().strip()
@@ -221,11 +272,20 @@ class _ProfileEditPanel(QWidget):
         self._profile.base_url = self._base_url_field.text().strip()
         self._profile.model = self._model_field.text().strip()
         self._profile.timeout = self._timeout_spin.value()
-        self._current_api_key = self._key_field.text().strip()
-        return self._current_api_key
+        if self._rb_env.isChecked():
+            var = self._env_field.text().strip()
+            self._current_raw_key = f"{_ENV_PREFIX}{var}" if var else ""
+        else:
+            self._current_raw_key = self._key_field.text().strip()
+        return self._current_raw_key
 
     def current_profile_id(self) -> str:
         return self._profile.id if self._profile else ""
+
+    def resolved_api_key(self) -> str:
+        """Return the actual API key (env var resolved) for Test Connection."""
+        raw = self.flush()
+        return _resolve_key(raw)
 
     # ── private ───────────────────────────────────────────────────────────────
 
@@ -239,10 +299,29 @@ class _ProfileEditPanel(QWidget):
         if self._profile is not None and not self._model_field.text().strip():
             self._model_field.setText(DEFAULT_MODELS.get(ptype, ""))
 
+    def _on_source_changed(self) -> None:
+        direct = self._rb_direct.isChecked()
+        self._key_field.setVisible(direct)
+        self._env_field.setVisible(not direct)
+        self._env_preview.setVisible(not direct)
+        if not direct:
+            self._on_env_changed(self._env_field.text())
+
+    def _on_env_changed(self, var_name: str) -> None:
+        if not var_name.strip():
+            self._env_preview.setText("")
+            return
+        val = os.environ.get(var_name.strip(), "")
+        if val:
+            masked = val[:4] + "…" if len(val) > 4 else "set"
+            self._env_preview.setText(f"<small>✓ {var_name} = {masked}</small>")
+        else:
+            self._env_preview.setText(f"<small>⚠ {var_name} not set in environment</small>")
+
     def _on_test(self) -> None:
         if self._profile is None:
             return
-        api_key = self.flush()
+        api_key = self.resolved_api_key()
         _test_profile(self._profile, api_key, self._status_label)
 
 
@@ -409,11 +488,15 @@ def exec_provider_manager(
     # Flush the currently-displayed panel one last time
     _flush_panel()
 
-    # Persist all api_keys to QSettings
+    # Persist all raw key values to QSettings
     working.include_api_keys = include_key_chk.isChecked()
     for p in working.profiles:
-        key = api_keys.get(p.id, "")
-        _save_key(p.id, key)
-        p.api_key = key if working.include_api_keys else ""
+        raw = api_keys.get(p.id, "")
+        _save_key(p.id, raw)
+        # Only store actual keys in the project file; env: refs are never stored there
+        if working.include_api_keys and not raw.startswith(_ENV_PREFIX):
+            p.api_key = raw
+        else:
+            p.api_key = ""
 
     return working

@@ -8,6 +8,7 @@ This module owns:
 """
 from __future__ import annotations
 
+import os
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -38,13 +39,16 @@ from pocketflow_creator.runtime.runner import FlowRunner, ProviderResolver, RunS
 
 
 def _load_api_key(profile_id: str) -> str:
-    """Load a profile's API key from QSettings (returns '' if unavailable)."""
+    """Load a profile's API key from QSettings, resolving env: references."""
     try:
         from PySide6.QtCore import QSettings
         settings = QSettings(_ORG, _APP)
-        return str(settings.value(provider_profile_api_key_skey(profile_id), ""))
+        raw = str(settings.value(provider_profile_api_key_skey(profile_id), ""))
     except Exception:
-        return ""
+        raw = ""
+    if raw.startswith("env:"):
+        return os.environ.get(raw[4:], "")
+    return raw
 
 
 def build_default_provider(project: ProjectModel | None = None) -> LLMProvider:

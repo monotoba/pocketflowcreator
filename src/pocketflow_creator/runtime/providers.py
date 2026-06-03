@@ -65,15 +65,10 @@ class OpenAIProvider:
                 "messages": [{"role": "user", "content": prompt}],
             }
         ).encode()
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            },
-            method="POST",
-        )
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if self.api_key:  # omit Authorization when key is empty (e.g. local Ollama)
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 body = json.loads(resp.read())
@@ -189,15 +184,10 @@ class DeepSeekProvider:
                 "messages": [{"role": "user", "content": prompt}],
             }
         ).encode()
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            },
-            method="POST",
-        )
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 body = json.loads(resp.read())
