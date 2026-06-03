@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import sys
 import threading
 import urllib.request
 from collections.abc import Callable
@@ -136,10 +137,12 @@ def _test_profile(profile: ProviderProfile, api_key: str, status: QLabel) -> Non
         try:
             from pocketflow_creator.runtime.providers import build_provider_from_profile
             p = build_provider_from_profile(profile, api_key)
-            p.complete("Reply with the single word: ok")
+            result = p.complete("Reply with the single word: ok")
             status.setText("✓ Connection successful")
         except Exception as exc:
-            error_msg = str(exc)
+            error_msg = str(exc) or f"{type(exc).__name__}: (no message)"
+            # Log to stderr for debugging
+            print(f"[Provider Test] Exception: {type(exc).__name__}: {error_msg}", file=sys.stderr)
             # Show full error, or truncate only if extremely long
             if len(error_msg) > 300:
                 error_msg = error_msg[:297] + "…"
