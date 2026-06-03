@@ -72,9 +72,9 @@ try:
     from pocketflow_creator.app.editors import PythonHighlighter, YamlHighlighter
     from pocketflow_creator.app.help_browser import HelpBrowser
     from pocketflow_creator.app.node_type_wizard import NodeTypeWizard
-except ModuleNotFoundError:  # pragma: no cover - permits import in non-GUI test environments
+except Exception:  # pragma: no cover - PySide6/EGL unavailable in headless CI
     QApplication = None  # type: ignore[assignment,misc]
-    QMainWindow = None  # type: ignore[assignment,misc]
+    QMainWindow = object  # type: ignore[assignment,misc]
 
 from pocketflow_creator.app import code_manager, run_controller
 from pocketflow_creator.app.dialogs.auto_arrange_dialog import AutoArrangeDialog
