@@ -10,10 +10,36 @@ _APP = "PocketFlowCreator"
 
 # ── Provider / LLM ────────────────────────────────────────────────────────────
 _SKEY_PROVIDER = "run/provider"
+
+# Ollama (local)
 _SKEY_OLLAMA_URL = "ollama/base_url"
 _SKEY_OLLAMA_MODEL = "ollama/default_model"
 _SKEY_OLLAMA_TIMEOUT = "ollama/timeout"
+
+# Mock
 _SKEY_MOCK_RESPONSE = "mock/response"
+
+# OpenAI
+_SKEY_OPENAI_API_KEY = "openai/api_key"
+_SKEY_OPENAI_BASE_URL = "openai/base_url"
+_SKEY_OPENAI_MODEL = "openai/default_model"
+_SKEY_OPENAI_TIMEOUT = "openai/timeout"
+
+# Anthropic
+_SKEY_ANTHROPIC_API_KEY = "anthropic/api_key"
+_SKEY_ANTHROPIC_MODEL = "anthropic/default_model"
+_SKEY_ANTHROPIC_TIMEOUT = "anthropic/timeout"
+
+# Gemini
+_SKEY_GEMINI_API_KEY = "gemini/api_key"
+_SKEY_GEMINI_MODEL = "gemini/default_model"
+_SKEY_GEMINI_TIMEOUT = "gemini/timeout"
+
+# DeepSeek
+_SKEY_DEEPSEEK_API_KEY = "deepseek/api_key"
+_SKEY_DEEPSEEK_BASE_URL = "deepseek/base_url"
+_SKEY_DEEPSEEK_MODEL = "deepseek/default_model"
+_SKEY_DEEPSEEK_TIMEOUT = "deepseek/timeout"
 
 # ── UI state ──────────────────────────────────────────────────────────────────
 _SKEY_RECENT = "recent_projects"

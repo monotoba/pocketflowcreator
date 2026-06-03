@@ -19,18 +19,39 @@ if TYPE_CHECKING:
 from pocketflow_creator.app.settings_keys import (
     _APP,
     _ORG,
+    _SKEY_ANTHROPIC_API_KEY,
+    _SKEY_ANTHROPIC_MODEL,
+    _SKEY_ANTHROPIC_TIMEOUT,
+    _SKEY_DEEPSEEK_API_KEY,
+    _SKEY_DEEPSEEK_BASE_URL,
+    _SKEY_DEEPSEEK_MODEL,
+    _SKEY_DEEPSEEK_TIMEOUT,
+    _SKEY_GEMINI_API_KEY,
+    _SKEY_GEMINI_MODEL,
+    _SKEY_GEMINI_TIMEOUT,
     _SKEY_MOCK_RESPONSE,
     _SKEY_OLLAMA_MODEL,
     _SKEY_OLLAMA_TIMEOUT,
     _SKEY_OLLAMA_URL,
+    _SKEY_OPENAI_API_KEY,
+    _SKEY_OPENAI_BASE_URL,
+    _SKEY_OPENAI_MODEL,
+    _SKEY_OPENAI_TIMEOUT,
     _SKEY_PROVIDER,
 )
 from pocketflow_creator.model.graph_model import GraphModel
-from pocketflow_creator.runtime.providers import MockProvider, OllamaProvider
+from pocketflow_creator.runtime.providers import (
+    AnthropicProvider,
+    DeepSeekProvider,
+    GeminiProvider,
+    MockProvider,
+    OllamaProvider,
+    OpenAIProvider,
+)
 from pocketflow_creator.runtime.runner import FlowRunner, RunStep, StepController
 
 
-def build_provider() -> MockProvider | OllamaProvider:
+def build_provider() -> MockProvider | OllamaProvider | OpenAIProvider | AnthropicProvider | GeminiProvider | DeepSeekProvider:
     """Construct the active LLM provider from QSettings."""
     try:
         from PySide6.QtCore import QSettings
@@ -43,6 +64,32 @@ def build_provider() -> MockProvider | OllamaProvider:
             base_url=str(settings.value(_SKEY_OLLAMA_URL, "http://localhost:11434")),
             default_model=str(settings.value(_SKEY_OLLAMA_MODEL, "qwen2.5-coder:14b")),
             timeout=int(settings.value(_SKEY_OLLAMA_TIMEOUT, 120)),  # type: ignore[arg-type]
+        )
+    if prov_type == "openai":
+        return OpenAIProvider(
+            api_key=str(settings.value(_SKEY_OPENAI_API_KEY, "")),
+            base_url=str(settings.value(_SKEY_OPENAI_BASE_URL, "https://api.openai.com/v1")),
+            default_model=str(settings.value(_SKEY_OPENAI_MODEL, "gpt-4o-mini")),
+            timeout=int(settings.value(_SKEY_OPENAI_TIMEOUT, 120)),  # type: ignore[arg-type]
+        )
+    if prov_type == "anthropic":
+        return AnthropicProvider(
+            api_key=str(settings.value(_SKEY_ANTHROPIC_API_KEY, "")),
+            default_model=str(settings.value(_SKEY_ANTHROPIC_MODEL, "claude-haiku-4-5")),
+            timeout=int(settings.value(_SKEY_ANTHROPIC_TIMEOUT, 120)),  # type: ignore[arg-type]
+        )
+    if prov_type == "gemini":
+        return GeminiProvider(
+            api_key=str(settings.value(_SKEY_GEMINI_API_KEY, "")),
+            default_model=str(settings.value(_SKEY_GEMINI_MODEL, "gemini-2.0-flash")),
+            timeout=int(settings.value(_SKEY_GEMINI_TIMEOUT, 120)),  # type: ignore[arg-type]
+        )
+    if prov_type == "deepseek":
+        return DeepSeekProvider(
+            api_key=str(settings.value(_SKEY_DEEPSEEK_API_KEY, "")),
+            base_url=str(settings.value(_SKEY_DEEPSEEK_BASE_URL, "https://api.deepseek.com/v1")),
+            default_model=str(settings.value(_SKEY_DEEPSEEK_MODEL, "deepseek-chat")),
+            timeout=int(settings.value(_SKEY_DEEPSEEK_TIMEOUT, 120)),  # type: ignore[arg-type]
         )
     return MockProvider(response=str(settings.value(_SKEY_MOCK_RESPONSE, "mock response")))
 

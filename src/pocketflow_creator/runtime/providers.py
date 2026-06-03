@@ -43,3 +43,169 @@ class OllamaProvider:
             raise RuntimeError(f"Ollama request failed: {exc}") from exc
         except json.JSONDecodeError as exc:
             raise RuntimeError(f"Ollama returned invalid JSON: {exc}") from exc
+
+
+@dataclass(slots=True)
+class OpenAIProvider:
+    """OpenAI chat completions — also works with any OpenAI-compatible endpoint."""
+
+    api_key: str
+    base_url: str = "https://api.openai.com/v1"
+    default_model: str = "gpt-4o-mini"
+    timeout: int = 120
+
+    def complete(self, prompt: str, *, model: str | None = None) -> str:
+        url = f"{self.base_url.rstrip('/')}/chat/completions"
+        payload = json.dumps(
+            {
+                "model": model or self.default_model,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+        ).encode()
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                body = json.loads(resp.read())
+                return str(body["choices"][0]["message"]["content"])
+        except urllib.error.HTTPError as exc:
+            try:
+                detail = json.loads(exc.read()).get("error", {}).get("message", str(exc))
+            except Exception:
+                detail = str(exc)
+            raise RuntimeError(f"OpenAI request failed: {detail}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"OpenAI request failed: {exc}") from exc
+        except (json.JSONDecodeError, KeyError, IndexError) as exc:
+            raise RuntimeError(f"OpenAI returned unexpected response: {exc}") from exc
+
+
+@dataclass(slots=True)
+class AnthropicProvider:
+    """Anthropic Messages API."""
+
+    api_key: str
+    default_model: str = "claude-haiku-4-5"
+    timeout: int = 120
+
+    def complete(self, prompt: str, *, model: str | None = None) -> str:
+        url = "https://api.anthropic.com/v1/messages"
+        payload = json.dumps(
+            {
+                "model": model or self.default_model,
+                "max_tokens": 4096,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+        ).encode()
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": self.api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                body = json.loads(resp.read())
+                return str(body["content"][0]["text"])
+        except urllib.error.HTTPError as exc:
+            try:
+                detail = json.loads(exc.read()).get("error", {}).get("message", str(exc))
+            except Exception:
+                detail = str(exc)
+            raise RuntimeError(f"Anthropic request failed: {detail}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"Anthropic request failed: {exc}") from exc
+        except (json.JSONDecodeError, KeyError, IndexError) as exc:
+            raise RuntimeError(f"Anthropic returned unexpected response: {exc}") from exc
+
+
+@dataclass(slots=True)
+class GeminiProvider:
+    """Google Gemini generateContent API."""
+
+    api_key: str
+    default_model: str = "gemini-2.0-flash"
+    timeout: int = 120
+
+    def complete(self, prompt: str, *, model: str | None = None) -> str:
+        mdl = model or self.default_model
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/{mdl}"
+            f":generateContent?key={self.api_key}"
+        )
+        payload = json.dumps(
+            {"contents": [{"parts": [{"text": prompt}]}]}
+        ).encode()
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                body = json.loads(resp.read())
+                return str(body["candidates"][0]["content"]["parts"][0]["text"])
+        except urllib.error.HTTPError as exc:
+            try:
+                detail = json.loads(exc.read()).get("error", {}).get("message", str(exc))
+            except Exception:
+                detail = str(exc)
+            raise RuntimeError(f"Gemini request failed: {detail}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"Gemini request failed: {exc}") from exc
+        except (json.JSONDecodeError, KeyError, IndexError) as exc:
+            raise RuntimeError(f"Gemini returned unexpected response: {exc}") from exc
+
+
+@dataclass(slots=True)
+class DeepSeekProvider:
+    """DeepSeek API (OpenAI-compatible)."""
+
+    api_key: str
+    base_url: str = "https://api.deepseek.com/v1"
+    default_model: str = "deepseek-chat"
+    timeout: int = 120
+
+    def complete(self, prompt: str, *, model: str | None = None) -> str:
+        url = f"{self.base_url.rstrip('/')}/chat/completions"
+        payload = json.dumps(
+            {
+                "model": model or self.default_model,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+        ).encode()
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                body = json.loads(resp.read())
+                return str(body["choices"][0]["message"]["content"])
+        except urllib.error.HTTPError as exc:
+            try:
+                detail = json.loads(exc.read()).get("error", {}).get("message", str(exc))
+            except Exception:
+                detail = str(exc)
+            raise RuntimeError(f"DeepSeek request failed: {detail}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"DeepSeek request failed: {exc}") from exc
+        except (json.JSONDecodeError, KeyError, IndexError) as exc:
+            raise RuntimeError(f"DeepSeek returned unexpected response: {exc}") from exc
