@@ -74,6 +74,24 @@ else:
         )
     except ImportError:  # pragma: no cover
         QDialog = object  # type: ignore[assignment,misc]
+        QWidget = object  # type: ignore[assignment,misc]
+        QSettings = object  # type: ignore[assignment,misc]
+        QButtonGroup = object  # type: ignore[assignment,misc]
+        QCheckBox = object  # type: ignore[assignment,misc]
+        QComboBox = object  # type: ignore[assignment,misc]
+        QDialogButtonBox = object  # type: ignore[assignment,misc]
+        QFormLayout = object  # type: ignore[assignment,misc]
+        QGroupBox = object  # type: ignore[assignment,misc]
+        QHBoxLayout = object  # type: ignore[assignment,misc]
+        QLabel = object  # type: ignore[assignment,misc]
+        QLineEdit = object  # type: ignore[assignment,misc]
+        QListWidget = object  # type: ignore[assignment,misc]
+        QListWidgetItem = object  # type: ignore[assignment,misc]
+        QMainWindow = object  # type: ignore[assignment,misc]
+        QPushButton = object  # type: ignore[assignment,misc]
+        QRadioButton = object  # type: ignore[assignment,misc]
+        QSpinBox = object  # type: ignore[assignment,misc]
+        QVBoxLayout = object  # type: ignore[assignment,misc]
 
 
 # ── small helpers ─────────────────────────────────────────────────────────────
