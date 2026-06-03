@@ -15,7 +15,7 @@ all from one IDE-like GUI built on PySide6.
 
 ## Status — v0.2.0 (fully functional)
 
-Milestones M0–M15 complete. 106 tests, all passing.
+Milestones M0–M15 complete. 132 tests, all passing.
 
 ![PocketFlow Creator — sentiment triage flow after a complete run, Object Inspector open on a Classifier node](src/pocketflow_creator/help/img/flow_run_complete.png)
 
@@ -157,11 +157,18 @@ pocketflow-creator          # or: python -m pocketflow_creator
 ## Running Tests
 
 ```bash
-python -m pytest            # all 106 tests
+python -m pytest            # all 132 tests
 ./scripts/test.sh           # same, via script
 ```
 
 Tests run headless (no display required) using `QT_QPA_PLATFORM=offscreen`.
+
+GitHub Actions tests run on Ubuntu across Python 3.10–3.13. To test locally on macOS or Windows:
+```bash
+python -m pytest -v         # run full test suite
+source .venv/bin/activate   # activate venv (Windows: .venv\Scripts\activate)
+pocketflow-creator          # launch app
+```
 
 ---
 
