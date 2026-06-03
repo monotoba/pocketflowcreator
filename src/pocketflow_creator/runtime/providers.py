@@ -242,7 +242,14 @@ def build_provider_from_profile(
             default_model=profile.model,
             timeout=profile.timeout,
         )
-    # Default: openai_compat covers OpenAI, DeepSeek, LM Studio, etc.
+    if profile.type == "lm_studio":
+        return OpenAIProvider(
+            api_key=key,
+            base_url=profile.base_url or "http://localhost:1234/v1",
+            default_model=profile.model,
+            timeout=profile.timeout,
+        )
+    # Default: openai_compat covers OpenAI, DeepSeek, Azure, Groq, etc.
     return OpenAIProvider(
         api_key=key,
         base_url=profile.base_url or "https://api.openai.com/v1",

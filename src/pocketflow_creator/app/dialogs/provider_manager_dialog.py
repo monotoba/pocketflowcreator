@@ -9,6 +9,7 @@ import urllib.request
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from pocketflow_creator.app.provider_health import check_lm_studio, check_ollama
 from pocketflow_creator.app.settings_keys import (
     _APP,
     _ORG,
@@ -161,10 +162,18 @@ class _ProfileEditPanel(QWidget):
         self._name_field.setPlaceholderText("e.g. My OpenAI Account")
         self._form.addRow("Name:", self._name_field)
 
-        # Type
+        # Type (with health checks for local providers)
         self._type_combo: QComboBox = QComboBox()
+        ollama_available = check_ollama()
+        lm_studio_available = check_lm_studio()
         for t in PROVIDER_TYPES:
-            self._type_combo.addItem(PROVIDER_TYPE_LABELS[t], t)
+            label = PROVIDER_TYPE_LABELS[t]
+            # Show offline status for local providers
+            if t == "ollama" and not ollama_available:
+                label += " (offline)"
+            elif t == "lm_studio" and not lm_studio_available:
+                label += " (offline)"
+            self._type_combo.addItem(label, t)
         self._form.addRow("API type:", self._type_combo)
 
         # Base URL (openai_compat only)
