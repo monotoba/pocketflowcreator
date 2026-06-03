@@ -73,7 +73,7 @@ def generate_dataflow_report(
         while q:
             nid = q.popleft()
             bfs_order.append(nid)
-            for action, to_id in sorted(out_edges.get(nid, []), key=lambda x: x[0]):
+            for _action, to_id in sorted(out_edges.get(nid, []), key=lambda x: x[0]):
                 if to_id not in reachable and to_id in node_index:
                     reachable.add(to_id)
                     q.append(to_id)

@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 try:
-    from PySide6.QtCore import Qt
     from PySide6.QtWidgets import (
         QComboBox,
         QDialog,
