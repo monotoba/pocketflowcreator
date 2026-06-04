@@ -7,6 +7,37 @@ Entries are ordered newest-first within each version.
 
 ## [Unreleased]
 
+### Added — comprehensive standalone script generation (2026-06-03)
+
+**Standalone Python script generation for all graphs**
+- Export graphs as fully self-contained, zero-dependency Python scripts
+- Embedded provider implementations (Ollama, OpenAI, Anthropic, Gemini, DeepSeek)
+- Complete node dispatch logic with type-based execution for 76 implemented nodes
+- Environmental variable support for API keys, webhooks, and credentials
+- Single `.py` file can execute entire flow independently without framework
+- Automatic dependency detection and helpful error messages at runtime
+
+**7 new Hardware I/O node types added to palette**
+- USB Serial Input/Output: Serial port communication
+- Audio Input/Output: Microphone recording and speaker playback
+- Video Input/Output: Webcam/camera recording and video playback
+- Webcam: Direct webcam capture and streaming
+- All nodes have custom icons and full property definitions
+- New "Hardware I/O" category in palette ordering
+
+**Implementation of 76 node types in standalone generator**
+- Completed node type coverage across 10 categories
+- Phase 1: 14 core data processing nodes
+- Phase 2: 9 LLM/Reasoning nodes (subflow, RAG, chain-of-thought, debate, etc.)
+- Phase 3: 6 External API nodes (web search/scrape, webhooks, PDF, spreadsheet)
+- Phase 4: 7 Memory/State nodes (secrets, registries, stacks, queues, local memory)
+- Phase 5: 3 Database nodes (schema, NL-to-SQL, SQL execute)
+- Phase 6: 8 Data/File I/O nodes (text chunking, regex, templates, code gen, serial)
+- Phase 7: 10 Vector/ML/Audio/Vision nodes (embeddings, vectors, email, retry, rate limiting)
+- Phase 8: 19 Hardware/Communication/System nodes (USB, audio, video, webcam, socket, shell)
+
+---
+
 ### Added — multi-file node packages and add-on node system (2026-05-28)
 
 **Multi-file node packages**

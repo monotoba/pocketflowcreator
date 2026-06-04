@@ -1,22 +1,44 @@
 # PocketFlow Creator — Node Type Catalog
 
-Candidate node types discovered from the PocketFlow official cookbook
-(https://github.com/The-Pocket/PocketFlow/tree/main/cookbook) and related
-community projects.  Mark each entry with one of:
+**STATUS (2026-06-03):** 🎉 **76 node types implemented with full standalone script generation support!**
 
-- `[ ]` — not reviewed yet  
-- `[x]` — **include**: add to Creator palette and toolbar  
+This file tracks candidate node types from the PocketFlow official cookbook
+(https://github.com/The-Pocket/PocketFlow/tree/main/cookbook) and related
+community projects. 
+
+Status markers:
+- `[X]` — **IMPLEMENTED**: in palette, toolbar, and standalone generator
 - `[~]` — **maybe**: discuss further  
 - `[-]` — **skip**: not needed  
+- `[ ]` — not reviewed yet  
+
+---
+
+## Implementation Summary
+
+**Total Node Types:** 76 implemented ✅
+
+| Category | Count | Status |
+|----------|-------|--------|
+| Core Data Processing | 14 | ✅ Complete |
+| LLM / Reasoning | 9 | ✅ Complete |
+| External APIs | 6 | ✅ Complete |
+| Memory / State | 7 | ✅ Complete |
+| Database / SQL | 3 | ✅ Complete |
+| Data / File I/O | 8 | ✅ Complete |
+| Vector / ML / Audio / Vision | 10 | ✅ Complete |
+| Hardware I/O | 7 | ✅ Complete (NEW) |
+| Communication / Networking | 7 | ✅ Complete |
+| System / Execution | 5 | ✅ Complete |
+| **TOTAL** | **76** | **✅ DONE** |
 
 ---
 
 ## How to use this file
 
-1. Work through each section and mark each row.
-2. Hand the file back to Claude — it will implement all `[x]` entries
-   (node type definition, `builtin_node_types.py`, QPainter icon, and
-   help/quick-ref entries).
+1. Reference sections mark which nodes are implemented.
+2. Sections below show the original candidate list and implementation notes.
+3. All `[X]` entries have been implemented and appear in Creator palette.
 
 ---
 

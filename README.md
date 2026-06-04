@@ -15,9 +15,10 @@ all from one IDE-like GUI built on PySide6.
 > **Note:** PocketFlow Creator is not an official PocketFlow project and is not affiliated
 > with, endorsed by, or maintained by the PocketFlow project.
 
-## Status — v0.2.1 (fully functional)
+## Status — v0.3.0 (comprehensive standalone support)
 
-Milestones M0–M15 complete. 177 tests, all passing.
+Milestones M0–M17 complete. 178 tests, all passing.
+**NEW:** 76 node types with full standalone Python script generation. Export graphs as self-contained scripts with embedded providers and zero external dependencies.
 
 ![PocketFlow Creator — sentiment triage flow after a complete run, Object Inspector open on a Classifier node](https://raw.githubusercontent.com/Monotoba/PocketFlowCreator/main/src/pocketflow_creator/help/img/flow_run_complete.png)
 
@@ -28,7 +29,7 @@ Milestones M0–M15 complete. 177 tests, all passing.
 ### Visual Graph Designer
 - Drag nodes from the Component Palette onto the canvas
 - Wire action ports to create directed edges between nodes
-- 83 built-in node types with purpose-drawn icons across 19 categories:
+- **90+ built-in node types** with purpose-drawn icons across 20 categories:
   - **Flow Control:** Start, Stop, Basic, Router, Subflow
   - **LLM / AI:** LLM Prompt, JSON LLM, Classifier, Agent, RAG, Judge
   - **AI / Reasoning:** Chain of Thought, Majority Vote, Supervisor, Debate Advocate, Debate Judge
@@ -36,6 +37,7 @@ Milestones M0–M15 complete. 177 tests, all passing.
   - **Data / Vector:** Text Chunk, Embed, Vector Index, Vector Retrieve
   - **Database / SQL:** DB Schema, NL to SQL, SQL Execute
   - **Voice / Audio:** Speech to Text, Text to Speech
+  - **Hardware I/O:** USB Serial In/Out, Audio Input/Output, Video Input/Output, Webcam
   - **Document / Vision:** PDF Extract, Image Vision, Data Validate
   - **Code / Execution:** Code Gen, Code Exec, Test Gen
   - **Data Processing:** Map, Reduce, Condition, Loop Counter, Transform, Merge
@@ -43,10 +45,11 @@ Milestones M0–M15 complete. 177 tests, all passing.
   - **MCP / Agent Protocol:** MCP Tool, A2A Send, A2A Receive
   - **Observability / Utility:** Log, Timer, Cache, Trace
   - **Data Structures / Memory:** Registry, Stack Push/Pop, Queue Enqueue/Dequeue, Local Memory
+  - **Security:** Secret (env/dotenv/AWS/Vault)
   - **Human-in-the-Loop:** Human Review, Human Input
-  - **Batch / Async:** Batch, Async, Async Batch, Async Parallel Batch
+  - **Batch / Async:** Batch, Async, Async Batch, Async Parallel Batch, Shell Command
   - **I/O:** File Reader, File Writer, Python Tool
-  - **System / Shell:** Shell Command (bash/sh/zsh/PowerShell/cmd), TTY Serial, Spreadsheet (CSV/TSV/Excel)
+  - **System / Shell:** TTY Serial, Spreadsheet (CSV/TSV/Excel)
   - **Networking:** Socket (TCP/UDP), WebSocket, Webhook Trigger
   - **AI / LLM Utilities:** Context Compact (5 strategies), Conversation History
   - **Text / Data Processing:** Regex, Template Render, JSON Parse, List Operations, String Operations
@@ -89,9 +92,15 @@ Error badges appear on canvas nodes. Problems tab lists all issues with error co
 - Prompt Preview tab shows the resolved prompt for any selected LLM node
 
 ### Code Generation and Export
-- Jinja2 template-based generator produces `nodes.py` and `flow.py` per graph
+- **Jinja2 template-based generator** produces `nodes.py` and `flow.py` per graph
+- **Standalone Python script generation** — export graphs as self-contained `.py` files:
+  - Embedded provider implementations (Ollama, OpenAI, Anthropic, Gemini, DeepSeek)
+  - Complete node dispatch logic with type-based execution
+  - Zero external dependencies beyond Python stdlib (optional libs detected at runtime)
+  - Environment variable support for API keys and secrets
+  - One `.py` file runs the entire flow independently
 - **File > Export PocketFlow Project** — writes a full runnable Python package:
-  `generated/`, `custom/` (never overwritten on re-export), `tests/`, `main.py`
+  `generated/`, `custom/` (never overwritten on re-export), `tests/`, `standalone/`, `main.py`
 - **Project > Export Graph Image** — PNG or SVG render of the canvas scene
 - **Project > Export Project Report** — Markdown summary of nodes, edges, validation status
 - **Project > Data Flow Report** — per-node reads/writes and shared-store key lifecycle
@@ -190,7 +199,7 @@ For detailed setup instructions for all providers, custom ports, environment var
 ## Running Tests
 
 ```bash
-python -m pytest            # all 177 tests
+python -m pytest            # all 178 tests
 ./scripts/test.sh           # same, via script
 ```
 
