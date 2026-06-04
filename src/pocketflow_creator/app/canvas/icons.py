@@ -89,6 +89,14 @@ _PALETTE_ITEMS_EX: list[tuple[str, str, str]] = [
     # ── Voice / Audio ─────────────────────────────────────────────────────────
     ("Speech to Text Node", "speech_to_text_node", "#ad1457"),
     ("Text to Speech Node", "text_to_speech_node", "#c2185b"),
+    # ── Hardware I/O ──────────────────────────────────────────────────────────
+    ("USB Serial Input", "usb_serial_in_node", "#6f42c1"),
+    ("USB Serial Output", "usb_serial_out_node", "#5a32a3"),
+    ("Audio Input", "audio_input_node", "#d4145a"),
+    ("Audio Output", "audio_output_node", "#e91e63"),
+    ("Video Input", "video_input_node", "#880e4f"),
+    ("Video Output", "video_output_node", "#ad1457"),
+    ("Webcam", "webcam_node", "#c2185b"),
     # ── Document / Vision ─────────────────────────────────────────────────────
     ("PDF Extract Node", "pdf_extract_node", "#0e4757"),
     ("Image Vision Node", "image_vision_node", "#0097a7"),
@@ -1038,6 +1046,117 @@ def _ico_text_to_speech(p: QPainter, sz: float, bg: QColor) -> None:
         r = sz * r_mult
         wave_cx = sx + sw + sz * 0.16
         p.drawArc(QRectF(wave_cx - r * 0.3, sz / 2 - r, r * 0.6, r * 2), -90 * 16, 180 * 16)
+
+
+# ── Hardware I/O icon functions ──────────────────────────────────────────────
+
+def _ico_usb_serial_in(p: QPainter, sz: float, bg: QColor) -> None:
+    """USB connector with arrow pointing inward."""
+    w = max(1.0, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(QBrush(QColor("white")))
+    # USB connector
+    p.drawRect(QRectF(sz * 0.28, sz * 0.18, sz * 0.44, sz * 0.32))
+    # Arrow in
+    p.drawLine(QPointF(sz * 0.5, sz * 0.62), QPointF(sz * 0.5, sz * 0.82))
+    p.drawLine(QPointF(sz * 0.5, sz * 0.82), QPointF(sz * 0.38, sz * 0.70))
+    p.drawLine(QPointF(sz * 0.5, sz * 0.82), QPointF(sz * 0.62, sz * 0.70))
+
+
+def _ico_usb_serial_out(p: QPainter, sz: float, bg: QColor) -> None:
+    """USB connector with arrow pointing outward."""
+    w = max(1.0, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(QBrush(QColor("white")))
+    # USB connector
+    p.drawRect(QRectF(sz * 0.28, sz * 0.50, sz * 0.44, sz * 0.32))
+    # Arrow out
+    p.drawLine(QPointF(sz * 0.5, sz * 0.18), QPointF(sz * 0.5, sz * 0.38))
+    p.drawLine(QPointF(sz * 0.5, sz * 0.18), QPointF(sz * 0.38, sz * 0.30))
+    p.drawLine(QPointF(sz * 0.5, sz * 0.18), QPointF(sz * 0.62, sz * 0.30))
+
+
+def _ico_audio_input(p: QPainter, sz: float, bg: QColor) -> None:
+    """Microphone symbol."""
+    w = max(1.0, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(QBrush(QColor("white")))
+    # Mic head
+    p.drawEllipse(QRectF(sz * 0.35, sz * 0.20, sz * 0.30, sz * 0.35))
+    # Mic stand
+    p.drawLine(QPointF(sz * 0.50, sz * 0.55), QPointF(sz * 0.50, sz * 0.75))
+    # Base
+    p.drawLine(QPointF(sz * 0.35, sz * 0.75), QPointF(sz * 0.65, sz * 0.75))
+
+
+def _ico_audio_output(p: QPainter, sz: float, bg: QColor) -> None:
+    """Speaker with sound waves."""
+    w = max(1.0, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(QBrush(QColor("white")))
+    # Speaker cone
+    cone = QPolygonF(
+        [
+            QPointF(sz * 0.25, sz * 0.35),
+            QPointF(sz * 0.50, sz * 0.20),
+            QPointF(sz * 0.50, sz * 0.80),
+            QPointF(sz * 0.25, sz * 0.65),
+        ]
+    )
+    p.drawPolygon(cone)
+    p.drawRect(QRectF(sz * 0.15, sz * 0.40, sz * 0.12, sz * 0.20))
+    # Sound waves
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    for r_mult in [0.15, 0.25]:
+        r = sz * r_mult
+        p.drawArc(QRectF(sz * 0.5 - r, sz * 0.5 - r, r * 2, r * 2), -60 * 16, 120 * 16)
+
+
+def _ico_video_input(p: QPainter, sz: float, bg: QColor) -> None:
+    """Video camera."""
+    w = max(1.0, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(QBrush(QColor("white")))
+    # Camera body
+    p.drawRect(QRectF(sz * 0.28, sz * 0.25, sz * 0.44, sz * 0.50))
+    # Camera lens
+    p.drawEllipse(QRectF(sz * 0.35, sz * 0.32, sz * 0.30, sz * 0.30))
+    # Lens shine
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawArc(QRectF(sz * 0.40, sz * 0.37, sz * 0.20, sz * 0.20), 0, 180 * 16)
+
+
+def _ico_video_output(p: QPainter, sz: float, bg: QColor) -> None:
+    """Screen/monitor."""
+    w = max(1.0, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Screen
+    p.drawRect(QRectF(sz * 0.20, sz * 0.15, sz * 0.60, sz * 0.52))
+    # Stand
+    p.drawRect(QRectF(sz * 0.40, sz * 0.67, sz * 0.20, sz * 0.18))
+    # Base
+    p.drawLine(QPointF(sz * 0.35, sz * 0.85), QPointF(sz * 0.65, sz * 0.85))
+
+
+def _ico_webcam(p: QPainter, sz: float, bg: QColor) -> None:
+    """Webcam symbol."""
+    w = max(1.0, sz * 0.08)
+    pen = QPen(QColor("white"), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(QBrush(QColor("white")))
+    # Camera lens
+    p.drawEllipse(QRectF(sz * 0.30, sz * 0.25, sz * 0.40, sz * 0.40))
+    # Lens center
+    p.drawEllipse(QRectF(sz * 0.40, sz * 0.35, sz * 0.20, sz * 0.20))
+    # Camera body
+    p.drawRect(QRectF(sz * 0.22, sz * 0.60, sz * 0.56, sz * 0.20))
 
 
 # ── Document / Vision icon functions ─────────────────────────────────────────
@@ -2299,6 +2418,14 @@ _ICON_DRAW: dict[str, Callable[..., None]] = {
     # ── Voice / Audio ─────────────────────────────────────────────────────────
     "speech_to_text_node": _ico_speech_to_text,
     "text_to_speech_node": _ico_text_to_speech,
+    # ── Hardware I/O ──────────────────────────────────────────────────────────
+    "usb_serial_in_node": _ico_usb_serial_in,
+    "usb_serial_out_node": _ico_usb_serial_out,
+    "audio_input_node": _ico_audio_input,
+    "audio_output_node": _ico_audio_output,
+    "video_input_node": _ico_video_input,
+    "video_output_node": _ico_video_output,
+    "webcam_node": _ico_webcam,
     # ── Document / Vision ─────────────────────────────────────────────────────
     "pdf_extract_node": _ico_pdf_extract,
     "image_vision_node": _ico_image_vision,

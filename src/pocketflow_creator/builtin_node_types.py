@@ -1383,6 +1383,92 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
                 "required": {"type": "bool", "default": True, "description": "If true, route not_found when secret is missing"},
             },
         ),
+        # ── Hardware I/O ──────────────────────────────────────────────────────
+        NodeTypeDefinition(
+            node_type_id="usb_serial_in_node",
+            display_name="USB Serial Input",
+            category="Hardware I/O",
+            base_class="Node",
+            actions=["default", "timeout"],
+            properties={
+                "port": {"type": "string", "default": "/dev/ttyUSB0", "description": "Serial port path (e.g., /dev/ttyUSB0, COM3)"},
+                "baudrate": {"type": "int", "default": 9600, "description": "Serial baud rate"},
+                "output_key": {"type": "string", "default": "data", "description": "Shared-store key for received data"},
+            },
+        ),
+        NodeTypeDefinition(
+            node_type_id="usb_serial_out_node",
+            display_name="USB Serial Output",
+            category="Hardware I/O",
+            base_class="Node",
+            actions=["default", "error"],
+            properties={
+                "port": {"type": "string", "default": "/dev/ttyUSB0", "description": "Serial port path"},
+                "baudrate": {"type": "int", "default": 9600, "description": "Serial baud rate"},
+                "input_key": {"type": "string", "default": "data", "description": "Shared-store key for data to send"},
+                "output_key": {"type": "string", "default": "status", "description": "Shared-store key for status"},
+            },
+        ),
+        NodeTypeDefinition(
+            node_type_id="audio_input_node",
+            display_name="Audio Input",
+            category="Hardware I/O",
+            base_class="Node",
+            actions=["default", "error"],
+            properties={
+                "duration": {"type": "float", "default": 5.0, "description": "Recording duration in seconds"},
+                "sample_rate": {"type": "int", "default": 16000, "description": "Sample rate in Hz"},
+                "output_file": {"type": "string", "default": "recording.wav", "description": "Output audio file path"},
+                "output_key": {"type": "string", "default": "audio_file", "description": "Shared-store key for output file path"},
+            },
+        ),
+        NodeTypeDefinition(
+            node_type_id="audio_output_node",
+            display_name="Audio Output",
+            category="Hardware I/O",
+            base_class="Node",
+            actions=["default", "error"],
+            properties={
+                "input_key": {"type": "string", "default": "audio_file", "description": "Shared-store key for audio file path"},
+                "output_key": {"type": "string", "default": "status", "description": "Shared-store key for status"},
+            },
+        ),
+        NodeTypeDefinition(
+            node_type_id="video_input_node",
+            display_name="Video Input",
+            category="Hardware I/O",
+            base_class="Node",
+            actions=["default", "error"],
+            properties={
+                "duration": {"type": "float", "default": 5.0, "description": "Recording duration in seconds"},
+                "output_file": {"type": "string", "default": "recording.mp4", "description": "Output video file path"},
+                "output_key": {"type": "string", "default": "video_file", "description": "Shared-store key for output file path"},
+            },
+        ),
+        NodeTypeDefinition(
+            node_type_id="video_output_node",
+            display_name="Video Output",
+            category="Hardware I/O",
+            base_class="Node",
+            actions=["default", "error"],
+            properties={
+                "input_key": {"type": "string", "default": "video_file", "description": "Shared-store key for video file path"},
+                "output_key": {"type": "string", "default": "status", "description": "Shared-store key for status"},
+            },
+        ),
+        NodeTypeDefinition(
+            node_type_id="webcam_node",
+            display_name="Webcam",
+            category="Hardware I/O",
+            base_class="Node",
+            actions=["default", "error"],
+            properties={
+                "operation": {"type": "string", "default": "capture", "description": "Operation: capture (single frame) or stream (multiple frames)"},
+                "frame_count": {"type": "int", "default": 30, "description": "Number of frames to capture in stream mode"},
+                "output_file": {"type": "string", "default": "frame.jpg", "description": "Output file path for captured frame"},
+                "output_key": {"type": "string", "default": "image", "description": "Shared-store key for output"},
+            },
+        ),
     ]
 }
 
@@ -1409,6 +1495,7 @@ CATEGORY_ORDER: list[str] = [
     "Web/Search",
     "Database/SQL",
     "Voice/Audio",
+    "Hardware I/O",
     "Document/Vision",
     "Calendar",
     "MCP/Agent Protocol",
