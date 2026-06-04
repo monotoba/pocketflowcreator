@@ -419,11 +419,13 @@ class DeepSeekProvider:
         return """\
 from __future__ import annotations
 
+import base64
 import copy
 import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -1633,6 +1635,246 @@ def _run_node(node_id, node, shared, outgoing_actions):
                 prompt = "Generate " + test_framework + " test cases for the following code:\\n\\n" + code + "\\n\\nTests:"
                 tests = provider.complete(prompt, model=props.get("model"))
                 shared[output_key] = tests
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "speech_to_text_node":
+            audio_file_key = str(props.get("audio_file_key", "audio_file"))
+            output_key = str(props.get("output_key", "text"))
+            audio_file = str(shared.get(audio_file_key, ""))
+            if not audio_file:
+                raise RuntimeError("speech_to_text_node requires an audio file path")
+            try:
+                from speech_recognition import AudioFile, Recognizer
+                recognizer = Recognizer()
+                with AudioFile(audio_file) as source:
+                    audio = recognizer.record(source)
+                text = recognizer.recognize_google(audio)
+                shared[output_key] = text
+                chosen_action = "success"
+            except ImportError:
+                raise RuntimeError("speech_to_text_node requires SpeechRecognition: pip install SpeechRecognition")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "text_to_speech_node":
+            input_key = str(props.get("input_key", "text"))
+            output_key = str(props.get("output_key", "audio_file"))
+            output_file = str(props.get("output_file", "output.mp3"))
+            text = str(shared.get(input_key, ""))
+            if not text:
+                raise RuntimeError("text_to_speech_node requires text input")
+            try:
+                import pyttsx3
+                engine = pyttsx3.init()
+                engine.save_to_file(text, output_file)
+                engine.runAndWait()
+                shared[output_key] = output_file
+                chosen_action = "success"
+            except ImportError:
+                raise RuntimeError("text_to_speech_node requires pyttsx3: pip install pyttsx3")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "image_vision_node":
+            if not provider:
+                raise RuntimeError("image_vision_node requires a provider")
+            image_path_key = str(props.get("image_path_key", "image_path"))
+            output_key = str(props.get("output_key", "description"))
+            task = str(props.get("task", "describe"))
+            image_path = str(shared.get(image_path_key, ""))
+            if not image_path:
+                raise RuntimeError("image_vision_node requires an image path")
+            try:
+                with open(image_path, "rb") as f:
+                    image_data = f.read()
+                import base64
+                image_b64 = base64.b64encode(image_data).decode()
+                prompt = "Analyze this image and " + task + ". Provide a detailed response."
+                description = provider.complete(prompt, model=props.get("model"))
+                shared[output_key] = description
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "embed_node":
+            if not provider:
+                raise RuntimeError("embed_node requires a provider")
+            input_key = str(props.get("input_key", "text"))
+            output_key = str(props.get("output_key", "embedding"))
+            text = str(shared.get(input_key, ""))
+            if not text:
+                raise RuntimeError("embed_node requires text to embed")
+            try:
+                if hasattr(provider, "embed"):
+                    embedding = provider.embed(text)
+                    shared[output_key] = embedding
+                else:
+                    raise RuntimeError("Provider does not support embeddings")
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "vector_index_node":
+            vectors_key = str(props.get("vectors_key", "vectors"))
+            output_key = str(props.get("output_key", "index"))
+            index_type = str(props.get("index_type", "simple"))
+            vectors = shared.get(vectors_key, [])
+            if not vectors:
+                raise RuntimeError("vector_index_node requires vectors to index")
+            try:
+                index_data = {"type": index_type, "vectors": vectors, "ids": list(range(len(vectors)))}
+                shared[output_key] = index_data
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "vector_retrieve_node":
+            index_key = str(props.get("index_key", "index"))
+            query_key = str(props.get("query_key", "query"))
+            output_key = str(props.get("output_key", "results"))
+            top_k = int(props.get("top_k", 5))
+            index = shared.get(index_key, {})
+            query = shared.get(query_key)
+            if not index or not query:
+                raise RuntimeError("vector_retrieve_node requires both index and query")
+            try:
+                vectors = index.get("vectors", [])
+                if not vectors:
+                    shared[output_key] = []
+                    chosen_action = "not_found"
+                else:
+                    import math
+                    def cosine_similarity(a, b):
+                        if not a or not b:
+                            return 0.0
+                        dot_product = sum(x * y for x, y in zip(a, b))
+                        mag_a = math.sqrt(sum(x * x for x in a))
+                        mag_b = math.sqrt(sum(x * x for x in b))
+                        if mag_a == 0 or mag_b == 0:
+                            return 0.0
+                        return dot_product / (mag_a * mag_b)
+
+                    if isinstance(query, (list, tuple)):
+                        query_vec = query
+                    else:
+                        query_vec = [query]
+
+                    scores = []
+                    for i, vec in enumerate(vectors):
+                        sim = cosine_similarity(query_vec, vec)
+                        scores.append({"id": i, "similarity": sim})
+                    scores.sort(key=lambda x: x["similarity"], reverse=True)
+                    results = scores[:top_k]
+                    shared[output_key] = results
+                    chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "retry_node":
+            input_key = str(props.get("input_key", "input"))
+            output_key = str(props.get("output_key", "result"))
+            max_retries = int(props.get("max_retries", 3))
+            backoff_factor = float(props.get("backoff_factor", 2.0))
+            input_value = shared.get(input_key)
+            try:
+                shared[output_key] = input_value
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "rate_limiter_node":
+            input_key = str(props.get("input_key", "input"))
+            output_key = str(props.get("output_key", "result"))
+            requests_per_second = float(props.get("requests_per_second", 1.0))
+            input_value = shared.get(input_key)
+            rate_limiter_key = "__rate_limiter__"
+            if rate_limiter_key not in shared:
+                shared[rate_limiter_key] = {"last_call": 0, "limit": requests_per_second}
+            try:
+                import time
+                current_time = time.time()
+                last_call = shared[rate_limiter_key]["last_call"]
+                min_interval = 1.0 / requests_per_second
+                if current_time - last_call < min_interval:
+                    time.sleep(min_interval - (current_time - last_call))
+                shared[rate_limiter_key]["last_call"] = time.time()
+                shared[output_key] = input_value
+                chosen_action = "allowed"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "email_send_node":
+            recipient_key = str(props.get("recipient_key", "recipient"))
+            subject_key = str(props.get("subject_key", "subject"))
+            body_key = str(props.get("body_key", "body"))
+            output_key = str(props.get("output_key", "status"))
+            recipient = str(shared.get(recipient_key, ""))
+            subject = str(shared.get(subject_key, ""))
+            body = str(shared.get(body_key, ""))
+            if not recipient or not subject or not body:
+                raise RuntimeError("email_send_node requires recipient, subject, and body")
+            try:
+                import smtplib
+                from email.mime.text import MIMEText
+                from email.mime.multipart import MIMEMultipart
+                sender = os.environ.get("EMAIL_ADDRESS", "")
+                password = os.environ.get("EMAIL_PASSWORD", "")
+                smtp_server = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+                if not sender or not password:
+                    raise RuntimeError("email_send_node requires EMAIL_ADDRESS and EMAIL_PASSWORD environment variables")
+                msg = MIMEMultipart()
+                msg["From"] = sender
+                msg["To"] = recipient
+                msg["Subject"] = subject
+                msg.attach(MIMEText(body, "plain"))
+                server = smtplib.SMTP(smtp_server, 587)
+                server.starttls()
+                server.login(sender, password)
+                server.send_message(msg)
+                server.quit()
+                shared[output_key] = "sent"
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "email_read_node":
+            output_key = str(props.get("output_key", "emails"))
+            folder = str(props.get("folder", "INBOX"))
+            max_emails = int(props.get("max_emails", 10))
+            try:
+                import imaplib
+                from email.parser import Parser
+                email_addr = os.environ.get("EMAIL_ADDRESS", "")
+                password = os.environ.get("EMAIL_PASSWORD", "")
+                imap_server = os.environ.get("IMAP_SERVER", "imap.gmail.com")
+                if not email_addr or not password:
+                    raise RuntimeError("email_read_node requires EMAIL_ADDRESS and EMAIL_PASSWORD environment variables")
+                mail = imaplib.IMAP4_SSL(imap_server)
+                mail.login(email_addr, password)
+                mail.select(folder)
+                status, messages = mail.search(None, "ALL")
+                email_ids = messages[0].split()[-max_emails:]
+                emails = []
+                for email_id in email_ids:
+                    status, msg_data = mail.fetch(email_id, "(RFC822)")
+                    parser = Parser()
+                    email_message = parser.parsestr(msg_data[0][1].decode())
+                    emails.append({"subject": email_message.get("Subject"), "from": email_message.get("From"), "body": email_message.get_payload()})
+                mail.close()
+                mail.logout()
+                shared[output_key] = emails
                 chosen_action = "success"
             except Exception as e:
                 shared[f"{output_key}_error"] = str(e)
