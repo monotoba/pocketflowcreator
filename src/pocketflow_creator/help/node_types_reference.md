@@ -696,21 +696,36 @@
 
 ### Human Review Node
 **Purpose:** Pause flow; user reviews content and decides pass/fail.
-- **Actions:** `approved`, `rejected`
+- **Actions:** `approved` (user enters `y`), `rejected` (user enters `n` or cancels)
 - **Properties:**
   - `input_key`: string — content to review
   - `output_key`: string — review feedback
   - `instructions`: string — review instructions
 - **Shared Store:** Reads content, writes feedback
-- **Note:** Interactive only in Creator UI; standalone scripts pause for stdin
+- **In Creator UI:** Interactive dialog box
+- **In Standalone Scripts:**
+  - Displays content to stdout
+  - Prompts "Approve? [y/n]: " to stdout
+  - Reads response from stdin
+  - Handles EOF/Ctrl+C gracefully (routes to `rejected`)
+  - Works with piped input: `echo "y" | python script.py`
+  - Works in CI/CD: `python script.py < approval.txt`
 
 ### Human Input Node
 **Purpose:** Pause flow; user enters text.
-- **Actions:** `default`
+- **Actions:** `saved` (if input provided), `cancelled` (if empty or EOF)
 - **Properties:**
-  - `prompt`: string — prompt to show user
+  - `prompt`: string — prompt text to show user
   - `output_key`: string — user's input text
-- **Shared Store:** Writes user input
+- **Shared Store:** Writes user input to `output_key`
+- **In Creator UI:** Interactive input dialog
+- **In Standalone Scripts:**
+  - Displays prompt to stdout
+  - Reads input line from stdin
+  - Handles EOF/Ctrl+C gracefully (routes to `cancelled`)
+  - Works with piped input: `echo "Alice" | python script.py`
+  - Works in shell scripts: `python script.py << EOF\nJohn\nEOF`
+  - Non-interactive mode: `python script.py < /dev/null` (no crash, action = `cancelled`)
 
 ---
 
@@ -997,9 +1012,15 @@
 - ✅ Standalone Python script generation
 - ✅ Object Inspector property editor
 - ✅ Node dispatcher with type-based execution
+- ✅ Proper I/O handling in standalone scripts:
+  - **stdin** for interactive nodes (Human Input, Human Review)
+  - **stdout** for prompts and normal output
+  - **stderr** for error messages
+  - Works in pipes, CI/CD, and shell scripts
+  - Graceful EOF handling for non-interactive execution
 
 For tutorials and examples, see:
-- [Standalone Scripts Tutorial](standalone_scripts.md)
+- [Standalone Scripts Tutorial](standalone_scripts.md) — includes I/O and interactive examples
 - [Hardware I/O Tutorial](hardware_io.md)
 - [Your First Flow Tutorial](../tutorials/part1_fundamentals.md)
 

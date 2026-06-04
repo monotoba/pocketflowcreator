@@ -99,6 +99,9 @@ Error badges appear on canvas nodes. Problems tab lists all issues with error co
   - Zero external dependencies beyond Python stdlib (optional libs detected at runtime)
   - Environment variable support for API keys and secrets
   - One `.py` file runs the entire flow independently
+  - **Text I/O for interactive nodes** — stdin/stdout/stderr for Human Input/Review nodes
+  - Works in CI/CD pipelines, shell scripts, and piped environments
+  - Graceful EOF handling for non-interactive execution
 - **File > Export PocketFlow Project** — writes a full runnable Python package:
   `generated/`, `custom/` (never overwritten on re-export), `tests/`, `standalone/`, `main.py`
 - **Project > Export Graph Image** — PNG or SVG render of the canvas scene

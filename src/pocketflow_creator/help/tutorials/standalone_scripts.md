@@ -266,6 +266,60 @@ print(result["result"])  # "Sentiment: 9/10 (very positive)"
 
 ---
 
+## Step 4b: Interactive Nodes (Human Input / Review)
+
+If your flow includes **Human Input Node** or **Human Review Node**, the standalone script uses stdin/stdout/stderr:
+
+### Human Input Node Example
+```bash
+# Prompts on stdout, reads from stdin
+python script.py
+[Human Input Node] Enter your name:
+> Alice
+
+# Piped input
+echo "Alice" | python script.py
+
+# From file
+python script.py < names.txt > results.txt
+```
+
+### Human Review Node Example
+```bash
+# Displays content on stdout, reads approval from stdin
+python script.py
+[Human Review Node] Review this:
+The quick brown fox jumps over the lazy dog
+Approve? [y/n]: y
+
+# Non-interactive (handles EOF gracefully)
+python script.py < /dev/null  # No crash, sets action to 'rejected'
+```
+
+### I/O Redirection in CI/CD
+```bash
+# Jenkins/GitHub Actions/GitLab CI
+python script.py < input.txt > output.json 2> errors.log
+
+# Shell script
+#!/bin/bash
+cat << EOF | python script.py > results.json
+approval_input
+EOF
+
+# With timeout
+timeout 30 python script.py < input.txt
+```
+
+**Key Points:**
+- ✅ **stdin** for user input (Human Input Node, Human Review Node)
+- ✅ **stdout** for prompts and flow output
+- ✅ **stderr** for errors (automatically captured)
+- ✅ **EOF handling** — gracefully sets action to "cancelled" if input EOF reached
+- ✅ **Works in pipelines** — no GUI dialogs, pure text I/O
+
+---
+
 ## Step 5: Error Handling for Missing Dependencies
 
 Some nodes require external libraries. The standalone script checks for them at runtime:
