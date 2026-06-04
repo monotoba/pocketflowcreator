@@ -301,6 +301,36 @@ class DeepSeekProvider:
 ''',
     }
 
+    def collect_dependencies(self, graph: GraphModel) -> dict[str, str]:
+        """Collect all pip-installable dependencies required by this graph.
+
+        Returns dict of {package_name: package_spec} (e.g., {"PyPDF2": "PyPDF2>=3.0"})
+        """
+        dependencies: dict[str, str] = {}
+
+        for node in graph.nodes:
+            node_type = node.type_id
+            if node_type in self._DEPENDENCY_REGISTRY:
+                dep_info = self._DEPENDENCY_REGISTRY[node_type]
+                if "lib" in dep_info:
+                    lib_name = str(dep_info["lib"])
+                    # Map pip package name to common version specs
+                    version_specs = {
+                        "pyserial": "pyserial>=3.5",
+                        "beautifulsoup4": "beautifulsoup4>=4.11",
+                        "websockets": "websockets>=11.0",
+                        "PyPDF2": "PyPDF2>=3.0",
+                        "openpyxl": "openpyxl>=3.10",
+                        "pyttsx3": "pyttsx3>=2.90",
+                        "SpeechRecognition": "SpeechRecognition>=3.10",
+                        "sounddevice": "sounddevice>=0.4.5",
+                        "soundfile": "soundfile>=0.12.1",
+                        "opencv-python": "opencv-python>=4.8.0",
+                    }
+                    dependencies[lib_name] = version_specs.get(lib_name, lib_name)
+
+        return dependencies
+
     def generate(
         self,
         graph: GraphModel,
