@@ -96,7 +96,7 @@ from pocketflow_creator.app.settings_keys import (
 )
 from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES, get_nodes_by_category
 from pocketflow_creator.generation.dataflow_report import generate_dataflow_report
-from pocketflow_creator.generation.exporter import Exporter
+from pocketflow_creator.generation.exporter import Exporter, _flow_stem
 from pocketflow_creator.generation.python_generator import PythonGenerator
 from pocketflow_creator.generation.report import generate_project_report
 from pocketflow_creator.graph_io import GraphLoader, GraphSaver
@@ -1206,15 +1206,35 @@ class MainWindow(QMainWindow):
         if not self._graphs:
             self.statusBar().showMessage("No graphs to generate from.")
             return
-        gen = PythonGenerator()
-        parts: list[str] = []
+
+        output_dir = None
+        if self._project:
+            output_dir = self._project.root / "generated_scripts"
+        else:
+            import tempfile
+            output_dir = Path(tempfile.gettempdir()) / "pocketflow_generated"
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        from pocketflow_creator.generation.standalone_generator import StandaloneGenerator
+        gen = StandaloneGenerator()
+        written_files = []
+
         for rel, graph in self._graphs.items():
-            parts.append(f"# === {rel} ===")
-            parts.append(gen.generate_nodes_py(graph))
-            parts.append(gen.generate_flow_py(graph))
-        self._bottom_editors["Generated Code"].setPlainText("\n".join(parts))
-        self._switch_bottom_tab("Generated Code")
-        self.statusBar().showMessage("Code generated.")
+            stem = _flow_stem(rel)
+            script = gen.generate(
+                graph=graph,
+                project_providers=self._project.providers if self._project else {},
+                project_name=self._project.name if self._project else "Flow",
+                project_root=self._project.root if self._project else None,
+            )
+            script_path = output_dir / f"{stem}.py"
+            script_path.write_text(script, encoding="utf-8")
+            written_files.append(script_path)
+
+        msg = f"Generated {len(written_files)} script(s) to:\n{output_dir}"
+        QMessageBox.information(self, "Code Generated", msg)
+        self.statusBar().showMessage(f"Scripts generated to {output_dir}")
 
     def _on_open_project_folder(self) -> None:
         if self._project is None:
