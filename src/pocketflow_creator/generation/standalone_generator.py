@@ -1880,6 +1880,447 @@ def _run_node(node_id, node, shared, outgoing_actions):
                 shared[f"{output_key}_error"] = str(e)
                 chosen_action = "error"
 
+        elif node_type == "usb_serial_in_node":
+            port = str(props.get("port", "/dev/ttyUSB0"))
+            baudrate = int(props.get("baudrate", 9600))
+            output_key = str(props.get("output_key", "data"))
+            try:
+                import serial
+                ser = serial.Serial(port, baudrate, timeout=5)
+                data = ser.readline().decode().strip()
+                ser.close()
+                shared[output_key] = data
+                chosen_action = "success" if data else "timeout"
+            except ImportError:
+                raise RuntimeError("usb_serial_in_node requires pyserial: pip install pyserial")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "usb_serial_out_node":
+            port = str(props.get("port", "/dev/ttyUSB0"))
+            baudrate = int(props.get("baudrate", 9600))
+            input_key = str(props.get("input_key", "data"))
+            output_key = str(props.get("output_key", "status"))
+            message = str(shared.get(input_key, ""))
+            if not message:
+                raise RuntimeError("usb_serial_out_node requires input data")
+            try:
+                import serial
+                ser = serial.Serial(port, baudrate, timeout=5)
+                ser.write(message.encode())
+                ser.close()
+                shared[output_key] = "sent"
+                chosen_action = "success"
+            except ImportError:
+                raise RuntimeError("usb_serial_out_node requires pyserial: pip install pyserial")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "audio_input_node":
+            output_key = str(props.get("output_key", "audio"))
+            duration = float(props.get("duration", 5.0))
+            sample_rate = int(props.get("sample_rate", 16000))
+            try:
+                import sounddevice
+                import soundfile
+                audio_data = sounddevice.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype="float32")
+                sounddevice.wait()
+                output_file = str(props.get("output_file", "recording.wav"))
+                soundfile.write(output_file, audio_data, sample_rate)
+                shared[output_key] = output_file
+                chosen_action = "success"
+            except ImportError:
+                raise RuntimeError("audio_input_node requires sounddevice and soundfile: pip install sounddevice soundfile")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "audio_output_node":
+            input_key = str(props.get("input_key", "audio_file"))
+            output_key = str(props.get("output_key", "status"))
+            audio_file = str(shared.get(input_key, ""))
+            if not audio_file:
+                raise RuntimeError("audio_output_node requires an audio file path")
+            try:
+                import sounddevice
+                import soundfile
+                data, samplerate = soundfile.read(audio_file)
+                sounddevice.play(data, samplerate)
+                sounddevice.wait()
+                shared[output_key] = "played"
+                chosen_action = "success"
+            except ImportError:
+                raise RuntimeError("audio_output_node requires sounddevice and soundfile: pip install sounddevice soundfile")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "video_input_node":
+            output_key = str(props.get("output_key", "video_file"))
+            duration = float(props.get("duration", 5.0))
+            output_file = str(props.get("output_file", "recording.mp4"))
+            try:
+                import cv2
+                cap = cv2.VideoCapture(0)
+                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                out = cv2.VideoWriter(output_file, fourcc, fps, (width, height))
+                frame_count = 0
+                max_frames = int(duration * fps)
+                while frame_count < max_frames:
+                    ret, frame = cap.read()
+                    if ret:
+                        out.write(frame)
+                        frame_count += 1
+                    else:
+                        break
+                cap.release()
+                out.release()
+                shared[output_key] = output_file
+                chosen_action = "success"
+            except ImportError:
+                raise RuntimeError("video_input_node requires opencv: pip install opencv-python")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "video_output_node":
+            input_key = str(props.get("input_key", "video_file"))
+            output_key = str(props.get("output_key", "status"))
+            video_file = str(shared.get(input_key, ""))
+            if not video_file:
+                raise RuntimeError("video_output_node requires a video file path")
+            try:
+                import cv2
+                cap = cv2.VideoCapture(video_file)
+                while cap.isOpened():
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    cv2.imshow("Video", frame)
+                    if cv2.waitKey(1) & 0xFF == ord("q"):
+                        break
+                cap.release()
+                cv2.destroyAllWindows()
+                shared[output_key] = "played"
+                chosen_action = "success"
+            except ImportError:
+                raise RuntimeError("video_output_node requires opencv: pip install opencv-python")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "webcam_node":
+            output_key = str(props.get("output_key", "image"))
+            operation = str(props.get("operation", "capture"))
+            try:
+                import cv2
+                cap = cv2.VideoCapture(0)
+                if operation == "capture":
+                    ret, frame = cap.read()
+                    if ret:
+                        output_file = str(props.get("output_file", "frame.jpg"))
+                        cv2.imwrite(output_file, frame)
+                        shared[output_key] = output_file
+                        chosen_action = "success"
+                    else:
+                        raise RuntimeError("Failed to capture frame from webcam")
+                elif operation == "stream":
+                    frame_count = 0
+                    max_frames = int(props.get("frame_count", 30))
+                    frames = []
+                    while frame_count < max_frames:
+                        ret, frame = cap.read()
+                        if ret:
+                            frames.append(frame)
+                            frame_count += 1
+                        else:
+                            break
+                    shared[output_key] = frames
+                    chosen_action = "success"
+                else:
+                    chosen_action = "unknown_operation"
+                cap.release()
+            except ImportError:
+                raise RuntimeError("webcam_node requires opencv: pip install opencv-python")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "socket_node":
+            operation = str(props.get("operation", "connect"))
+            host = str(props.get("host", "localhost"))
+            port = int(props.get("port", 5000))
+            output_key = str(props.get("output_key", "result"))
+            try:
+                import socket as sock_module
+                if operation == "connect":
+                    input_key = str(props.get("input_key", "message"))
+                    message = str(shared.get(input_key, ""))
+                    s = sock_module.socket(sock_module.AF_INET, sock_module.SOCK_STREAM)
+                    s.connect((host, port))
+                    s.sendall(message.encode())
+                    data = s.recv(4096).decode()
+                    s.close()
+                    shared[output_key] = data
+                    chosen_action = "success"
+                elif operation == "listen":
+                    s = sock_module.socket(sock_module.AF_INET, sock_module.SOCK_STREAM)
+                    s.setsockopt(sock_module.SOL_SOCKET, sock_module.SO_REUSEADDR, 1)
+                    s.bind((host, port))
+                    s.listen(1)
+                    conn, addr = s.accept()
+                    data = conn.recv(4096).decode()
+                    conn.close()
+                    s.close()
+                    shared[output_key] = data
+                    chosen_action = "received"
+                else:
+                    chosen_action = "unknown_operation"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "websocket_node":
+            operation = str(props.get("operation", "connect"))
+            url = str(props.get("url", "ws://localhost:8000"))
+            output_key = str(props.get("output_key", "result"))
+            try:
+                import websockets
+                if operation == "send":
+                    input_key = str(props.get("input_key", "message"))
+                    message = str(shared.get(input_key, ""))
+                    import asyncio
+                    async def send_msg():
+                        async with websockets.connect(url) as ws:
+                            await ws.send(message)
+                            response = await ws.recv()
+                            return response
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    response = loop.run_until_complete(send_msg())
+                    loop.close()
+                    shared[output_key] = response
+                    chosen_action = "success"
+                else:
+                    chosen_action = "unknown_operation"
+            except ImportError:
+                raise RuntimeError("websocket_node requires websockets: pip install websockets")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "a2a_send_node":
+            recipient_key = str(props.get("recipient_key", "recipient"))
+            message_key = str(props.get("message_key", "message"))
+            output_key = str(props.get("output_key", "status"))
+            recipient = str(shared.get(recipient_key, ""))
+            message = str(shared.get(message_key, ""))
+            if not recipient or not message:
+                raise RuntimeError("a2a_send_node requires recipient and message")
+            try:
+                a2a_key = "__a2a_messages__"
+                if a2a_key not in shared:
+                    shared[a2a_key] = {}
+                if recipient not in shared[a2a_key]:
+                    shared[a2a_key][recipient] = []
+                shared[a2a_key][recipient].append(message)
+                shared[output_key] = "sent"
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "a2a_receive_node":
+            sender_key = str(props.get("sender_key", "sender"))
+            output_key = str(props.get("output_key", "message"))
+            sender = str(shared.get(sender_key, ""))
+            if not sender:
+                raise RuntimeError("a2a_receive_node requires a sender identifier")
+            try:
+                a2a_key = "__a2a_messages__"
+                if a2a_key not in shared:
+                    shared[a2a_key] = {}
+                if sender in shared[a2a_key] and shared[a2a_key][sender]:
+                    message = shared[a2a_key][sender].pop(0)
+                    shared[output_key] = message
+                    chosen_action = "received"
+                else:
+                    shared[f"{output_key}_error"] = "No messages from " + sender
+                    chosen_action = "empty"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "calendar_read_node":
+            output_key = str(props.get("output_key", "events"))
+            calendar_id = os.environ.get("GOOGLE_CALENDAR_ID", "")
+            if not calendar_id:
+                raise RuntimeError("calendar_read_node requires GOOGLE_CALENDAR_ID environment variable")
+            try:
+                from google.auth.transport.requests import Request
+                from google.oauth2.credentials import Credentials
+                from google_auth_oauthlib.flow import InstalledAppFlow
+                from googleapiclient.discovery import build
+                SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
+                creds = None
+                if os.path.exists("token.json"):
+                    creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+                if not creds or not creds.valid:
+                    flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+                    creds = flow.run_local_server(port=0)
+                    with open("token.json", "w") as token:
+                        token.write(creds.to_json())
+                service = build("calendar", "v3", credentials=creds)
+                events_result = service.events().list(calendarId=calendar_id, maxResults=10).execute()
+                events = events_result.get("items", [])
+                shared[output_key] = events
+                chosen_action = "success"
+            except ImportError:
+                raise RuntimeError("calendar_read_node requires google-auth-oauthlib and google-api-python-client")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "calendar_write_node":
+            calendar_id = os.environ.get("GOOGLE_CALENDAR_ID", "")
+            event_key = str(props.get("event_key", "event"))
+            output_key = str(props.get("output_key", "event_id"))
+            event = shared.get(event_key, {})
+            if not calendar_id or not event:
+                raise RuntimeError("calendar_write_node requires GOOGLE_CALENDAR_ID and event data")
+            try:
+                from google.auth.transport.requests import Request
+                from google.oauth2.credentials import Credentials
+                from google_auth_oauthlib.flow import InstalledAppFlow
+                from googleapiclient.discovery import build
+                SCOPES = ["https://www.googleapis.com/auth/calendar"]
+                creds = None
+                if os.path.exists("token.json"):
+                    creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+                if not creds or not creds.valid:
+                    flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+                    creds = flow.run_local_server(port=0)
+                    with open("token.json", "w") as token:
+                        token.write(creds.to_json())
+                service = build("calendar", "v3", credentials=creds)
+                result = service.events().insert(calendarId=calendar_id, body=event).execute()
+                shared[output_key] = result.get("id")
+                chosen_action = "success"
+            except ImportError:
+                raise RuntimeError("calendar_write_node requires google-auth-oauthlib and google-api-python-client")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "mcp_tool_node":
+            tool_name = str(props.get("tool_name", ""))
+            input_key = str(props.get("input_key", "input"))
+            output_key = str(props.get("output_key", "result"))
+            server_url = os.environ.get("MCP_SERVER_URL", "http://localhost:3000")
+            if not tool_name:
+                raise RuntimeError("mcp_tool_node requires a tool_name")
+            try:
+                mcp_request = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": tool_name, "arguments": shared.get(input_key, {})}}
+                data = json.dumps(mcp_request).encode()
+                req = urllib.request.Request(server_url + "/mcp", data=data, method="POST", headers={"Content-Type": "application/json"})
+                with urllib.request.urlopen(req) as resp:
+                    result = json.loads(resp.read())
+                shared[output_key] = result.get("result", {})
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "shell_command_node":
+            command = str(props.get("command", ""))
+            output_key = str(props.get("output_key", "output"))
+            shell_type = str(props.get("shell_type", "bash"))
+            if not command:
+                raise RuntimeError("shell_command_node requires a command")
+            try:
+                import subprocess
+                result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=30)
+                shared[output_key] = result.stdout
+                if result.returncode == 0:
+                    chosen_action = "success"
+                else:
+                    shared[f"{output_key}_error"] = result.stderr
+                    chosen_action = "error"
+            except subprocess.TimeoutExpired:
+                shared[f"{output_key}_error"] = "Command timed out"
+                chosen_action = "timeout"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "batch_node":
+            items_key = str(props.get("items_key", "items"))
+            operation_key = str(props.get("operation_key", "operation"))
+            output_key = str(props.get("output_key", "results"))
+            items = shared.get(items_key, [])
+            if not isinstance(items, list):
+                items = [items]
+            try:
+                results = []
+                for item in items:
+                    results.append(item)
+                shared[output_key] = results
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "async_node":
+            operation_key = str(props.get("operation_key", "operation"))
+            input_key = str(props.get("input_key", "input"))
+            output_key = str(props.get("output_key", "result"))
+            input_value = shared.get(input_key)
+            try:
+                shared[output_key] = input_value
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "async_batch_node":
+            items_key = str(props.get("items_key", "items"))
+            operation_key = str(props.get("operation_key", "operation"))
+            output_key = str(props.get("output_key", "results"))
+            items = shared.get(items_key, [])
+            if not isinstance(items, list):
+                items = [items]
+            try:
+                results = []
+                for item in items:
+                    results.append(item)
+                shared[output_key] = results
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "async_parallel_batch_node":
+            items_key = str(props.get("items_key", "items"))
+            operation_key = str(props.get("operation_key", "operation"))
+            output_key = str(props.get("output_key", "results"))
+            items = shared.get(items_key, [])
+            if not isinstance(items, list):
+                items = [items]
+            try:
+                results = []
+                for item in items:
+                    results.append(item)
+                shared[output_key] = results
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
         else:
             # Passthrough for unknown types
             pass
