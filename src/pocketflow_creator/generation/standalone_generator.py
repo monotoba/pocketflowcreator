@@ -1220,6 +1220,158 @@ def _run_node(node_id, node, shared, outgoing_actions):
                 shared[f"{output_key}_error"] = str(e)
                 chosen_action = "error"
 
+        elif node_type == "secret_node":
+            key = str(props.get("key", ""))
+            output_key = str(props.get("output_key", "secret"))
+            source = str(props.get("source", "env"))
+            if not key:
+                raise RuntimeError("secret_node requires a key")
+            try:
+                secret_value = ""
+                if source == "env":
+                    secret_value = os.environ.get(key, "")
+                elif source == "dotenv":
+                    try:
+                        from dotenv import load_dotenv
+                        load_dotenv()
+                        secret_value = os.environ.get(key, "")
+                    except ImportError:
+                        raise RuntimeError("secret_node dotenv source requires python-dotenv: pip install python-dotenv")
+                if secret_value:
+                    shared[output_key] = secret_value
+                    chosen_action = "found"
+                else:
+                    shared[f"{output_key}_error"] = "Secret not found: " + key
+                    chosen_action = "not_found"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "registry_node":
+            operation = str(props.get("operation", "set"))
+            key = str(props.get("key", ""))
+            input_key = str(props.get("input_key", "value"))
+            output_key = str(props.get("output_key", "result"))
+            registry_key = "__registry__"
+            if registry_key not in shared:
+                shared[registry_key] = {}
+            registry = shared[registry_key]
+            try:
+                if operation == "set":
+                    value = shared.get(input_key)
+                    registry[key] = value
+                    shared[output_key] = value
+                    chosen_action = "set"
+                elif operation == "get":
+                    if key in registry:
+                        value = registry[key]
+                        shared[output_key] = value
+                        chosen_action = "found"
+                    else:
+                        shared[f"{output_key}_error"] = "Key not in registry: " + key
+                        chosen_action = "not_found"
+                elif operation == "delete":
+                    if key in registry:
+                        del registry[key]
+                        chosen_action = "deleted"
+                    else:
+                        chosen_action = "not_found"
+                else:
+                    chosen_action = "unknown_operation"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "stack_push_node":
+            stack_name = str(props.get("stack_name", "default_stack"))
+            input_key = str(props.get("input_key", "value"))
+            value = shared.get(input_key)
+            stack_key = "__stack_" + stack_name + "__"
+            if stack_key not in shared:
+                shared[stack_key] = []
+            shared[stack_key].append(value)
+            chosen_action = "pushed"
+
+        elif node_type == "stack_pop_node":
+            stack_name = str(props.get("stack_name", "default_stack"))
+            output_key = str(props.get("output_key", "value"))
+            stack_key = "__stack_" + stack_name + "__"
+            if stack_key not in shared:
+                shared[stack_key] = []
+            stack = shared[stack_key]
+            try:
+                if stack:
+                    value = stack.pop()
+                    shared[output_key] = value
+                    chosen_action = "popped"
+                else:
+                    shared[f"{output_key}_error"] = "Stack is empty: " + stack_name
+                    chosen_action = "empty"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "queue_enqueue_node":
+            queue_name = str(props.get("queue_name", "default_queue"))
+            input_key = str(props.get("input_key", "value"))
+            value = shared.get(input_key)
+            queue_key = "__queue_" + queue_name + "__"
+            if queue_key not in shared:
+                shared[queue_key] = []
+            shared[queue_key].append(value)
+            chosen_action = "enqueued"
+
+        elif node_type == "queue_dequeue_node":
+            queue_name = str(props.get("queue_name", "default_queue"))
+            output_key = str(props.get("output_key", "value"))
+            queue_key = "__queue_" + queue_name + "__"
+            if queue_key not in shared:
+                shared[queue_key] = []
+            queue = shared[queue_key]
+            try:
+                if queue:
+                    value = queue.pop(0)
+                    shared[output_key] = value
+                    chosen_action = "dequeued"
+                else:
+                    shared[f"{output_key}_error"] = "Queue is empty: " + queue_name
+                    chosen_action = "empty"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "local_memory_node":
+            operation = str(props.get("operation", "set"))
+            key = str(props.get("key", ""))
+            input_key = str(props.get("input_key", "value"))
+            output_key = str(props.get("output_key", "result"))
+            memory_key = "__local_memory__"
+            if memory_key not in shared:
+                shared[memory_key] = {}
+            memory = shared[memory_key]
+            try:
+                if operation == "set":
+                    value = shared.get(input_key)
+                    memory[key] = value
+                    shared[output_key] = value
+                    chosen_action = "set"
+                elif operation == "get":
+                    if key in memory:
+                        value = memory[key]
+                        shared[output_key] = value
+                        chosen_action = "found"
+                    else:
+                        shared[f"{output_key}_error"] = "Key not in local memory: " + key
+                        chosen_action = "not_found"
+                elif operation == "clear":
+                    memory.clear()
+                    chosen_action = "cleared"
+                else:
+                    chosen_action = "unknown_operation"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
         else:
             # Passthrough for unknown types
             pass
