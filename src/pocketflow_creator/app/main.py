@@ -243,6 +243,7 @@ class MainWindow(QMainWindow):
         act.setShortcut(QKeySequence("Ctrl+Shift+S"))
         file_menu.addSeparator()
         act = file_menu.addAction(self.tr("Export PocketFlow Project..."), self._on_export_project)
+        file_menu.addAction(self.tr("Export Standalone Archive..."), self._on_export_standalone_archive)
         act.setShortcut(QKeySequence("Ctrl+E"))
         file_menu.addAction(self.tr("Project Settings..."), self._on_project_settings)
         file_menu.addSeparator()
@@ -1265,6 +1266,31 @@ class MainWindow(QMainWindow):
             msg += f"\n{skipped} file(s) skipped (custom/ guard — existing user code preserved)."
         QMessageBox.information(self, "Export PocketFlow Project", msg)
         self.statusBar().showMessage(f"Exported to exports/{self._project.package_name}/")
+
+    def _on_export_standalone_archive(self) -> None:
+        if self._project is None:
+            self.statusBar().showMessage("No project open.")
+            return
+        if not self._graphs:
+            self.statusBar().showMessage("No graphs to export.")
+            return
+
+        try:
+            archive_path = Exporter().export_standalone_archive(self._project, self._graphs)
+        except Exception as exc:
+            QMessageBox.critical(self, "Export Failed", str(exc))
+            self.statusBar().showMessage(f"Export failed: {exc}")
+            return
+
+        QMessageBox.information(
+            self,
+            "Export Standalone Archive",
+            f"Archive created successfully:\n{archive_path}\n\n"
+            "Extract and run:\n"
+            "  ./setup.sh      # Setup environment\n"
+            "  ./run.sh        # Run the scripts",
+        )
+        self.statusBar().showMessage(f"Standalone archive: {archive_path}")
 
     def _on_export_graph_image(self) -> None:
         if not self._graphs:
