@@ -425,6 +425,7 @@ import os
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path"""
 
@@ -1097,6 +1098,127 @@ def _run_node(node_id, node, shared, outgoing_actions):
                 chosen_action = "argument_b"
             else:
                 chosen_action = "tie"
+
+        elif node_type == "web_search_node":
+            query_key = str(props.get("query_key", "query"))
+            output_key = str(props.get("output_key", "results"))
+            api_key = os.environ.get("SEARCH_API_KEY", "")
+            query = str(shared.get(query_key, ""))
+            if not api_key:
+                raise RuntimeError("web_search_node requires SEARCH_API_KEY environment variable")
+            if not query:
+                raise RuntimeError("web_search_node requires a query")
+            try:
+                search_url = "https://api.search.brave.com/res/v1/web/search?q=" + urllib.parse.quote(query) + "&count=10"
+                req = urllib.request.Request(search_url, headers={"Accept": "application/json", "X-Subscription-Token": api_key})
+                with urllib.request.urlopen(req) as resp:
+                    results = json.loads(resp.read())
+                shared[output_key] = results.get("web", [])
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "web_scrape_node":
+            url_key = str(props.get("url_key", "url"))
+            output_key = str(props.get("output_key", "content"))
+            url = str(shared.get(url_key, ""))
+            if not url:
+                raise RuntimeError("web_scrape_node requires a URL")
+            try:
+                from bs4 import BeautifulSoup
+                with urllib.request.urlopen(url) as resp:
+                    html = resp.read().decode("utf-8")
+                soup = BeautifulSoup(html, "html.parser")
+                text = soup.get_text(separator=" ", strip=True)
+                shared[output_key] = text[:5000]
+                chosen_action = "success"
+            except ImportError:
+                raise RuntimeError("web_scrape_node requires beautifulsoup4: pip install beautifulsoup4")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "webhook_trigger_node":
+            payload_key = str(props.get("payload_key", "payload"))
+            output_key = str(props.get("output_key", "data"))
+            webhook_path = str(props.get("webhook_path", "/webhook"))
+            payload = shared.get(payload_key, {})
+            if isinstance(payload, str):
+                try:
+                    payload = json.loads(payload)
+                except json.JSONDecodeError:
+                    payload = {"raw": payload}
+            shared[output_key] = payload
+            chosen_action = "received"
+
+        elif node_type == "notification_node":
+            message_key = str(props.get("message_key", "message"))
+            channel = str(props.get("channel", "slack"))
+            message = str(shared.get(message_key, ""))
+            webhook_url = ""
+            if channel == "slack":
+                webhook_url = os.environ.get("SLACK_WEBHOOK", "")
+            elif channel == "discord":
+                webhook_url = os.environ.get("DISCORD_WEBHOOK", "")
+            elif channel == "teams":
+                webhook_url = os.environ.get("TEAMS_WEBHOOK", "")
+            if not webhook_url:
+                raise RuntimeError("notification_node requires webhook URL for " + channel)
+            try:
+                payload = json.dumps({"text": message}).encode()
+                req = urllib.request.Request(webhook_url, data=payload, method="POST", headers={"Content-Type": "application/json"})
+                with urllib.request.urlopen(req) as resp:
+                    resp.read()
+                chosen_action = "sent"
+            except Exception as e:
+                raise RuntimeError("Failed to send notification: " + str(e))
+
+        elif node_type == "pdf_extract_node":
+            file_path_key = str(props.get("file_path_key", "file_path"))
+            output_key = str(props.get("output_key", "text"))
+            file_path = str(shared.get(file_path_key, ""))
+            if not file_path:
+                raise RuntimeError("pdf_extract_node requires a file path")
+            try:
+                from PyPDF2 import PdfReader
+                reader = PdfReader(file_path)
+                text_parts = []
+                for page in reader.pages:
+                    text_parts.append(page.extract_text())
+                shared[output_key] = " ".join(text_parts)
+                chosen_action = "success"
+            except ImportError:
+                raise RuntimeError("pdf_extract_node requires PyPDF2: pip install PyPDF2")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "spreadsheet_node":
+            file_path_key = str(props.get("file_path_key", "file_path"))
+            operation = str(props.get("operation", "read"))
+            sheet_name = str(props.get("sheet_name", "Sheet1"))
+            output_key = str(props.get("output_key", "data"))
+            file_path = str(shared.get(file_path_key, ""))
+            if not file_path:
+                raise RuntimeError("spreadsheet_node requires a file path")
+            try:
+                from openpyxl import load_workbook
+                wb = load_workbook(file_path)
+                ws = wb[sheet_name]
+                if operation == "read":
+                    rows = []
+                    for row in ws.iter_rows(values_only=True):
+                        rows.append(list(row))
+                    shared[output_key] = rows
+                    chosen_action = "success"
+                else:
+                    raise RuntimeError("spreadsheet_node write operation not supported in standalone mode")
+            except ImportError:
+                raise RuntimeError("spreadsheet_node requires openpyxl: pip install openpyxl")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
 
         else:
             # Passthrough for unknown types
