@@ -67,5 +67,25 @@ def test_exporter_writes_all_expected_files_for_example(tmp_path: Path) -> None:
     for stem in stems:
         assert (base / "generated" / f"{stem}_nodes.py").exists(), f"missing {stem}_nodes.py"
         assert (base / "generated" / f"{stem}_flow.py").exists(), f"missing {stem}_flow.py"
+        assert (base / "standalone" / f"{stem}_standalone.py").exists(), f"missing {stem}_standalone.py"
     assert (base / "main.py").exists()
-    assert len(result.written) >= len(stems) * 2 + 1
+    assert len(result.written) >= len(stems) * 3 + 1  # now includes standalone scripts
+
+
+def test_standalone_scripts_are_valid_python(tmp_path: Path) -> None:
+    project, graphs = _load_example()
+    project = dataclasses.replace(project, root=tmp_path)
+    Exporter().export(project, graphs)
+    stems = {_flow_stem(rel) for rel in graphs}
+    pkg = project.package_name
+    base = tmp_path / "exports" / pkg
+    for stem in stems:
+        script_path = base / "standalone" / f"{stem}_standalone.py"
+        code = script_path.read_text()
+        # Should compile without syntax errors
+        compile(code, str(script_path), "exec")
+        # Should contain key elements
+        assert "def run_flow" in code, f"missing run_flow function in {stem}_standalone.py"
+        assert "_START" in code, f"missing _START in {stem}_standalone.py"
+        assert "_NODES" in code, f"missing _NODES in {stem}_standalone.py"
+        assert "_EDGES" in code, f"missing _EDGES in {stem}_standalone.py"
