@@ -357,13 +357,9 @@ class DeepSeekProvider:
         run_flow = self._render_run_flow()
         main_block = self._render_main_block(graph)
 
-        return "\n\n".join(
-            [header, imports, provider_classes, provider_instances, helpers, graph_data, node_dispatch, run_flow, main_block]
-        )
+        return "\n\n".join([header, imports, provider_classes, provider_instances, helpers, graph_data, node_dispatch, run_flow, main_block])
 
-    def _collect_used_profiles(
-        self, graph: GraphModel, project_providers: ProjectProviders
-    ) -> dict[str, ProviderProfile]:
+    def _collect_used_profiles(self, graph: GraphModel, project_providers: ProjectProviders) -> dict[str, ProviderProfile]:
         """Return {profile_id: ProviderProfile} for all providers referenced in the graph."""
         used_ids = set()
         for node in graph.nodes:
@@ -2438,7 +2434,7 @@ def run_flow(shared=None):
 
     def _render_main_block(self, graph: GraphModel) -> str:
         """Render the __main__ block."""
-        return f'''\
+        return f"""\
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -2450,4 +2446,4 @@ if __name__ == "__main__":
         print(json.dumps(result, indent=2, default=str))
     except Exception as e:
         print(f"\\n✗ Flow failed: {{e}}", file=sys.stderr)
-        sys.exit(1)'''
+        sys.exit(1)"""

@@ -1050,6 +1050,7 @@ def _ico_text_to_speech(p: QPainter, sz: float, bg: QColor) -> None:
 
 # ── Hardware I/O icon functions ──────────────────────────────────────────────
 
+
 def _ico_usb_serial_in(p: QPainter, sz: float, bg: QColor) -> None:
     """USB connector with arrow pointing inward."""
     w = max(1.0, sz * 0.08)

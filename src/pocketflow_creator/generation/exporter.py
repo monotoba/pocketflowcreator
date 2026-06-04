@@ -95,9 +95,7 @@ class Exporter:
 
         return result
 
-    def export_standalone_archive(
-        self, project: ProjectModel, graphs: dict[str, GraphModel], output_dir: Path | None = None
-    ) -> Path:
+    def export_standalone_archive(self, project: ProjectModel, graphs: dict[str, GraphModel], output_dir: Path | None = None) -> Path:
         """Export standalone scripts as a complete archive with requirements, setup, and run scripts.
 
         Args:
@@ -173,9 +171,7 @@ class Exporter:
         setup_bat_path = temp_root / "setup.bat"
         setup_bat_path.write_text(setup_bat, encoding="utf-8")
 
-        run_bat = self._render_run_script_windows(
-            list(standalone_scripts.keys())[0] if len(standalone_scripts) == 1 else None
-        )
+        run_bat = self._render_run_script_windows(list(standalone_scripts.keys())[0] if len(standalone_scripts) == 1 else None)
         run_bat_path = temp_root / "run.bat"
         run_bat_path.write_text(run_bat, encoding="utf-8")
 
@@ -375,9 +371,7 @@ echo Running %SCRIPT%...
 python "scripts\\%SCRIPT%.py" %*
 """
 
-    def _render_standalone_readme(
-        self, project: ProjectModel, stems: list[str], dependencies: dict[str, str]
-    ) -> str:
+    def _render_standalone_readme(self, project: ProjectModel, stems: list[str], dependencies: dict[str, str]) -> str:
         """Render README.md for standalone archive."""
         scripts_section = ""
         if len(stems) == 1:

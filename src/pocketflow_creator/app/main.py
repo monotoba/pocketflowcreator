@@ -1211,6 +1211,7 @@ class MainWindow(QMainWindow):
             output_dir = self._project.root / "generated_scripts"
         else:
             import tempfile
+
             output_dir = Path(tempfile.gettempdir()) / "pocketflow_generated"
 
         output_dir.mkdir(parents=True, exist_ok=True)
