@@ -43,6 +43,9 @@ class ProviderProfile:
     separately in QSettings (keyed by profile id).  When the project's
     ``include_api_keys`` flag is True the key is also written into the
     project file so the project is fully portable.
+
+    When is_global is True, the profile is saved in app settings and available
+    across all projects. When False, it's project-specific only.
     """
 
     id: str  # stable UUID — never displayed
@@ -51,6 +54,7 @@ class ProviderProfile:
     model: str  # default model string
     base_url: str = ""  # used for openai_compat; ignored for others
     timeout: int = 120  # request timeout in seconds
+    is_global: bool = False  # if True, saved in app settings for all projects; if False, project-only
 
     # Not persisted in the project unless include_api_keys is True.
     # Populated at runtime from QSettings or project YAML.
@@ -74,6 +78,7 @@ class ProviderProfile:
             "type": self.type,
             "model": self.model,
             "timeout": self.timeout,
+            "is_global": self.is_global,
         }
         if self.base_url:
             d["base_url"] = self.base_url
@@ -90,6 +95,7 @@ class ProviderProfile:
             model=str(data.get("model", "")),
             base_url=str(data.get("base_url", "")),
             timeout=int(data.get("timeout", 120)),
+            is_global=bool(data.get("is_global", False)),
             api_key=str(data.get("api_key", "")),
         )
 

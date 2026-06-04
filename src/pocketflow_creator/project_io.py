@@ -1,15 +1,58 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from pocketflow_creator.app.settings_keys import (
+    _APP,
+    _ORG,
+    _SKEY_GLOBAL_PROVIDER_PROFILES,
+)
 from pocketflow_creator.model.project import ProjectModel
-from pocketflow_creator.model.provider_profile import ProjectProviders
+from pocketflow_creator.model.provider_profile import ProjectProviders, ProviderProfile
+
+try:
+    from PySide6.QtCore import QSettings
+except ImportError:
+    QSettings = None  # type: ignore[assignment,misc]
 
 PROJECT_SCHEMA_VERSION = "0.2"
 _LEGACY_SCHEMA_VERSION = "0.1"
+
+
+def _load_global_profiles() -> list[ProviderProfile]:
+    """Load all global provider profiles from app settings."""
+    if QSettings is None:
+        return []
+    try:
+        settings = QSettings(_ORG, _APP)
+        data = settings.value(_SKEY_GLOBAL_PROVIDER_PROFILES, "")
+        if not data:
+            return []
+        profiles_data = json.loads(str(data))
+        return [ProviderProfile.from_dict(p) for p in profiles_data if p.get("is_global")]
+    except Exception:
+        return []
+
+
+def _merge_providers(project_providers: ProjectProviders) -> ProjectProviders:
+    """Merge project-specific and global providers. Project-specific takes precedence."""
+    global_profiles = _load_global_profiles()
+
+    # Keep all project-specific profiles
+    all_profiles = list(project_providers.profiles)
+
+    # Add global profiles that aren't already in the project
+    existing_ids = {p.id for p in all_profiles}
+    for gp in global_profiles:
+        if gp.id not in existing_ids:
+            all_profiles.append(gp)
+
+    project_providers.profiles = all_profiles
+    return project_providers
 
 
 class ProjectLoader:
@@ -29,6 +72,10 @@ class ProjectLoader:
         else:
             raw_providers = data.get("providers")
             providers = ProjectProviders.from_dict(raw_providers) if isinstance(raw_providers, dict) else ProjectProviders.default_empty()
+
+        # Merge global profiles (available across projects) with project-specific profiles
+        providers = _merge_providers(providers)
+
         return ProjectModel(
             name=str(data["name"]),
             package_name=str(data["package_name"]),

@@ -47,6 +47,9 @@ def provider_profile_api_key_skey(profile_id: str) -> str:
     return f"provider_profiles/{profile_id}/api_key"
 
 
+_SKEY_GLOBAL_PROVIDER_PROFILES = "provider_profiles/global_profiles"
+
+
 # ── UI state ──────────────────────────────────────────────────────────────────
 _SKEY_RECENT = "recent_projects"
 _SKEY_THEME = "ui/theme"

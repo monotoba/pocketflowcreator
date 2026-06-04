@@ -16,6 +16,7 @@ from pocketflow_creator.app.provider_health import check_lm_studio, check_ollama
 from pocketflow_creator.app.settings_keys import (
     _APP,
     _ORG,
+    _SKEY_GLOBAL_PROVIDER_PROFILES,
     provider_profile_api_key_skey,
 )
 from pocketflow_creator.model.provider_profile import (
@@ -140,6 +141,29 @@ def _save_key(profile_id: str, key: str) -> None:
         pass
 
 
+def _load_global_profiles() -> list[ProviderProfile]:
+    """Load all global provider profiles from app settings."""
+    try:
+        settings = QSettings(_ORG, _APP)
+        data = settings.value(_SKEY_GLOBAL_PROVIDER_PROFILES, "")
+        if not data:
+            return []
+        profiles_data = json.loads(data)
+        return [ProviderProfile.from_dict(p) for p in profiles_data]
+    except Exception:
+        return []
+
+
+def _save_global_profiles(profiles: list[ProviderProfile]) -> None:
+    """Save global provider profiles to app settings."""
+    try:
+        settings = QSettings(_ORG, _APP)
+        profiles_data = [p.to_dict() for p in profiles if p.is_global]
+        settings.setValue(_SKEY_GLOBAL_PROVIDER_PROFILES, json.dumps(profiles_data))
+    except Exception:
+        pass
+
+
 def fetch_ollama_models(base_url: str) -> list[str]:
     try:
         url = f"{base_url.rstrip('/')}/api/tags"
@@ -250,6 +274,11 @@ class _ProfileEditPanel(QWidget):
         self._timeout_spin = _spin(5, 3600, 15, " s", 120)
         self._form.addRow("Timeout:", self._timeout_spin)
 
+        # Save for all projects
+        self._global_chk: QCheckBox = QCheckBox("Save for all projects")
+        self._global_chk.setToolTip("When checked, this provider is saved in app settings and available in all projects.\nWhen unchecked, it's only used in this project.")
+        self._form.addRow("", self._global_chk)
+
         # ── API key source ────────────────────────────────────────────────────
         self._key_grp: QGroupBox = QGroupBox("API Key")
         key_vbox: QVBoxLayout = QVBoxLayout(self._key_grp)
@@ -318,6 +347,7 @@ class _ProfileEditPanel(QWidget):
         self._base_url_field.setText(profile.base_url)
         self._model_field.setText(profile.model)
         self._timeout_spin.setValue(profile.timeout)
+        self._global_chk.setChecked(profile.is_global)
         self._status_label.setText("")
 
         if raw_key.startswith(_ENV_PREFIX):
@@ -346,6 +376,7 @@ class _ProfileEditPanel(QWidget):
         self._profile.base_url = base_url or DEFAULT_BASE_URLS.get(ptype, "")
         self._profile.model = self._model_field.text().strip()
         self._profile.timeout = self._timeout_spin.value()
+        self._profile.is_global = self._global_chk.isChecked()
         if self._rb_env.isChecked():
             var = self._env_field.text().strip()
             self._current_raw_key = f"{_ENV_PREFIX}{var}" if var else ""
@@ -569,5 +600,8 @@ def exec_provider_manager(
             p.api_key = raw
         else:
             p.api_key = ""
+
+    # Save global profiles to app settings
+    _save_global_profiles(working.profiles)
 
     return working
