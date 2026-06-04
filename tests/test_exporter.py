@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import zipfile
 from pathlib import Path
 
 from pocketflow_creator.generation.exporter import Exporter, _flow_stem
@@ -112,3 +113,64 @@ def test_export_result_skipped_reported() -> None:
         assert "main_custom.py" in skipped_names
         assert "test_main.py" in skipped_names
         assert "main.py" in skipped_names
+
+
+def test_export_standalone_archive_creates_zip() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "proj"
+        root.mkdir()
+        project = _project(root)
+        graph = _simple_graph()
+        archive_path = Exporter().export_standalone_archive(project, {"graphs/main.pfcgraph.yaml": graph})
+
+        assert archive_path.exists()
+        assert archive_path.suffix == ".zip"
+        assert archive_path.name == "test_project_standalone.zip"
+
+        with zipfile.ZipFile(archive_path) as zf:
+            names = zf.namelist()
+            assert any("main.py" in n for n in names)
+            assert any("requirements.txt" in n for n in names)
+            assert any("setup.sh" in n for n in names)
+            assert any("run.sh" in n for n in names)
+            assert any("README.md" in n for n in names)
+
+
+def test_export_standalone_archive_contains_scripts() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "proj"
+        root.mkdir()
+        project = _project(root)
+        graph = _simple_graph()
+        archive_path = Exporter().export_standalone_archive(project, {"graphs/main.pfcgraph.yaml": graph})
+
+        with zipfile.ZipFile(archive_path) as zf:
+            setup_sh = next((c for c in zf.namelist() if c.endswith("setup.sh")), None)
+            run_sh = next((c for c in zf.namelist() if c.endswith("run.sh")), None)
+            assert setup_sh is not None
+            assert run_sh is not None
+
+            setup_content = zf.read(setup_sh).decode("utf-8")
+            run_content = zf.read(run_sh).decode("utf-8")
+            assert "python -m venv" in setup_content or ".venv" in setup_content
+            assert "python" in run_content
+
+
+def test_export_standalone_archive_multiple_graphs() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "proj"
+        root.mkdir()
+        project = _project(root)
+        graph1 = _simple_graph()
+        graph2 = _simple_graph()
+        graphs = {
+            "graphs/flow1.pfcgraph.yaml": graph1,
+            "graphs/flow2.pfcgraph.yaml": graph2,
+        }
+        archive_path = Exporter().export_standalone_archive(project, graphs)
+
+        with zipfile.ZipFile(archive_path) as zf:
+            names = zf.namelist()
+            script_names = [n for n in names if n.endswith(".py")]
+            assert len([n for n in script_names if "flow1" in n]) > 0
+            assert len([n for n in script_names if "flow2" in n]) > 0
