@@ -711,18 +711,34 @@ def _run_node(node_id, node, shared, outgoing_actions):
                 chosen_action = "continue"
 
         elif node_type == "human_input_node":
-            print(f"\\n[{node['title']}] (human interaction needed — enter input or press Enter)")
-            user_input = input("> ")
+            prompt = str(props.get("prompt", "Enter input or press Enter to skip"))
             output_key = str(props.get("output_key", "input"))
-            shared[output_key] = user_input
-            chosen_action = "saved" if user_input else "cancelled"
+            sys.stdout.write(f"\\n[{node['title']}] {prompt}\\n> ")
+            sys.stdout.flush()
+            try:
+                user_input = sys.stdin.readline().rstrip("\\n")
+                shared[output_key] = user_input
+                chosen_action = "saved" if user_input else "cancelled"
+            except (EOFError, KeyboardInterrupt):
+                shared[f"{output_key}_error"] = "Input cancelled"
+                chosen_action = "cancelled"
 
         elif node_type == "human_review_node":
-            print(f"\\n[{node['title']}] Review this:")
             input_key = str(props.get("input_key", "content"))
-            print(shared.get(input_key, ""))
-            verdict = input("Approve? [y/n]: ").strip().lower()
-            chosen_action = "approved" if verdict.startswith("y") else "rejected"
+            output_key = str(props.get("output_key", "feedback"))
+            instructions = str(props.get("instructions", "Approve or reject?"))
+            content = shared.get(input_key, "")
+            sys.stdout.write(f"\\n[{node['title']}] {instructions}\\n")
+            sys.stdout.write(f"Content:\\n{content}\\n")
+            sys.stdout.write("Approve? [y/n]: ")
+            sys.stdout.flush()
+            try:
+                verdict = sys.stdin.readline().strip().lower()
+                shared[output_key] = verdict
+                chosen_action = "approved" if verdict.startswith("y") else "rejected"
+            except (EOFError, KeyboardInterrupt):
+                shared[f"{output_key}_error"] = "Review cancelled"
+                chosen_action = "rejected"
 
         elif node_type == "file_reader_node":
             file_path = str(props.get("file_path", ""))
