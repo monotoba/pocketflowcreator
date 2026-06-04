@@ -447,6 +447,13 @@ def exec_provider_manager(
     """
     working = copy.deepcopy(providers) if providers else ProjectProviders()
 
+    # Merge global profiles with project-specific profiles
+    global_profiles = _load_global_profiles()
+    existing_ids = {p.id for p in working.profiles}
+    for gp in global_profiles:
+        if gp.id not in existing_ids:
+            working.profiles.append(gp)
+
     # api_keys tracks the key for each profile id separately from the profile object.
     # Keys come from QSettings, or from the profile if include_api_keys was True.
     api_keys: dict[str, str] = {p.id: (p.api_key or _load_key(p.id)) for p in working.profiles}

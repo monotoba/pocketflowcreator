@@ -38,23 +38,6 @@ def _load_global_profiles() -> list[ProviderProfile]:
         return []
 
 
-def _merge_providers(project_providers: ProjectProviders) -> ProjectProviders:
-    """Merge project-specific and global providers. Project-specific takes precedence."""
-    global_profiles = _load_global_profiles()
-
-    # Keep all project-specific profiles
-    all_profiles = list(project_providers.profiles)
-
-    # Add global profiles that aren't already in the project
-    existing_ids = {p.id for p in all_profiles}
-    for gp in global_profiles:
-        if gp.id not in existing_ids:
-            all_profiles.append(gp)
-
-    project_providers.profiles = all_profiles
-    return project_providers
-
-
 class ProjectLoader:
     def load(self, path: Path) -> ProjectModel:
         with path.open(encoding="utf-8") as f:
@@ -72,9 +55,6 @@ class ProjectLoader:
         else:
             raw_providers = data.get("providers")
             providers = ProjectProviders.from_dict(raw_providers) if isinstance(raw_providers, dict) else ProjectProviders.default_empty()
-
-        # Merge global profiles (available across projects) with project-specific profiles
-        providers = _merge_providers(providers)
 
         return ProjectModel(
             name=str(data["name"]),
