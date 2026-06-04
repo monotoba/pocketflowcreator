@@ -1372,6 +1372,92 @@ def _run_node(node_id, node, shared, outgoing_actions):
                 shared[f"{output_key}_error"] = str(e)
                 chosen_action = "error"
 
+        elif node_type == "db_schema_node":
+            db_type = str(props.get("db_type", "sqlite"))
+            db_path = str(props.get("db_path", ""))
+            output_key = str(props.get("output_key", "schema"))
+            if not db_path:
+                raise RuntimeError("db_schema_node requires a db_path")
+            try:
+                import sqlite3
+                if db_type == "sqlite":
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                    tables = cursor.fetchall()
+                    schema = {}
+                    for table in tables:
+                        table_name = table[0]
+                        cursor.execute("PRAGMA table_info(" + table_name + ");")
+                        columns = cursor.fetchall()
+                        schema[table_name] = [{"name": col[1], "type": col[2]} for col in columns]
+                    conn.close()
+                    shared[output_key] = schema
+                    chosen_action = "success"
+                else:
+                    raise RuntimeError("db_schema_node only supports sqlite in standalone mode")
+            except ImportError:
+                raise RuntimeError("db_schema_node requires sqlite3 (built-in)")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "nl_to_sql_node":
+            if not provider:
+                raise RuntimeError("nl_to_sql_node requires a provider")
+            query_key = str(props.get("query_key", "query"))
+            schema_key = str(props.get("schema_key", "schema"))
+            output_key = str(props.get("output_key", "sql"))
+            query = str(shared.get(query_key, ""))
+            schema = shared.get(schema_key, {})
+            if not query:
+                raise RuntimeError("nl_to_sql_node requires a natural language query")
+            try:
+                schema_str = json.dumps(schema)
+                prompt = "Convert this natural language query to SQL based on the database schema:\\n\\nSchema:\\n" + schema_str + "\\n\\nQuery: " + query + "\\n\\nSQL:"
+                sql = provider.complete(prompt, model=props.get("model"))
+                shared[output_key] = sql
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "sql_execute_node":
+            db_type = str(props.get("db_type", "sqlite"))
+            db_path = str(props.get("db_path", ""))
+            sql_key = str(props.get("sql_key", "sql"))
+            output_key = str(props.get("output_key", "results"))
+            sql = str(shared.get(sql_key, ""))
+            if not db_path:
+                raise RuntimeError("sql_execute_node requires a db_path")
+            if not sql:
+                raise RuntimeError("sql_execute_node requires a sql query")
+            try:
+                import sqlite3
+                if db_type == "sqlite":
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    is_select = sql.strip().upper().startswith("SELECT")
+                    cursor.execute(sql)
+                    if is_select:
+                        columns = [description[0] for description in cursor.description]
+                        rows = cursor.fetchall()
+                        results = [dict(zip(columns, row)) for row in rows]
+                        shared[output_key] = results
+                        chosen_action = "success"
+                    else:
+                        conn.commit()
+                        shared[output_key] = {"affected_rows": cursor.rowcount}
+                        chosen_action = "executed"
+                    conn.close()
+                else:
+                    raise RuntimeError("sql_execute_node only supports sqlite in standalone mode")
+            except ImportError:
+                raise RuntimeError("sql_execute_node requires sqlite3 (built-in)")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
         else:
             # Passthrough for unknown types
             pass
