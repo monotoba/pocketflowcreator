@@ -6,6 +6,7 @@ from pathlib import Path
 from jinja2 import Environment, PackageLoader, StrictUndefined
 
 from pocketflow_creator.generation.python_generator import PythonGenerator
+from pocketflow_creator.generation.standalone_generator import StandaloneGenerator
 from pocketflow_creator.model.graph_model import GraphModel
 from pocketflow_creator.model.project import ProjectModel
 
@@ -34,6 +35,7 @@ class Exporter:
         )
         self._env.filters["repr"] = repr
         self._gen = PythonGenerator()
+        self._standalone_gen = StandaloneGenerator()
 
     def export(self, project: ProjectModel, graphs: dict[str, GraphModel]) -> ExportResult:
         result = ExportResult()
@@ -41,8 +43,9 @@ class Exporter:
         gen_dir = export_root / "generated"
         custom_dir = export_root / "custom"
         tests_dir = export_root / "tests"
+        standalone_dir = export_root / "standalone"
 
-        for d in (export_root, gen_dir, custom_dir, tests_dir):
+        for d in (export_root, gen_dir, custom_dir, tests_dir, standalone_dir):
             d.mkdir(parents=True, exist_ok=True)
 
         stems: list[str] = []
@@ -66,7 +69,20 @@ class Exporter:
                 result,
             )
 
-        for d in (gen_dir, custom_dir, tests_dir):
+            # standalone/ — always overwrite (self-contained script)
+            standalone_script = self._standalone_gen.generate(
+                graph=graph,
+                project_providers=project.providers,
+                project_name=project.name,
+                project_root=project.root,
+            )
+            self._write(
+                standalone_dir / f"{stem}_standalone.py",
+                standalone_script,
+                result,
+            )
+
+        for d in (gen_dir, custom_dir, tests_dir, standalone_dir):
             self._write_if_new(d / "__init__.py", "", result)
 
         self._write_if_new(
