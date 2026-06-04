@@ -528,7 +528,7 @@ from pathlib import Path"""
                 base_url = profile.base_url or "http://localhost:1234/v1"
                 model = profile.model or "meta-llama-3.1-8b"
                 lines.append(f"{var_name} = OpenAIProvider(")
-                lines.append(f"    api_key=os.environ.get('OPENAI_API_KEY', ''),")
+                lines.append("    api_key=os.environ.get('OPENAI_API_KEY', ''),")
                 lines.append(f'    base_url="{base_url}",')
                 lines.append(f'    default_model="{model}",')
                 lines.append(f"    timeout={profile.timeout},")
@@ -537,7 +537,7 @@ from pathlib import Path"""
                 base_url = profile.base_url or "https://api.openai.com/v1"
                 model = profile.model or "gpt-4o-mini"
                 lines.append(f"{var_name} = OpenAIProvider(")
-                lines.append(f"    api_key=os.environ.get('OPENAI_API_KEY', ''),")
+                lines.append("    api_key=os.environ.get('OPENAI_API_KEY', ''),")
                 lines.append(f'    base_url="{base_url}",')
                 lines.append(f'    default_model="{model}",')
                 lines.append(f"    timeout={profile.timeout},")
@@ -545,14 +545,14 @@ from pathlib import Path"""
             elif profile.type == "anthropic":
                 model = profile.model or "claude-haiku-4-5"
                 lines.append(f"{var_name} = AnthropicProvider(")
-                lines.append(f"    api_key=os.environ.get('ANTHROPIC_API_KEY', ''),")
+                lines.append("    api_key=os.environ.get('ANTHROPIC_API_KEY', ''),")
                 lines.append(f'    default_model="{model}",')
                 lines.append(f"    timeout={profile.timeout},")
                 lines.append(")")
             elif profile.type == "gemini":
                 model = profile.model or "gemini-2.0-flash"
                 lines.append(f"{var_name} = GeminiProvider(")
-                lines.append(f"    api_key=os.environ.get('GEMINI_API_KEY', ''),")
+                lines.append("    api_key=os.environ.get('GEMINI_API_KEY', ''),")
                 lines.append(f'    default_model="{model}",')
                 lines.append(f"    timeout={profile.timeout},")
                 lines.append(")")
@@ -560,7 +560,7 @@ from pathlib import Path"""
                 base_url = profile.base_url or "https://api.deepseek.com/v1"
                 model = profile.model or "deepseek-chat"
                 lines.append(f"{var_name} = DeepSeekProvider(")
-                lines.append(f"    api_key=os.environ.get('DEEPSEEK_API_KEY', ''),")
+                lines.append("    api_key=os.environ.get('DEEPSEEK_API_KEY', ''),")
                 lines.append(f'    base_url="{base_url}",')
                 lines.append(f'    default_model="{model}",')
                 lines.append(f"    timeout={profile.timeout},")
@@ -1137,7 +1137,10 @@ def _run_node(node_id, node, shared, outgoing_actions):
             output_key = str(props.get("output_key", "verdict"))
             arg_a = str(shared.get(argument_a_key, ""))
             arg_b = str(shared.get(argument_b_key, ""))
-            judge_prompt = "Compare these arguments and choose the stronger one:\\n\\nArgument A:\\n" + arg_a + "\\n\\nArgument B:\\n" + arg_b + "\\n\\nVerdict:"
+            judge_prompt = (
+                "Compare these arguments and choose the stronger one:\\n\\n"
+                "Argument A:\\n" + arg_a + "\\n\\nArgument B:\\n" + arg_b + "\\n\\nVerdict:"
+            )
             verdict = provider.complete(judge_prompt, model=props.get("model"))
             shared[output_key] = verdict
             if "a" in verdict.lower():
@@ -1462,7 +1465,10 @@ def _run_node(node_id, node, shared, outgoing_actions):
                 raise RuntimeError("nl_to_sql_node requires a natural language query")
             try:
                 schema_str = json.dumps(schema)
-                prompt = "Convert this natural language query to SQL based on the database schema:\\n\\nSchema:\\n" + schema_str + "\\n\\nQuery: " + query + "\\n\\nSQL:"
+                prompt = (
+                    "Convert this natural language query to SQL based on the database schema:"
+                    "\\n\\nSchema:\\n" + schema_str + "\\n\\nQuery: " + query + "\\n\\nSQL:"
+                )
                 sql = provider.complete(prompt, model=props.get("model"))
                 shared[output_key] = sql
                 chosen_action = "success"
@@ -2271,9 +2277,19 @@ def _run_node(node_id, node, shared, outgoing_actions):
             if not tool_name:
                 raise RuntimeError("mcp_tool_node requires a tool_name")
             try:
-                mcp_request = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": tool_name, "arguments": shared.get(input_key, {})}}
+                mcp_request = {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/call",
+                    "params": {"name": tool_name, "arguments": shared.get(input_key, {})},
+                }
                 data = json.dumps(mcp_request).encode()
-                req = urllib.request.Request(server_url + "/mcp", data=data, method="POST", headers={"Content-Type": "application/json"})
+                req = urllib.request.Request(
+                    server_url + "/mcp",
+                    data=data,
+                    method="POST",
+                    headers={"Content-Type": "application/json"},
+                )
                 with urllib.request.urlopen(req) as resp:
                     result = json.loads(resp.read())
                 shared[output_key] = result.get("result", {})

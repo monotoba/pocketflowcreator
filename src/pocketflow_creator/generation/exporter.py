@@ -381,7 +381,7 @@ python "scripts\\%SCRIPT%.py" %*
         """Render README.md for standalone archive."""
         scripts_section = ""
         if len(stems) == 1:
-            scripts_section = f"""
+            scripts_section = """
 ## Running
 
 ```bash

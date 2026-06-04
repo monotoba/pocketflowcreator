@@ -276,7 +276,10 @@ class _ProfileEditPanel(QWidget):
 
         # Save for all projects
         self._global_chk: QCheckBox = QCheckBox("Save for all projects")
-        self._global_chk.setToolTip("When checked, this provider is saved in app settings and available in all projects.\nWhen unchecked, it's only used in this project.")
+        self._global_chk.setToolTip(
+            "When checked, this provider is saved in app settings and available in all projects.\n"
+            "When unchecked, it's only used in this project."
+        )
         self._form.addRow("", self._global_chk)
 
         # ── API key source ────────────────────────────────────────────────────

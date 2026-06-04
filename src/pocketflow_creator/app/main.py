@@ -97,7 +97,6 @@ from pocketflow_creator.app.settings_keys import (
 from pocketflow_creator.builtin_node_types import BUILTIN_NODE_TYPES, get_nodes_by_category
 from pocketflow_creator.generation.dataflow_report import generate_dataflow_report
 from pocketflow_creator.generation.exporter import Exporter, _flow_stem
-from pocketflow_creator.generation.python_generator import PythonGenerator
 from pocketflow_creator.generation.report import generate_project_report
 from pocketflow_creator.graph_io import GraphLoader, GraphSaver
 from pocketflow_creator.model.graph_model import EdgeModel, GraphModel, NodeModel
