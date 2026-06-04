@@ -148,7 +148,7 @@ def _load_global_profiles() -> list[ProviderProfile]:
         data = settings.value(_SKEY_GLOBAL_PROVIDER_PROFILES, "")
         if not data:
             return []
-        profiles_data = json.loads(data)
+        profiles_data = json.loads(str(data))
         return [ProviderProfile.from_dict(p) for p in profiles_data]
     except Exception:
         return []

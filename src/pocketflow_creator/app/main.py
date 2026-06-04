@@ -1216,14 +1216,17 @@ class MainWindow(QMainWindow):
         output_dir.mkdir(parents=True, exist_ok=True)
 
         from pocketflow_creator.generation.standalone_generator import StandaloneGenerator
+        from pocketflow_creator.model.provider_profile import ProjectProviders
+
         gen = StandaloneGenerator()
         written_files = []
 
         for rel, graph in self._graphs.items():
             stem = _flow_stem(rel)
+            providers = self._project.providers if self._project else ProjectProviders()
             script = gen.generate(
                 graph=graph,
-                project_providers=self._project.providers if self._project else {},
+                project_providers=providers,
                 project_name=self._project.name if self._project else "Flow",
                 project_root=self._project.root if self._project else None,
             )
