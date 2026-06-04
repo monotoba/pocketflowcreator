@@ -92,7 +92,8 @@ Error badges appear on canvas nodes. Problems tab lists all issues with error co
 - Prompt Preview tab shows the resolved prompt for any selected LLM node
 
 ### Code Generation and Export
-- **Jinja2 template-based generator** produces `nodes.py` and `flow.py` per graph
+- **Ctrl+G: Generate Code** — creates standalone Python scripts in `generated_scripts/` folder
+  (or temp directory if no project). Ready to run immediately.
 - **Standalone Python script generation** — export graphs as self-contained `.py` files:
   - Embedded provider implementations (Ollama, OpenAI, Anthropic, Gemini, DeepSeek)
   - Complete node dispatch logic with type-based execution
@@ -104,6 +105,13 @@ Error badges appear on canvas nodes. Problems tab lists all issues with error co
   - Graceful EOF handling for non-interactive execution
 - **File > Export PocketFlow Project** — writes a full runnable Python package:
   `generated/`, `custom/` (never overwritten on re-export), `tests/`, `standalone/`, `main.py`
+- **File > Export Standalone Archive** — creates a complete, ready-to-share package:
+  - All generated scripts in `scripts/` directory
+  - `requirements.txt` with pip dependencies and pinned versions
+  - `setup.sh` / `setup.bat` — auto-create `.venv` and install dependencies
+  - `run.sh` / `run.bat` — execute scripts with venv pre-activated
+  - `README.md` — usage guide, I/O redirection, environment variables, troubleshooting
+  - Everything packed in a `.zip` file, no unpacking needed on most systems
 - **Project > Export Graph Image** — PNG or SVG render of the canvas scene
 - **Project > Export Project Report** — Markdown summary of nodes, edges, validation status
 - **Project > Data Flow Report** — per-node reads/writes and shared-store key lifecycle
