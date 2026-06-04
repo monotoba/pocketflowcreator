@@ -1458,6 +1458,186 @@ def _run_node(node_id, node, shared, outgoing_actions):
                 shared[f"{output_key}_error"] = str(e)
                 chosen_action = "error"
 
+        elif node_type == "text_chunk_node":
+            input_key = str(props.get("input_key", "text"))
+            output_key = str(props.get("output_key", "chunks"))
+            chunk_size = int(props.get("chunk_size", 1000))
+            overlap = int(props.get("overlap", 0))
+            text = str(shared.get(input_key, ""))
+            if not text:
+                raise RuntimeError("text_chunk_node requires input text")
+            try:
+                chunks = []
+                i = 0
+                while i < len(text):
+                    chunk = text[i:i + chunk_size]
+                    chunks.append(chunk)
+                    i += chunk_size - overlap
+                shared[output_key] = chunks
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "data_validate_node":
+            input_key = str(props.get("input_key", "data"))
+            output_key = str(props.get("output_key", "valid"))
+            validation_type = str(props.get("validation_type", "type"))
+            expected_type = str(props.get("expected_type", "str"))
+            data = shared.get(input_key)
+            try:
+                is_valid = False
+                if validation_type == "type":
+                    if expected_type == "str":
+                        is_valid = isinstance(data, str)
+                    elif expected_type == "dict":
+                        is_valid = isinstance(data, dict)
+                    elif expected_type == "list":
+                        is_valid = isinstance(data, list)
+                    elif expected_type == "int":
+                        is_valid = isinstance(data, int)
+                    elif expected_type == "float":
+                        is_valid = isinstance(data, (int, float))
+                    else:
+                        is_valid = True
+                elif validation_type == "schema":
+                    is_valid = isinstance(data, dict)
+                else:
+                    is_valid = data is not None
+                shared[output_key] = is_valid
+                chosen_action = "valid" if is_valid else "invalid"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "regex_node":
+            input_key = str(props.get("input_key", "text"))
+            output_key = str(props.get("output_key", "matches"))
+            pattern = str(props.get("pattern", ""))
+            operation = str(props.get("operation", "findall"))
+            text = str(shared.get(input_key, ""))
+            if not pattern:
+                raise RuntimeError("regex_node requires a pattern")
+            try:
+                if operation == "findall":
+                    matches = re.findall(pattern, text)
+                    shared[output_key] = matches
+                    chosen_action = "found" if matches else "not_found"
+                elif operation == "sub":
+                    replacement = str(props.get("replacement", ""))
+                    result = re.sub(pattern, replacement, text)
+                    shared[output_key] = result
+                    chosen_action = "replaced"
+                elif operation == "match":
+                    match = re.match(pattern, text)
+                    shared[output_key] = bool(match)
+                    chosen_action = "matched" if match else "not_matched"
+                else:
+                    chosen_action = "unknown_operation"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "template_render_node":
+            template_key = str(props.get("template_key", "template"))
+            output_key = str(props.get("output_key", "rendered"))
+            template = str(shared.get(template_key, ""))
+            if not template:
+                raise RuntimeError("template_render_node requires a template")
+            try:
+                result = template
+                for key, value in shared.items():
+                    if not key.startswith("_"):
+                        result = result.replace("{{" + key + "}}", str(value))
+                shared[output_key] = result
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "code_gen_node":
+            if not provider:
+                raise RuntimeError("code_gen_node requires a provider")
+            spec_key = str(props.get("spec_key", "spec"))
+            output_key = str(props.get("output_key", "code"))
+            language = str(props.get("language", "python"))
+            spec = str(shared.get(spec_key, ""))
+            if not spec:
+                raise RuntimeError("code_gen_node requires a specification")
+            try:
+                prompt = "Generate " + language + " code for the following specification:\\n\\n" + spec + "\\n\\nCode:"
+                code = provider.complete(prompt, model=props.get("model"))
+                shared[output_key] = code
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "python_tool_node":
+            input_key = str(props.get("input_key", "input"))
+            output_key = str(props.get("output_key", "output"))
+            tool_path = str(props.get("tool_path", ""))
+            if not tool_path:
+                raise RuntimeError("python_tool_node requires a tool_path")
+            try:
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("tool", tool_path)
+                if not spec or not spec.loader:
+                    raise RuntimeError("Could not load tool from " + tool_path)
+                tool = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(tool)
+                if hasattr(tool, "run"):
+                    result = tool.run(shared.get(input_key))
+                    shared[output_key] = result
+                    chosen_action = "success"
+                else:
+                    raise RuntimeError("Tool does not have a run() function")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "tty_serial_node":
+            port = str(props.get("port", "/dev/ttyUSB0"))
+            baudrate = int(props.get("baudrate", 9600))
+            operation = str(props.get("operation", "read"))
+            output_key = str(props.get("output_key", "data"))
+            try:
+                import serial
+                ser = serial.Serial(port, baudrate, timeout=5)
+                if operation == "read":
+                    data = ser.readline().decode().strip()
+                    shared[output_key] = data
+                    chosen_action = "read" if data else "timeout"
+                elif operation == "write":
+                    input_key = str(props.get("input_key", "data"))
+                    message = str(shared.get(input_key, ""))
+                    ser.write(message.encode())
+                    chosen_action = "written"
+                ser.close()
+            except ImportError:
+                raise RuntimeError("tty_serial_node requires pyserial: pip install pyserial")
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
+        elif node_type == "test_gen_node":
+            if not provider:
+                raise RuntimeError("test_gen_node requires a provider")
+            code_key = str(props.get("code_key", "code"))
+            output_key = str(props.get("output_key", "tests"))
+            test_framework = str(props.get("test_framework", "pytest"))
+            code = str(shared.get(code_key, ""))
+            if not code:
+                raise RuntimeError("test_gen_node requires code to test")
+            try:
+                prompt = "Generate " + test_framework + " test cases for the following code:\\n\\n" + code + "\\n\\nTests:"
+                tests = provider.complete(prompt, model=props.get("model"))
+                shared[output_key] = tests
+                chosen_action = "success"
+            except Exception as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "error"
+
         else:
             # Passthrough for unknown types
             pass
