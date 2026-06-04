@@ -957,6 +957,147 @@ def _run_node(node_id, node, shared, outgoing_actions):
                 shared[output_key] = value
                 chosen_action = "miss"
 
+        elif node_type == "subflow_node":
+            subflow_ref = str(props.get("subflow_ref", ""))
+            output_key = str(props.get("output_key", "subflow_result"))
+            if not subflow_ref:
+                raise RuntimeError("subflow_node requires 'subflow_ref' property")
+            shared[output_key] = {"subflow": subflow_ref, "status": "referenced"}
+
+        elif node_type == "rag_node":
+            if not provider:
+                raise RuntimeError("RAG node requires a provider configured")
+            vector_index_key = str(props.get("vector_index_key", "vectors"))
+            query_key = str(props.get("query_key", "query"))
+            context_key = str(props.get("context_key", "context"))
+            output_key = str(props.get("output_key", "rag_result"))
+            max_context = int(props.get("max_context_items", 3))
+            query = str(shared.get(query_key, ""))
+            vectors = shared.get(vector_index_key, [])
+            context_items = vectors[:max_context] if isinstance(vectors, list) else []
+            context = " ".join(str(item) for item in context_items)
+            shared[context_key] = context
+            rag_prompt = "Context: " + context + " Question: " + query
+            response = provider.complete(rag_prompt, model=props.get("model"))
+            shared[output_key] = response
+
+        elif node_type == "context_compact_node":
+            input_key = str(props.get("input_key", "context"))
+            output_key = str(props.get("output_key", "compacted"))
+            strategy = str(props.get("strategy", "truncate"))
+            max_length = int(props.get("max_length", 500))
+            context = str(shared.get(input_key, ""))
+            if strategy == "truncate":
+                shared[output_key] = context[:max_length]
+            elif strategy == "summarize" and provider:
+                summary_prompt = "Summarize: " + context[:max_length*2]
+                shared[output_key] = provider.complete(summary_prompt, model=props.get("model"))
+            elif strategy == "sliding_window":
+                sentences = context.split(".")
+                result = ""
+                for sent in sentences:
+                    if len(result) + len(sent) < max_length:
+                        result += sent + "."
+                    else:
+                        break
+                shared[output_key] = result
+            else:
+                shared[output_key] = context[:max_length]
+
+        elif node_type == "conversation_history_node":
+            if "_conversation" not in shared:
+                shared["_conversation"] = []
+            history_key = str(props.get("history_key", "conversation"))
+            input_key = str(props.get("input_key", "user_input"))
+            max_turns = int(props.get("max_turns", 10))
+            user_message = str(shared.get(input_key, ""))
+            shared["_conversation"].append({"role": "user", "content": user_message})
+            if len(shared["_conversation"]) > max_turns * 2:
+                shared["_conversation"] = shared["_conversation"][-(max_turns*2):]
+            history_parts = []
+            for msg in shared["_conversation"]:
+                role = str(msg.get("role", "unknown")).upper()
+                content = str(msg.get("content", ""))
+                history_parts.append(role + ": " + content)
+            history_text = " ".join(history_parts)
+            shared[history_key] = history_text
+
+        elif node_type == "chain_of_thought_node":
+            if not provider:
+                raise RuntimeError("Chain of thought requires a provider")
+            input_key = str(props.get("input_key", "problem"))
+            output_key = str(props.get("output_key", "reasoning"))
+            problem = str(shared.get(input_key, ""))
+            cot_prompt = "Think step by step:\\n" + problem + "\\n\\nReasoning:"
+            response = provider.complete(cot_prompt, model=props.get("model"))
+            steps = [s.strip() for s in response.split("\\n") if s.strip()]
+            shared[output_key] = {"steps": steps, "final": steps[-1] if steps else ""}
+
+        elif node_type == "majority_vote_node":
+            if not provider:
+                raise RuntimeError("Majority vote requires a provider")
+            question_key = str(props.get("question_key", "question"))
+            output_key = str(props.get("output_key", "consensus"))
+            num_votes = int(props.get("num_votes", 3))
+            question = str(shared.get(question_key, ""))
+            votes = []
+            for _ in range(num_votes):
+                response = provider.complete(question, model=props.get("model"))
+                votes.append(response.strip()[:100])
+            from collections import Counter
+            vote_counts = Counter(votes)
+            consensus = vote_counts.most_common(1)[0][0] if vote_counts else ""
+            shared[output_key] = {"consensus": consensus, "votes": votes}
+
+        elif node_type == "supervisor_node":
+            if not provider:
+                raise RuntimeError("Supervisor requires a provider")
+            task_key = str(props.get("task_key", "task"))
+            output_key = str(props.get("output_key", "synthesis"))
+            num_agents = int(props.get("num_agents", 3))
+            task = str(shared.get(task_key, ""))
+            agent_responses = []
+            for agent_id in range(num_agents):
+                prompt = f"[Agent {agent_id}] {task}"
+                response = provider.complete(prompt, model=props.get("model"))
+                agent_responses.append(response)
+            perspectives_text = "\\n".join(
+                f"Agent {i}: {resp}" for i, resp in enumerate(agent_responses)
+            )
+            synthesis_prompt = "Synthesize these perspectives:\\n" + perspectives_text
+            synthesis = provider.complete(synthesis_prompt, model=props.get("model"))
+            shared[output_key] = {"synthesis": synthesis, "perspectives": agent_responses}
+
+        elif node_type == "debate_advocate_node":
+            if not provider:
+                raise RuntimeError("Debate advocate requires a provider")
+            position_key = str(props.get("position_key", "position"))
+            topic_key = str(props.get("topic_key", "topic"))
+            output_key = str(props.get("output_key", "argument"))
+            position = str(props.get("position", "for"))
+            topic = str(shared.get(topic_key, ""))
+            prompt = "Argue " + position + " the following: " + topic + " Argument:"
+            argument = provider.complete(prompt, model=props.get("model"))
+            shared[output_key] = argument
+
+        elif node_type == "debate_judge_node":
+            if not provider:
+                raise RuntimeError("Debate judge requires a provider")
+            argument_a_key = str(props.get("argument_a_key", "argument_a"))
+            argument_b_key = str(props.get("argument_b_key", "argument_b"))
+            output_key = str(props.get("output_key", "verdict"))
+            arg_a = str(shared.get(argument_a_key, ""))
+            arg_b = str(shared.get(argument_b_key, ""))
+            judge_prompt = "Compare these arguments and choose the stronger one:\\n\\nArgument A:\\n" + arg_a + "\\n\\nArgument B:\\n" + arg_b + "\\n\\nVerdict:"
+            verdict = provider.complete(judge_prompt, model=props.get("model"))
+            shared[output_key] = verdict
+            if "a" in verdict.lower():
+                chosen_action = "argument_a"
+            elif "b" in verdict.lower():
+                chosen_action = "argument_b"
+            else:
+                chosen_action = "tie"
+
         else:
             # Passthrough for unknown types
             pass
