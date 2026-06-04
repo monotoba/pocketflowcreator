@@ -15,7 +15,7 @@ all from one IDE-like GUI built on PySide6.
 > **Note:** PocketFlow Creator is not an official PocketFlow project and is not affiliated
 > with, endorsed by, or maintained by the PocketFlow project.
 
-## Status — v0.3.0 (comprehensive standalone support)
+## Status — v0.3.1 (comprehensive standalone support)
 
 Milestones M0–M17 complete. 178 tests, all passing.
 **NEW:** 76 node types with full standalone Python script generation. Export graphs as self-contained scripts with embedded providers and zero external dependencies.
