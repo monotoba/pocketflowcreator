@@ -15,6 +15,93 @@ if TYPE_CHECKING:
 class StandaloneGenerator:
     """Generate a complete, stdlib-only self-contained Python script."""
 
+    # External dependency registry: maps node_type_id to dependency info
+    # Format: {node_type: {"lib": lib_name, "env_vars": [var1, var2], "program": program_name, "link": url}}
+    _DEPENDENCY_REGISTRY: dict[str, dict[str, object]] = {
+        "shell_command_node": {
+            "program": "bash/sh/zsh/PowerShell/cmd",
+            "description": "Shell command execution",
+            "link": "https://www.gnu.org/software/bash/",
+        },
+        "tty_serial_node": {
+            "lib": "pyserial",
+            "program": "Serial port",
+            "description": "Serial port communication",
+            "link": "https://pypi.org/project/pyserial/",
+        },
+        "speech_to_text_node": {
+            "lib": "SpeechRecognition",
+            "description": "Speech recognition",
+            "link": "https://pypi.org/project/SpeechRecognition/",
+        },
+        "text_to_speech_node": {
+            "lib": "pyttsx3",
+            "description": "Text-to-speech synthesis",
+            "link": "https://pypi.org/project/pyttsx3/",
+        },
+        "pdf_extract_node": {
+            "lib": "PyPDF2",
+            "description": "PDF text extraction",
+            "link": "https://pypi.org/project/PyPDF2/",
+        },
+        "spreadsheet_node": {
+            "lib": "openpyxl",
+            "description": "Excel file support",
+            "link": "https://pypi.org/project/openpyxl/",
+        },
+        "web_scrape_node": {
+            "lib": "beautifulsoup4",
+            "description": "Web scraping",
+            "link": "https://pypi.org/project/beautifulsoup4/",
+        },
+        "websocket_node": {
+            "lib": "websockets",
+            "description": "WebSocket communication",
+            "link": "https://pypi.org/project/websockets/",
+        },
+        "web_search_node": {
+            "env_vars": ["SEARCH_API_KEY"],
+            "description": "Web search API",
+        },
+        "email_send_node": {
+            "env_vars": ["EMAIL_ADDRESS", "EMAIL_PASSWORD", "SMTP_SERVER"],
+            "description": "Email sending",
+        },
+        "email_read_node": {
+            "env_vars": ["EMAIL_ADDRESS", "EMAIL_PASSWORD", "IMAP_SERVER"],
+            "description": "Email reading",
+        },
+        "calendar_read_node": {
+            "env_vars": ["GOOGLE_CALENDAR_ID"],
+            "description": "Google Calendar integration",
+            "link": "https://developers.google.com/calendar/api",
+        },
+        "calendar_write_node": {
+            "env_vars": ["GOOGLE_CALENDAR_ID"],
+            "description": "Google Calendar integration",
+            "link": "https://developers.google.com/calendar/api",
+        },
+        "socket_node": {
+            "env_vars": ["SOCKET_HOST", "SOCKET_PORT"],
+            "description": "Socket communication",
+        },
+        "notification_node": {
+            "env_vars": ["SLACK_WEBHOOK", "DISCORD_WEBHOOK"],
+            "description": "Notification services",
+        },
+        "secret_node": {
+            "env_vars": ["SECRET_SOURCE"],
+            "description": "Secret management",
+        },
+        "mcp_tool_node": {
+            "env_vars": ["MCP_SERVER_URL"],
+            "description": "MCP server integration",
+        },
+        "python_tool_node": {
+            "description": "Python module import",
+        },
+    }
+
     # Provider source code embedded as strings (must stay in sync with providers.py)
     _PROVIDER_SOURCES: dict[str, str] = {
         "ollama": '''\
@@ -271,6 +358,50 @@ class DeepSeekProvider:
         # Remove leading digits and underscores
         safe = re.sub(r"^[0-9_]+", "", safe)
         return f"_provider_{safe}" if safe else "_provider_default"
+
+    def check_dependencies(self, graph: GraphModel) -> dict[str, dict[str, object]]:
+        """Check graph for external dependencies and return missing ones.
+
+        Returns dict mapping node_type -> dependency info for nodes with missing deps.
+        """
+        missing = {}
+        for node in graph.nodes:
+            if node.type_id not in self._DEPENDENCY_REGISTRY:
+                continue
+            dep_info = self._DEPENDENCY_REGISTRY[node.type_id]
+
+            # Check environment variables
+            if "env_vars" in dep_info:
+                env_vars = dep_info["env_vars"]
+                if isinstance(env_vars, list):
+                    missing_vars = [v for v in env_vars if not __import__("os").environ.get(v)]
+                    if missing_vars:
+                        missing[node.type_id] = {**dep_info, "missing_env_vars": missing_vars}
+
+            # Check for required libraries
+            if "lib" in dep_info:
+                lib_name = str(dep_info["lib"])
+                if not self._try_import(lib_name):
+                    missing[node.type_id] = {**dep_info, "missing_lib": lib_name}
+
+        return missing
+
+    @staticmethod
+    def _try_import(module_name: str) -> bool:
+        """Try to import a module, return True if successful."""
+        # Handle package names that differ from import names
+        import_map = {
+            "PyPDF2": "PyPDF2",
+            "beautifulsoup4": "bs4",
+            "openpyxl": "openpyxl",
+            "pyserial": "serial",
+        }
+        import_name = import_map.get(module_name, module_name)
+        try:
+            __import__(import_name)
+            return True
+        except ImportError:
+            return False
 
     def _render_header(self, project_name: str, graph_title: str) -> str:
         """Render the file header comment."""
@@ -616,6 +747,215 @@ def _run_node(node_id, node, shared, outgoing_actions):
         elif node_type == "router_node":
             # Router returns the first available action; routing is defined by graph edges
             pass
+
+        elif node_type == "map_node":
+            items_key = str(props.get("items_key", "items"))
+            items = shared.get(items_key, [])
+            if not isinstance(items, list):
+                items = [items]
+            template = str(props.get("item_template", ""))
+            output_key = str(props.get("output_key", "mapped"))
+            results = []
+            for item in items:
+                if template and provider:
+                    resp = provider.complete(template.format(item=item), model=props.get("model"))
+                    results.append(resp)
+                else:
+                    results.append(item)
+            shared[output_key] = results
+
+        elif node_type == "reduce_node":
+            items_key = str(props.get("items_key", "items"))
+            items = shared.get(items_key, [])
+            if not isinstance(items, list):
+                items = [items]
+            output_key = str(props.get("output_key", "result"))
+            accumulator = props.get("initial_value", "")
+            template = str(props.get("accumulator_template", ""))
+            for item in items:
+                if template and provider:
+                    prompt = template.format(accumulator=accumulator, item=item)
+                    accumulator = provider.complete(prompt, model=props.get("model"))
+                else:
+                    accumulator = item
+            shared[output_key] = accumulator
+
+        elif node_type == "transform_node":
+            input_key = str(props.get("input_key", "input"))
+            output_key = str(props.get("output_key", "output"))
+            data = shared.get(input_key, {})
+            transform_spec = props.get("transform_spec", {})
+            if isinstance(transform_spec, dict):
+                result = {}
+                for out_field, in_path in transform_spec.items():
+                    parts = str(in_path).split(".")
+                    val = data
+                    for part in parts:
+                        val = val.get(part) if isinstance(val, dict) else None
+                    if val is not None:
+                        result[out_field] = val
+                shared[output_key] = result
+            else:
+                shared[output_key] = data
+
+        elif node_type == "merge_node":
+            input_keys = props.get("input_keys", [])
+            if not isinstance(input_keys, list):
+                input_keys = [input_keys]
+            output_key = str(props.get("output_key", "merged"))
+            merge_strategy = str(props.get("merge_strategy", "dict"))
+            if merge_strategy == "dict":
+                result = {}
+                for key in input_keys:
+                    if key in shared:
+                        result[key] = shared[key]
+                shared[output_key] = result
+            elif merge_strategy == "array":
+                result = []
+                for key in input_keys:
+                    if key in shared:
+                        val = shared[key]
+                        result.extend(val if isinstance(val, list) else [val])
+                shared[output_key] = result
+            else:
+                shared[output_key] = {k: shared.get(k) for k in input_keys}
+
+        elif node_type == "condition_node":
+            condition_expr = str(props.get("condition", "True"))
+            try:
+                result = eval(condition_expr, {"shared": shared})
+                chosen_action = "true" if result else "false"
+            except Exception:
+                chosen_action = "false"
+
+        elif node_type == "loop_counter_node":
+            counter_key = str(props.get("counter_key", "loop_counter"))
+            max_iterations = int(props.get("max_iterations", 10))
+            current = int(shared.get(counter_key, 0))
+            current += 1
+            shared[counter_key] = current
+            output_key = str(props.get("output_key", "iteration"))
+            shared[output_key] = current
+            chosen_action = "continue" if current < max_iterations else "done"
+
+        elif node_type == "api_call_node":
+            endpoint = str(props.get("endpoint", ""))
+            method = str(props.get("method", "GET")).upper()
+            payload_key = str(props.get("payload_key", "payload"))
+            output_key = str(props.get("output_key", "response"))
+            if not endpoint:
+                raise RuntimeError("api_call_node requires 'endpoint' property")
+            try:
+                payload = shared.get(payload_key, {})
+                if method == "GET":
+                    with urllib.request.urlopen(endpoint) as resp:
+                        shared[output_key] = json.loads(resp.read())
+                else:
+                    data = json.dumps(payload).encode() if isinstance(payload, dict) else str(payload).encode()
+                    req = urllib.request.Request(endpoint, data=data, method=method, headers={"Content-Type": "application/json"})
+                    with urllib.request.urlopen(req) as resp:
+                        shared[output_key] = json.loads(resp.read())
+            except Exception as e:
+                raise RuntimeError(f"API call to {endpoint} failed: {e}") from e
+
+        elif node_type == "code_exec_node":
+            code = str(props.get("code", ""))
+            output_key = str(props.get("output_key", "result"))
+            if not code:
+                raise RuntimeError("code_exec_node requires 'code' property")
+            try:
+                import io
+                import contextlib
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    exec_globals = {"shared": shared, "__builtins__": __builtins__}
+                    exec(code, exec_globals)
+                shared[output_key] = output.getvalue()
+            except Exception as e:
+                raise RuntimeError(f"Code execution failed: {e}") from e
+
+        elif node_type == "json_parse_node":
+            input_key = str(props.get("input_key", "input"))
+            output_key = str(props.get("output_key", "parsed"))
+            json_str = str(shared.get(input_key, "{}"))
+            try:
+                parsed = json.loads(json_str)
+                shared[output_key] = parsed
+                chosen_action = "valid"
+            except json.JSONDecodeError as e:
+                shared[f"{output_key}_error"] = str(e)
+                chosen_action = "invalid"
+
+        elif node_type == "list_ops_node":
+            input_key = str(props.get("input_key", "input"))
+            output_key = str(props.get("output_key", "output"))
+            operation = str(props.get("operation", "length"))
+            items = shared.get(input_key, [])
+            if not isinstance(items, list):
+                items = [items]
+            if operation == "length":
+                shared[output_key] = len(items)
+            elif operation == "sort":
+                shared[output_key] = sorted(items)
+            elif operation == "reverse":
+                shared[output_key] = list(reversed(items))
+            elif operation == "unique":
+                shared[output_key] = list(set(items))
+            else:
+                shared[output_key] = items
+
+        elif node_type == "string_ops_node":
+            input_key = str(props.get("input_key", "input"))
+            output_key = str(props.get("output_key", "output"))
+            operation = str(props.get("operation", "upper"))
+            text = str(shared.get(input_key, ""))
+            if operation == "upper":
+                shared[output_key] = text.upper()
+            elif operation == "lower":
+                shared[output_key] = text.lower()
+            elif operation == "capitalize":
+                shared[output_key] = text.capitalize()
+            elif operation == "length":
+                shared[output_key] = len(text)
+            elif operation == "trim":
+                shared[output_key] = text.strip()
+            else:
+                shared[output_key] = text
+
+        elif node_type == "log_node":
+            input_key = str(props.get("input_key", "message"))
+            message = str(shared.get(input_key, ""))
+            log_level = str(props.get("log_level", "info")).lower()
+            if log_level == "error":
+                print(f"[ERROR] {message}", file=sys.stderr)
+            elif log_level == "warning":
+                print(f"[WARNING] {message}", file=sys.stderr)
+            else:
+                print(f"[INFO] {message}")
+
+        elif node_type == "timer_node":
+            import time
+            duration = float(props.get("duration", 1))
+            output_key = str(props.get("output_key", "elapsed"))
+            start = time.time()
+            time.sleep(duration)
+            elapsed = time.time() - start
+            shared[output_key] = elapsed
+
+        elif node_type == "cache_node":
+            cache_key = str(props.get("cache_key", "cache"))
+            input_key = str(props.get("input_key", "input"))
+            output_key = str(props.get("output_key", "cached"))
+            if "_cache" not in shared:
+                shared["_cache"] = {}
+            if cache_key in shared["_cache"]:
+                shared[output_key] = shared["_cache"][cache_key]
+                chosen_action = "hit"
+            else:
+                value = shared.get(input_key)
+                shared["_cache"][cache_key] = value
+                shared[output_key] = value
+                chosen_action = "miss"
 
         else:
             # Passthrough for unknown types
