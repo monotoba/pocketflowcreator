@@ -299,6 +299,57 @@ class DeepSeekProvider:
         except (json.JSONDecodeError, KeyError, IndexError, ValueError) as exc:
             raise RuntimeError(f"DeepSeek returned unexpected response: {exc}") from exc
 ''',
+        "failover": '''\
+class FailoverProvider:
+    """Composite provider that retries across multiple providers on failure."""
+
+    def __init__(self, entries, cooldowns=None):
+        self.entries = sorted(entries, key=lambda e: e.get("priority", 999))
+        self._cooldowns = cooldowns or {}
+        self._time = __import__("time")
+
+    def complete(self, prompt: str, *, model: str | None = None) -> str:
+        """Try each provider in priority order with per-error-type retries."""
+        now = self._time.time()
+        last_error = None
+
+        for entry in self.entries:
+            provider_key = str(id(entry["provider"]))
+            if provider_key in self._cooldowns and now < self._cooldowns[provider_key]:
+                continue
+
+            provider = entry["provider"]
+            provider_model = entry.get("model") or model
+            max_retries = {
+                "timeout": entry.get("timeout_retries", 3),
+                "network": entry.get("network_retries", 3),
+                "ratelimit": entry.get("ratelimit_retries", 2),
+                "expired": entry.get("expired_retries", 1),
+                "unknown": entry.get("unknown_retries", 1),
+            }
+
+            for attempt in range(max(max_retries.values()) + 1):
+                try:
+                    return provider.complete(prompt, model=provider_model)
+                except Exception as exc:
+                    last_error = exc
+                    error_type = "unknown"
+                    if "timeout" in str(type(exc).__name__).lower():
+                        error_type = "timeout"
+                    elif "network" in str(type(exc).__name__).lower() or "url" in str(type(exc).__name__).lower():
+                        error_type = "network"
+                    elif "429" in str(exc):
+                        error_type = "ratelimit"
+                    elif "401" in str(exc) or "403" in str(exc) or "expired" in str(exc).lower():
+                        error_type = "expired"
+
+                    if attempt < max_retries[error_type]:
+                        self._time.sleep(entry.get("retry_delay", 2.0))
+                    else:
+                        break
+
+        raise RuntimeError(f"All failover providers exhausted. Last error: {last_error}")
+''',
     }
 
     def collect_dependencies(self, graph: GraphModel) -> dict[str, str]:
@@ -349,7 +400,7 @@ class DeepSeekProvider:
         # Generate sections
         header = self._render_header(project_name, graph.title)
         imports = self._render_imports()
-        provider_classes = self._render_provider_classes(used_types)
+        provider_classes = self._render_provider_classes(used_types, graph)
         provider_instances = self._render_provider_instances(used_profiles, profile_var_map)
         helpers = self._render_helpers()
         graph_data = self._render_graph_data(graph, used_profiles, profile_var_map)
@@ -457,7 +508,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path"""
 
-    def _render_provider_classes(self, used_types: set[str]) -> str:
+    def _render_provider_classes(self, used_types: set[str], graph: GraphModel | None = None) -> str:
         """Render provider class definitions for used types."""
         lines = ["# ── Provider Classes ─────────────────────────────────────────────────────────"]
 
@@ -477,6 +528,13 @@ from pathlib import Path"""
             if provider_key and provider_key not in rendered_classes:
                 lines.append(self._PROVIDER_SOURCES[provider_key])
                 rendered_classes.add(provider_key)
+
+        # Check if FailoverProvider is needed
+        if graph:
+            has_failover = any(n.type_id == "provider_failover_node" for n in graph.nodes)
+            if has_failover and "failover" not in rendered_classes:
+                lines.append(self._PROVIDER_SOURCES["failover"])
+                rendered_classes.add("failover")
 
         return "\n".join(lines)
 
@@ -2380,11 +2438,65 @@ def _run_node(node_id, node, shared, outgoing_actions):
                 chosen_action = "error"
 
         elif node_type == "provider_failover_node":
-            raise RuntimeError(
-                f"Node '{node['title']}' (provider_failover_node) does not yet support standalone script generation. "
-                "Use the interactive FlowRunner or implement failover logic in your generated package. "
-                "Standalone support is planned for a future release."
-            )
+            import json as _json
+            prompt_key = str(props.get("prompt_key", "prompt"))
+            output_key = str(props.get("output_key", "failover_response"))
+            error_key = str(props.get("error_key", "failover_error"))
+            config_str = str(props.get("providers_config", "[]"))
+            try:
+                config_list = _json.loads(config_str)
+            except Exception:
+                config_list = []
+
+            if not config_list:
+                shared[error_key] = "No providers configured"
+                chosen_action = "all_failed"
+            else:
+                # Build FailoverProvider entries from config and available providers
+                entries = []
+                for cfg in config_list:
+                    priority = int(cfg.get("priority", 999))
+                    profile_id = cfg.get("profile_id", "")
+                    provider_var = f"_provider_{profile_id.lower().replace('-', '_')}"
+
+                    # Try to get the provider variable from locals (created by _render_provider_instances)
+                    if provider_var in locals():
+                        provider = locals()[provider_var]
+                    elif profile_id in _graph_providers:
+                        provider = _graph_providers[profile_id]
+                    else:
+                        continue
+
+                    entries.append({
+                        "priority": priority,
+                        "provider": provider,
+                        "model": cfg.get("model") or None,
+                        "timeout_retries": int(cfg.get("timeout_retries", 3)),
+                        "network_retries": int(cfg.get("network_retries", 3)),
+                        "ratelimit_retries": int(cfg.get("ratelimit_retries", 2)),
+                        "expired_retries": int(cfg.get("expired_retries", 1)),
+                        "unknown_retries": int(cfg.get("unknown_retries", 1)),
+                        "retry_delay": float(cfg.get("retry_delay", 2.0)),
+                    })
+
+                if entries:
+                    cooldown_key = f"_pf_cooldown_{node['id']}"
+                    if cooldown_key not in shared:
+                        shared[cooldown_key] = {}
+                    cooldowns = shared[cooldown_key]
+
+                    failover = FailoverProvider(entries, cooldowns)
+                    prompt = str(shared.get(prompt_key, ""))
+                    try:
+                        response = failover.complete(prompt)
+                        shared[output_key] = response
+                        chosen_action = "success"
+                    except Exception as exc:
+                        shared[error_key] = str(exc)
+                        chosen_action = "all_failed"
+                else:
+                    shared[error_key] = "No valid providers resolved"
+                    chosen_action = "all_failed"
 
         else:
             # Passthrough for unknown types
