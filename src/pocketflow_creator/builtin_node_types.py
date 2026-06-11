@@ -1326,6 +1326,35 @@ BUILTIN_NODE_TYPES: dict[str, NodeTypeDefinition] = {
                 "label": {"type": "string", "default": "default", "description": "Rate limiter label (allows multiple independent limiters)"},
             },
         ),
+        NodeTypeDefinition(
+            node_type_id="provider_failover_node",
+            display_name="Provider Failover",
+            category="Resilience",
+            base_class="Node",
+            actions=["success", "all_failed"],
+            properties={
+                "providers_config": {
+                    "type": "text",
+                    "default": '[{"priority":1,"profile_id":"","model":"","timeout_retries":3,"network_retries":3,"ratelimit_retries":2,"expired_retries":1,"unknown_retries":1,"retry_delay":2.0,"session_offset_seconds":60}]',
+                    "description": "JSON array of provider entries. Each: {priority, profile_id, model, timeout_retries, network_retries, ratelimit_retries, expired_retries, unknown_retries, retry_delay, session_offset_seconds}. All fields except priority and profile_id are optional.",
+                },
+                "prompt_key": {
+                    "type": "string",
+                    "default": "prompt",
+                    "description": "Shared-store key containing the prompt to send to providers",
+                },
+                "output_key": {
+                    "type": "string",
+                    "default": "failover_response",
+                    "description": "Shared-store key where response will be written on success",
+                },
+                "error_key": {
+                    "type": "string",
+                    "default": "failover_error",
+                    "description": "Shared-store key where error message will be written if all_failed",
+                },
+            },
+        ),
         # ── Messaging / Notifications ─────────────────────────────────────────
         NodeTypeDefinition(
             node_type_id="email_send_node",

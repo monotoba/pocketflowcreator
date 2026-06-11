@@ -332,6 +332,100 @@ class FlowRunner:
             chosen_action = next(iter(available_actions), "default")
         return "", "", chosen_action
 
+    def _handle_provider_failover_node(
+        self,
+        node: NodeModel,
+        shared_store: dict[str, object],
+        provider_resolver: ProviderResolver | None,
+        available_actions: set[str],
+    ) -> tuple[str, str, str]:
+        """Handle provider failover node with multi-provider retries and cooldowns.
+
+        Returns (prompt, response, chosen_action) where chosen_action is 'success' or 'all_failed'.
+        """
+        import json
+
+        from pocketflow_creator.runtime.providers import AllProvidersFailedError, FailoverProvider, ProviderEntry
+
+        # Parse JSON config
+        config_str = str(node.properties.get("providers_config", "[]"))
+        try:
+            config_list = json.loads(config_str)
+        except json.JSONDecodeError:
+            config_list = []
+
+        if not config_list:
+            shared_store[str(node.properties.get("error_key", "failover_error"))] = "No providers configured"
+            return "", "", "all_failed"
+
+        # Resolve profiles to providers
+        entries = []
+        for cfg in config_list:
+            priority = int(cfg.get("priority", 999))
+            profile_id = cfg.get("profile_id", "")
+            model = cfg.get("model") or None
+            timeout_retries = int(cfg.get("timeout_retries", 3))
+            network_retries = int(cfg.get("network_retries", 3))
+            ratelimit_retries = int(cfg.get("ratelimit_retries", 2))
+            expired_retries = int(cfg.get("expired_retries", 1))
+            unknown_retries = int(cfg.get("unknown_retries", 1))
+            retry_delay = float(cfg.get("retry_delay", 2.0))
+            session_offset = int(cfg.get("session_offset_seconds", 60))
+
+            # Resolve provider from profile_id
+            if provider_resolver and profile_id:
+                try:
+                    provider = provider_resolver(profile_id)
+                except Exception:
+                    provider = None
+            else:
+                provider = None
+
+            if provider:
+                from dataclasses import replace
+
+                entry = ProviderEntry(
+                    priority=priority,
+                    provider=provider,
+                    model=model,
+                    timeout_retries=timeout_retries,
+                    network_retries=network_retries,
+                    ratelimit_retries=ratelimit_retries,
+                    expired_retries=expired_retries,
+                    unknown_retries=unknown_retries,
+                    retry_delay=retry_delay,
+                    session_offset_seconds=session_offset,
+                )
+                entries.append(entry)
+
+        if not entries:
+            shared_store[str(node.properties.get("error_key", "failover_error"))] = "No valid providers resolved"
+            return "", "", "all_failed"
+
+        # Get/create cooldown state in shared_store
+        cooldown_key = f"_pf_cooldown_{node.id}"
+        if cooldown_key not in shared_store:
+            shared_store[cooldown_key] = {}
+        cooldowns = shared_store[cooldown_key]
+        if not isinstance(cooldowns, dict):
+            cooldowns = {}
+            shared_store[cooldown_key] = cooldowns
+
+        # Build failover provider and call it
+        failover = FailoverProvider(entries, cooldowns)
+        prompt_key = str(node.properties.get("prompt_key", "prompt"))
+        output_key = str(node.properties.get("output_key", "failover_response"))
+        error_key = str(node.properties.get("error_key", "failover_error"))
+
+        prompt = str(shared_store.get(prompt_key, ""))
+        try:
+            response = failover.complete(prompt)
+            shared_store[output_key] = response
+            return prompt, response, "success"
+        except AllProvidersFailedError as exc:
+            shared_store[error_key] = str(exc)
+            return prompt, "", "all_failed"
+
     # ------------------------------------------------------------------ runner
 
     def steps(
@@ -425,6 +519,13 @@ class FlowRunner:
                     available_actions,
                     input_callback,
                     chosen_action,
+                )
+            elif node.type_id == "provider_failover_node":
+                prompt, response, chosen_action = self._handle_provider_failover_node(
+                    node,
+                    shared_store,
+                    provider_resolver,
+                    available_actions,
                 )
             else:
                 prompt, response = "", ""
