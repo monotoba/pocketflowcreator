@@ -2379,6 +2379,13 @@ def _run_node(node_id, node, shared, outgoing_actions):
                 shared[f"{output_key}_error"] = str(e)
                 chosen_action = "error"
 
+        elif node_type == "provider_failover_node":
+            raise RuntimeError(
+                f"Node '{node['title']}' (provider_failover_node) does not yet support standalone script generation. "
+                "Use the interactive FlowRunner or implement failover logic in your generated package. "
+                "Standalone support is planned for a future release."
+            )
+
         else:
             # Passthrough for unknown types
             pass
