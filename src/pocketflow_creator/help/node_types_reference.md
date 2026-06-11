@@ -1040,15 +1040,15 @@
 
 ## Summary
 
-**Total coverage: 76 node types** across 23 categories. Each node is fully implemented in:
+**Total coverage: 91+ node types** across 28 categories. Each node is fully implemented in:
 - ✅ Visual palette with custom icons
-- ✅ Standalone Python script generation
+- ✅ Standalone Python script generation (all 91+ node types supported)
 - ✅ Object Inspector property editor
 - ✅ Node dispatcher with type-based execution
 - ✅ Proper I/O handling in standalone scripts:
   - **stdin** for interactive nodes (Human Input, Human Review)
   - **stdout** for prompts and normal output
-  - **stderr** for error messages
+  - **stderr** for error messages and tracing (Trace Node)
   - Works in pipes, CI/CD, and shell scripts
   - Graceful EOF handling for non-interactive execution
 

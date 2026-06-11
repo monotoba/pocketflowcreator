@@ -119,8 +119,23 @@ For a detailed walkthrough see [Your First Flow](your_first_flow.md).
 
 ---
 
+## Exporting Standalone Scripts
+
+PocketFlow Creator flows export as self-contained Python scripts with no framework dependencies:
+
+**File > Export Standalone Archive** creates a ready-to-run package:
+- `scripts/` folder with generated `.py` files
+- All 91+ node types fully supported
+- Embedded provider implementations (Ollama, OpenAI, Anthropic, Gemini, DeepSeek)
+- Standalone scripts work in CI/CD, serverless, containers, and headless environments
+
+See [Standalone Scripts Tutorial](tutorials/standalone_scripts.md) for examples.
+
+---
+
 ## Next Steps
 
 - [Your First Flow](your_first_flow.md) — step-by-step Hello World
 - [About PocketFlow](about_pocketflow.md) — the framework this tool targets
 - [Tutorials Part 1](tutorials/part1_fundamentals.md) — IDE deep-dive
+- [Standalone Scripts Tutorial](tutorials/standalone_scripts.md) — export for production deployment

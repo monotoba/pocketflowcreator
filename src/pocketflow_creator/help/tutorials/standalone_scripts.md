@@ -341,16 +341,27 @@ python script.py
 
 ## Supported Features in Standalone Scripts
 
+**All 91+ node types are fully supported in standalone scripts.**
+
+Below is a breakdown by category showing what external dependencies (if any) each category requires:
+
 | Category | Nodes | Requires |
 |----------|-------|----------|
-| **Core Data** | map, reduce, merge, transform, condition, loop, json_parse, list_ops, string_ops, log, timer, cache | stdlib only |
-| **LLM / Reasoning** | llm_prompt, json_llm, rag, chain_of_thought, majority_vote, debate, etc. | LLM provider |
+| **Flow Control** | start, stop, basic, router, subflow | stdlib only |
+| **LLM / Reasoning** | llm_prompt, json_llm, rag, agent, chain_of_thought, majority_vote, supervisor, debate, judge | LLM provider |
 | **Resilience** | provider_failover, retry, rate_limiter | stdlib only |
+| **Core Data** | map, reduce, merge, transform, condition, loop, json_parse, list_ops, string_ops, log, timer, cache, trace | stdlib only |
 | **External APIs** | web_search, web_scrape, api_call, pdf_extract, spreadsheet | Optional: beautifulsoup4, PyPDF2, openpyxl |
 | **Database** | db_schema, nl_to_sql, sql_execute | sqlite3 (built-in) |
 | **Memory** | registry, stack, queue, local_memory, secret | stdlib only |
 | **Hardware I/O** | usb_serial, audio_input, audio_output, video_input, video_output, webcam | Optional: pyserial, sounddevice, opencv-python |
-| **Communication** | socket, websocket, email, calendar, a2a | Optional: websockets, google-auth-oauthlib |
+| **Communication** | socket, websocket, email, calendar, a2a_send, a2a_receive | Optional: websockets, google-auth-oauthlib |
+| **Human I/O** | human_input, human_review | stdin/stdout (text I/O) |
+| **Async** | async_node, async_batch_node, async_parallel_batch_node | stdlib only |
+| **Batch** | batch_node | stdlib only |
+| **Code** | code_gen, code_exec, test_gen | Optional: sandbox requires restricted subprocess |
+| **Search & Vision** | image_vision, text_chunk, embed, vector_index, vector_retrieve | Optional: vectorstore libs, PIL |
+| **Utilities** | classifier, context_compact, conversation_history, mcp_tool, notification, speech_to_text, text_to_speech, data_validate, shell_command, tty_serial, webhook_trigger | Optional: Various (speech libs, etc.)
 
 ---
 
