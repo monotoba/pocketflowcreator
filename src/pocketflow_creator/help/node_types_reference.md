@@ -1,6 +1,6 @@
 # Node Types Reference — Complete Catalog
 
-**76 built-in node types** organized by category. Each entry shows what the node does, its properties, and example usage.
+**91 built-in node types** organized by category. Each entry shows what the node does, its properties, and example usage.
 
 ---
 
@@ -30,9 +30,9 @@
 | [System / Shell](#system--shell) | 3 |
 | [Networking](#networking) | 3 |
 | [Text / Data Processing](#text--data-processing) | 5 |
-| [Resilience](#resilience) | 2 |
+| [Resilience](#resilience) | 3 |
 | [Messaging](#messaging) | 3 |
-| **TOTAL** | **76** |
+| **TOTAL** | **91** |
 
 ---
 
@@ -941,6 +941,39 @@
   - `output_key`: string — result
   - `requests_per_second`: float — rate limit
 - **Shared Store:** Reads input, writes result
+
+### Provider Failover Node
+**Purpose:** Resilient LLM calls across multiple providers with error-specific retries.
+- **Actions:** `success` (provider returned response), `all_failed` (all retries exhausted)
+- **Properties:**
+  - `providers_config`: JSON text — ordered list of providers with priorities and retry policies
+    ```json
+    [
+      {
+        "priority": 1,
+        "profile_id": "uuid-of-provider",
+        "model": "",
+        "timeout_retries": 3,
+        "network_retries": 3,
+        "ratelimit_retries": 2,
+        "expired_retries": 1,
+        "unknown_retries": 1,
+        "retry_delay": 2.0,
+        "session_offset_seconds": 60
+      }
+    ]
+    ```
+  - `prompt_key`: string — shared-store key containing prompt (default `"prompt"`)
+  - `output_key`: string — shared-store key for response (default `"failover_response"`)
+  - `error_key`: string — shared-store key for error message on `all_failed` (default `"failover_error"`)
+- **Shared Store:** Reads from `prompt_key`, writes response to `output_key` on success or error to `error_key` on failure
+- **Behavior:**
+  - Tries providers in priority order (lowest priority first)
+  - Per-error-type retries: timeout, network, rate-limit, session-expired, unknown errors each have configurable retry count
+  - Session-expired providers are marked unavailable until reinstatement time + offset
+  - Sleeps between retries (configurable delay for timeout/network errors)
+  - Routes `success` on any provider response, `all_failed` when all providers exhaust retries
+- **Error Types:** Timeout, Network, Rate Limit (HTTP 429), Session/Token Expired (HTTP 401/403), Unknown
 
 ---
 

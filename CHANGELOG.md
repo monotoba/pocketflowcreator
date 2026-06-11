@@ -7,8 +7,28 @@ Entries are ordered newest-first within each version.
 
 ## [Unreleased]
 
-### Added
-- Nothing yet.
+### Added — Provider Failover Node with typed error handling
+
+**Resilient multi-provider LLM node**
+- New `Provider Failover` node in Resilience category for handling provider failures across multiple LLM backends
+- Configurable priority-ordered list of providers (local Ollama, cloud APIs like OpenAI/Claude/Gemini, mock providers)
+- Per-error-type retry logic: separate retry counts for timeout, network, rate-limit, session-expired, and unknown errors
+- Session/token expiration detection and cooldown tracking — expired providers are temporarily disabled until reinstatement time + configurable offset
+- Configurable retry delays between attempts for timeout/network errors
+- Actions: `success` (provider returned response) or `all_failed` (all retries exhausted)
+
+**Typed error taxonomy for providers**
+- 6 new error types (all inherit from RuntimeError for backwards compatibility):
+  - `ProviderTimeoutError` — provider took too long
+  - `ProviderNetworkError` — DNS/connection issues
+  - `ProviderRateLimitError` — HTTP 429 with Retry-After support
+  - `SessionExpiredError` — HTTP 401/403 with session/token expiration detection
+  - `UnknownProviderError` — unexpected failures
+  - `AllProvidersFailedError` — all providers and retries exhausted
+- All 5 existing providers (Ollama, OpenAI, Anthropic, Gemini, DeepSeek) updated to classify and raise typed errors
+
+**Known limitation:**
+- Standalone script generation support for Provider Failover Node deferred; will be added in a follow-up
 
 ---
 
