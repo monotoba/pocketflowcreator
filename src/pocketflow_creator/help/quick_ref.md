@@ -1024,6 +1024,7 @@ any pattern that needs to remember a value across multiple flow runs within a se
 | String Operations Node | `Node` | Split / join / strip / replace string |
 | Retry Node | `Node` | Retry with exponential backoff |
 | Rate Limiter Node | `Node` | Throttle call rate |
+| Provider Failover Node | `Node` | Multi-provider resilient LLM calls with error-specific retry |
 | Email Send Node | `Node` | Send email (SMTP / SendGrid) |
 | Email Read Node | `Node` | Fetch email from IMAP |
 | Notification Node | `Node` | Slack / Discord / Teams / Telegram |
@@ -1321,6 +1322,24 @@ independent rate limiters for different API endpoints in the same flow.
 | `calls_per_min` | `60` | Maximum calls allowed per minute |
 | `timestamp_key` | `last_call_time` | Shared-store key for the last-call Unix timestamp |
 | `label` | `default` | Rate limiter label (allows multiple independent limiters) |
+
+### Provider Failover Node
+**Base class:** `Node`
+
+Implements resilient LLM calls across multiple providers with sophisticated error handling.
+Routes `success` when any provider returns a response, or `all_failed` when all providers
+and their retries are exhausted. Each provider entry has priority, per-error-type retry
+counts, and configurable delays.
+
+| Property | Default | Description |
+|---|---|---|
+| `providers_config` | _(JSON array)_ | JSON array of provider entries with priority, profile_id, retry counts, delay, and session offset |
+| `prompt_key` | `prompt` | Shared-store key containing the prompt |
+| `output_key` | `failover_response` | Shared-store key where the response is written (on success) |
+| `error_key` | `failover_error` | Shared-store key where the error message is written (on all_failed) |
+
+**Error Types and Retries:** Timeout (3), Network (3), Rate Limit (2), Session Expired (1), Unknown (1).
+Session expiration marks a provider unavailable for `session_offset_seconds` (configurable, 60–900).
 
 ---
 

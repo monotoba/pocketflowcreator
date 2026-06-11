@@ -122,6 +122,16 @@ for project-local nodes and writing `.py` node packages for reusable, shareable 
 
 ---
 
+## Resilience Patterns
+
+[→ Provider Failover Tutorial](resilience_failover.md)
+
+**Provider Failover: Building Resilient LLM Workflows**
+
+Master multi-provider LLM resilience: priority-ordered fallback, error-specific retries, session recovery with configurable cooldowns. Learn when to use Provider Failover vs Retry Node, configure complex provider strategies, and export flows that work in any environment.
+
+---
+
 ## Part 4 — Exercises
 
 [→ Open Part 4](part4_exercises.md)
