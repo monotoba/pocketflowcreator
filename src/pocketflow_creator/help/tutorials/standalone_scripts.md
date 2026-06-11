@@ -345,6 +345,7 @@ python script.py
 |----------|-------|----------|
 | **Core Data** | map, reduce, merge, transform, condition, loop, json_parse, list_ops, string_ops, log, timer, cache | stdlib only |
 | **LLM / Reasoning** | llm_prompt, json_llm, rag, chain_of_thought, majority_vote, debate, etc. | LLM provider |
+| **Resilience** | provider_failover, retry, rate_limiter | stdlib only |
 | **External APIs** | web_search, web_scrape, api_call, pdf_extract, spreadsheet | Optional: beautifulsoup4, PyPDF2, openpyxl |
 | **Database** | db_schema, nl_to_sql, sql_execute | sqlite3 (built-in) |
 | **Memory** | registry, stack, queue, local_memory, secret | stdlib only |
