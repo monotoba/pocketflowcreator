@@ -7,12 +7,12 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/pocketflow-creator.svg)](https://pypi.org/project/pocketflow-creator/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An independent PySide6 desktop application for visually designing, testing, and exporting [PocketFlow](https://github.com/The-Pocket/PocketFlow)-style LLM workflows and agentic applications. Design flows on a live canvas, run them against Ollama or a mock provider, inspect shared-store state step-by-step, and export a runnable Python package — all from one IDE-like GUI.
+An independent PySide6 desktop application for visually designing, testing, and exporting [PocketFlow](https://github.com/The-Pocket/PocketFlow)-style LLM workflows and agentic applications. Design flows on a live canvas, run them against any supported LLM provider (local model hosts like Ollama, cloud APIs like OpenAI/Claude/Gemini, or mock providers for testing), inspect shared-store state step-by-step, and export a runnable Python package — all from one IDE-like GUI.
 
 ## Status — v0.3.1 (comprehensive standalone support)
 
 Milestones M0–M17 complete. 181 CI-safe/headless tests passing.
-**NEW:** 76 of 90 node types now have standalone Python script generation. Export graphs as self-contained scripts with embedded providers and zero external dependencies.
+**NEW:** 76 of 90+ node types now have standalone Python script generation. Export graphs as self-contained scripts with embedded providers and zero external dependencies.
 
 ![PocketFlow Creator — sentiment triage flow after a complete run, Object Inspector open on a Classifier node](https://raw.githubusercontent.com/Monotoba/PocketFlowCreator/main/src/pocketflow_creator/help/img/flow_run_complete.png)
 
@@ -45,8 +45,8 @@ PocketFlow is the better choice if you want to work directly in Python, keep the
 ### Visual Graph Designer
 - Drag nodes from the Component Palette onto the canvas
 - Wire action ports to create directed edges between nodes
-- **90 built-in node types** available in the visual palette with purpose-drawn icons across 28 categories:
-  - *(76 of these have complete standalone Python script generator support)*
+- **90+ built-in node types** available in the visual palette with purpose-drawn icons across 28 categories:
+  - *(76+ of these have complete standalone Python script generator support)*
   - **Flow Control:** Start, Stop, Basic, Router, Subflow
   - **LLM / AI:** LLM Prompt, JSON LLM, Classifier, Agent, RAG, Judge
   - **AI / Reasoning:** Chain of Thought, Majority Vote, Supervisor, Debate Advocate, Debate Judge
@@ -101,8 +101,7 @@ Error badges appear on canvas nodes. Problems tab lists all issues with error co
 - Shared Store Designer — key/type/default table, serializes to project YAML
 
 ### Run and Debug
-- **Run Active Flow** — executes the active graph with MockProvider or OllamaProvider;
-  populates Run Log and Shared Store tabs; saves a timestamped JSON trace
+- **Run Active Flow** — executes the active graph using any configured LLM provider (local hosts like Ollama, cloud APIs like OpenAI/Claude/Gemini, or mock providers for testing); populates Run Log and Shared Store tabs; saves a timestamped JSON trace
 - **Debug Active Flow** — step-through debugger with breakpoints (F9), pause/resume/stop
 - **Run Tests** — runs `pytest` as a subprocess and populates Test Results tab
 - Prompt Preview tab shows the resolved prompt for any selected LLM node
