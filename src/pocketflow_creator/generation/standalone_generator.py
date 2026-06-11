@@ -2498,6 +2498,14 @@ def _run_node(node_id, node, shared, outgoing_actions):
                     shared[error_key] = "No valid providers resolved"
                     chosen_action = "all_failed"
 
+        elif node_type == "trace_node":
+            # Observability: emit OpenTelemetry span (no-op in standalone)
+            # In standalone mode, tracing is logged to stderr for visibility
+            span_name = str(props.get("span_name", node_id))
+            keys_to_trace = str(props.get("keys_to_trace", "")).split(",")
+            trace_data = {k.strip(): shared.get(k.strip()) for k in keys_to_trace if k.strip()}
+            print(f"[TRACE] {span_name}: {trace_data}", file=sys.stderr)
+
         else:
             # Passthrough for unknown types
             pass
