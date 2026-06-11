@@ -7,7 +7,14 @@ Entries are ordered newest-first within each version.
 
 ## [Unreleased]
 
-### Added — comprehensive standalone script generation (2026-06-03)
+### Added
+- Nothing yet.
+
+---
+
+## [0.3.1] — 2026-06-04
+
+### Added — M17: Comprehensive standalone script generation (2026-06-03 to 2026-06-04)
 
 **Standalone Python script generation for all graphs**
 - Export graphs as fully self-contained, zero-dependency Python scripts
@@ -36,9 +43,7 @@ Entries are ordered newest-first within each version.
 - Phase 7: 10 Vector/ML/Audio/Vision nodes (embeddings, vectors, email, retry, rate limiting)
 - Phase 8: 19 Hardware/Communication/System nodes (USB, audio, video, webcam, socket, shell)
 
----
-
-### Added — multi-file node packages and add-on node system (2026-05-28)
+### Added — M16: Multi-file node packages and add-on node system (2026-05-28)
 
 **Multi-file node packages**
 - Node packages can now be a folder instead of a single file.
@@ -49,8 +54,6 @@ Entries are ordered newest-first within each version.
   identically named helpers cannot interfere with each other.
 - `install_node_package()` accepts both a `.py` file and a directory; validates
   the `{name}/{name}.py` convention before copying.
-- 7 new tests covering: load, discovery, missing entry-point error, cross-plugin
-  isolation, install, overwrite, and invalid-folder rejection.
 
 **Add-on node system (`addon_nodes/`)**
 - 34 scientific & engineering node packages ship with Creator in
@@ -75,6 +78,14 @@ Entries are ordered newest-first within each version.
 - `context/palette.md`: full three-section palette reference with node tables.
 - `docs/11_developer_guide.md`: node package system architecture, add-on node
   conventions, toolbar super-group implementation note.
+
+### Added — M15: Boy Scout refactoring (2026-05-28)
+- 47 targeted code-quality improvements: `ImportError` guards on all Qt fallback blocks,
+  `TYPE_CHECKING` pattern for Qt type hints, `@staticmethod` on pure helpers,
+  `_NodeCtx` TypedDict, explicit `.endswith(".pfcgraph.yaml")` stem extraction,
+  `__all__` exports in `generation/`, `validation/`, and `runtime/` packages,
+  palette/toolbar sourced from `BUILTIN_NODE_TYPES`, clarifying comment in
+  `GraphSnapshotCommand.redo`, and miscellaneous method and docstring improvements
 
 ### Fixed
 - `QWidget` missing from `QWidgets` import block in `app/main.py` caused
