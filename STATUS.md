@@ -1,16 +1,17 @@
 # PocketFlow Creator — Status
 
-## Current State: M14 Complete — Graph Auto Arrange (2026-05-27)
+## Current State: v0.3.1 — M0–M17 Complete
 
-Milestones M0–M14 are done. 106 tests, all passing.
+PocketFlow Creator is active and unarchived.
 
-The last two sessions completed:
-- **M13** — Graph editor repair: Delete key, double-click, bidirectional graph/code sync, Ollama wired end-to-end, temp-project startup workflow
-- **Undo/Redo** — Snapshot-based `GraphSnapshotCommand` (`commands.py`) covers all 6 mutation types; undo stack cleared on project open/create
-- **M14** — Graph Auto Arrange: three layout algorithms (Layered BFS, Grid, Force-directed), three connector styles (Straight, Curved Bezier, Orthogonal), `AutoArrangeDialog`, settings persisted in `.pfcproj.yaml` under `auto_arrange:`, operation pushes to undo stack
-- **NodeTypeWizard tab refactor** — dialog split into 3 tabs (Definition, Actions, Properties) and resized from 560×560 to 560×360 so it fits smaller displays
+Current automated test status:
+- 181 CI-safe/headless tests passing
+- GUI/manual tests that require an interactive desktop environment are not run in GitHub Actions
+- `QT_QPA_PLATFORM=offscreen` is used for headless Qt-compatible automated tests
 
-No milestone is actively in progress. The backlog is clear. Next work is user-directed.
+## Test Scope Note
+
+The reported automated test count refers to the pytest suite that is intended to run in CI/headless environments. Some GUI tests, manual interaction tests, or display-dependent tests are intentionally excluded from GitHub Actions because they require a live desktop/session and cannot be reliably executed in the GitHub runner environment.
 
 ---
 
@@ -144,30 +145,15 @@ Covers: add node, delete node/edge, add edge, edit property, change edge action,
 
 ## Test Status
 
-106 tests, all passing. Run with:
+181 tests, all passing. Run with:
 ```
 python -m pytest
 ```
 
-| Suite | Tests |
-|---|---|
-| `test_graph_validator.py` | 3 |
-| `test_node_type.py` | 2 |
-| `test_project_archive_files.py` | 1 |
-| `test_project_io.py` | 5 |
-| `test_python_generator.py` | 1 |
-| `test_canvas.py` | 8 |
-| `test_editors.py` | 5 |
-| `test_shared_store_designer.py` | 6 |
-| `test_exporter.py` | 7 |
-| `test_report.py` | 5 |
-| `test_ollama_provider.py` | 5 |
-| `test_runner.py` | 32 |
-| `test_generation_completeness.py` | 4 |
-| `test_node_type_wizard.py` | 10 |
-| `test_subflow.py` | 6 |
-| `test_help_browser.py` | 8 |
-| **Total** | **106** |
+To verify the test count:
+```
+python -m pytest -q
+```
 
 ---
 

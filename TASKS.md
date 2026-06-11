@@ -196,9 +196,9 @@ and all Creator-specific features. Users can self-onboard without external help.
 
 ---
 
-## Backlog / Deferred
+## Completed Former Backlog
 
-Tasks identified but not yet scheduled into a milestone:
+All formerly identified backlog items have been completed:
 
 - [x] T-B01: Add keyboard shortcuts for all primary actions (designer canvas operations)
 - [x] T-B02: Add project template system (File > New From Template)
@@ -208,6 +208,12 @@ Tasks identified but not yet scheduled into a milestone:
 - [x] T-B06: Internationalization / localization scaffolding (QTranslator setup, tr() wrapping, .ts files for en/es, update/compile scripts)
 - [x] T-B07: Dark mode support (system palette + user override in settings)
 - [x] T-B08: Windows installer / macOS .app bundle packaging
+
+---
+
+## Open Backlog
+
+No scheduled backlog items at this time. Next work is user-directed.
 
 ---
 
@@ -279,7 +285,7 @@ Settings are persisted in the project file and the operation is undoable.
 
 ---
 
-## M15 — Boy Scout Refactoring  [ In Progress ]
+## M15 — Boy Scout Refactoring  ✓ Complete
 
 **Deliverable:** Codebase readability and maintainability improvements identified in
 [`BOY_SCOUT_NOTES.md`](BOY_SCOUT_NOTES.md). No functional changes — existing tests must
@@ -451,3 +457,46 @@ stay green throughout. Tasks are grouped by theme and ordered high → medium �
 | 🟡 Medium | 27   |
 | 🟢 Low   | 12    |
 | **Total** | **47** |
+
+---
+
+## M16 — Add-on Nodes & Multi-file Packages  ✓ Complete
+
+**Deliverable:** Node packages can now be organized as folders with multiple files using the
+`{name}/{name}.py` convention. 34 scientific & engineering add-on nodes ship with Creator. The
+palette gains a dedicated add-on section separate from built-in and custom nodes. Node Type
+Library expanded to four tabs: Built-in, Scientific & Engineering, Installed Custom, ⚠ Errors.
+
+**Depends on:** M15
+
+- [x] T-M16-01: Implement multi-file node packages with `{name}/{name}.py` entry-point convention
+- [x] T-M16-02: Add isolation via `importlib.util.spec_from_file_location` to prevent plugin conflicts
+- [x] T-M16-03: Create `addon_nodes/` directory with 34 scientific & engineering node packages
+- [x] T-M16-04: Add `_ADDON_NODE_REGISTRY` separate from `_USER_NODE_REGISTRY`
+- [x] T-M16-05: Wire Node Type Library with four-tab interface (Built-in, Add-on, Custom, Errors)
+- [x] T-M16-06: Add palette section separator and toolbar gaps for visual organization
+
+---
+
+## M17 — Standalone Script Generation  ✓ Complete
+
+**Deliverable:** Export graphs as fully self-contained, zero-dependency Python scripts. 76 node
+types implemented with complete node dispatch logic. Scripts include embedded provider
+implementations (Ollama, OpenAI, Anthropic, Gemini, DeepSeek), environment variable support,
+automatic dependency detection, and graceful error handling. Export as single `.py` file or
+complete `.zip` archive with setup/run scripts and requirements.
+
+**Depends on:** M16
+
+- [x] T-M17-01: Implement standalone script generator for 14 core data processing nodes
+- [x] T-M17-02: Implement 9 LLM/Reasoning node types in standalone generator
+- [x] T-M17-03: Implement 6 External API nodes (web search/scrape, webhooks, PDF, spreadsheet)
+- [x] T-M17-04: Implement 7 Memory/State nodes (secrets, registries, stacks, queues, local memory)
+- [x] T-M17-05: Implement 3 Database nodes (schema, NL-to-SQL, SQL execute)
+- [x] T-M17-06: Implement 8 Data/File I/O nodes (text chunking, regex, templates, code gen, serial)
+- [x] T-M17-07: Implement 10 Vector/ML/Audio/Vision nodes (embeddings, email, retry, rate limiting)
+- [x] T-M17-08: Implement 8 Hardware/Communication/System nodes (USB, audio, video, webcam, socket, shell)
+- [x] T-M17-09: Add embedded provider implementations (Ollama, OpenAI, Anthropic, Gemini, DeepSeek)
+- [x] T-M17-10: Implement stdin/stdout/stderr I/O for interactive nodes (Human Input/Review)
+- [x] T-M17-11: Add export-standalone-archive feature with setup/run scripts and requirements.txt
+- [x] T-M17-12: Test standalone scripts in CI/CD pipelines with environment variable substitution

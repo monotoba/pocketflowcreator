@@ -12,12 +12,11 @@ LLM workflows and agentic applications. Design flows on a live canvas, run them 
 a mock provider, inspect shared-store state step-by-step, and export a runnable Python package —
 all from one IDE-like GUI built on PySide6.
 
-> **Note:** PocketFlow Creator is not an official PocketFlow project and is not affiliated
-> with, endorsed by, or maintained by the PocketFlow project.
+> **Note:** PocketFlow Creator is an independent MIT-licensed project inspired by PocketFlow. It is not an official PocketFlow project and is not affiliated with, endorsed by, or maintained by the PocketFlow project.
 
 ## Status — v0.3.1 (comprehensive standalone support)
 
-Milestones M0–M17 complete. 178 tests, all passing.
+Milestones M0–M17 complete. 181 CI-safe/headless tests passing.
 **NEW:** 76 node types with full standalone Python script generation. Export graphs as self-contained scripts with embedded providers and zero external dependencies.
 
 ![PocketFlow Creator — sentiment triage flow after a complete run, Object Inspector open on a Classifier node](https://raw.githubusercontent.com/Monotoba/PocketFlowCreator/main/src/pocketflow_creator/help/img/flow_run_complete.png)
@@ -29,7 +28,7 @@ Milestones M0–M17 complete. 178 tests, all passing.
 ### Visual Graph Designer
 - Drag nodes from the Component Palette onto the canvas
 - Wire action ports to create directed edges between nodes
-- **90+ built-in node types** with purpose-drawn icons across 20 categories:
+- **90+ built-in node types** available in the visual palette with purpose-drawn icons across 20 categories:
   - **Flow Control:** Start, Stop, Basic, Router, Subflow
   - **LLM / AI:** LLM Prompt, JSON LLM, Classifier, Agent, RAG, Judge
   - **AI / Reasoning:** Chain of Thought, Majority Vote, Supervisor, Debate Advocate, Debate Judge
@@ -55,7 +54,6 @@ Milestones M0–M17 complete. 178 tests, all passing.
   - **Text / Data Processing:** Regex, Template Render, JSON Parse, List Operations, String Operations
   - **Resilience:** Retry (exponential backoff), Rate Limiter
   - **Messaging:** Email Send, Email Read, Notification (Slack/Discord/Teams/Telegram)
-  - **Security:** Secret (env/dotenv/AWS/Vault)
 - Multi-action output ports — one port per action, node height grows dynamically
 - Input port label shows `input_key` property; action labels rendered inside the node body
 
@@ -210,13 +208,17 @@ For detailed setup instructions for all providers, custom ports, environment var
 ## Running Tests
 
 ```bash
-python -m pytest            # all 178 tests
+python -m pytest            # CI-safe/headless test suite (181 tests)
 ./scripts/test.sh           # same, via script
 ```
 
-Tests run headless (no display required) using `QT_QPA_PLATFORM=offscreen`.
+The CI-safe test suite runs headless (no display required) using `QT_QPA_PLATFORM=offscreen`. GitHub Actions runs this suite on Ubuntu, macOS, and Windows across Python 3.10–3.13.
 
-GitHub Actions tests run on Ubuntu across Python 3.10–3.13. To test locally on macOS or Windows:
+### GUI / Manual Tests
+
+Some GUI behavior is validated manually or with tests that are not suitable for GitHub Actions because they require a live display server, user interaction, or platform-specific desktop behavior. The CI suite uses `QT_QPA_PLATFORM=offscreen` for the tests that can run reliably in headless mode.
+
+To test locally on macOS or Windows with the app GUI:
 ```bash
 python -m pytest -v         # run full test suite
 source .venv/bin/activate   # activate venv (Windows: .venv\Scripts\activate)
@@ -257,7 +259,7 @@ PocketFlowCreator/
 │   ├─ templates/               Jinja2 .j2 templates for code generation
 │   ├─ help/                    21 Markdown help pages + context/ + tutorials/
 │   └─ translations/            .ts and .qm files (en, es, fr, de, zh, ja)
-├─ tests/                       177 tests (all passing)
+├─ tests/                       181 CI-safe/headless tests (all passing)
 ├─ examples/document_summarizer/ Example PocketFlow project
 ├─ docs/                        13 design/spec documents
 ├─ scripts/                     setup, run, test, lint, format, package scripts
