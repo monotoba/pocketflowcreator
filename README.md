@@ -7,12 +7,7 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/pocketflow-creator.svg)](https://pypi.org/project/pocketflow-creator/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A RAD-style visual designer for building [PocketFlow](https://github.com/The-Pocket/PocketFlow)
-LLM workflows and agentic applications. Design flows on a live canvas, run them against Ollama or
-a mock provider, inspect shared-store state step-by-step, and export a runnable Python package —
-all from one IDE-like GUI built on PySide6.
-
-> **Note:** PocketFlow Creator is an independent MIT-licensed project inspired by PocketFlow. It is not an official PocketFlow project and is not affiliated with, endorsed by, or maintained by the PocketFlow project.
+An independent PySide6 desktop application for visually designing, testing, and exporting [PocketFlow](https://github.com/The-Pocket/PocketFlow)-style LLM workflows and agentic applications. Design flows on a live canvas, run them against Ollama or a mock provider, inspect shared-store state step-by-step, and export a runnable Python package — all from one IDE-like GUI.
 
 ## Status — v0.3.1 (comprehensive standalone support)
 
@@ -20,6 +15,28 @@ Milestones M0–M17 complete. 181 CI-safe/headless tests passing.
 **NEW:** 76 node types with full standalone Python script generation. Export graphs as self-contained scripts with embedded providers and zero external dependencies.
 
 ![PocketFlow Creator — sentiment triage flow after a complete run, Object Inspector open on a Classifier node](https://raw.githubusercontent.com/Monotoba/PocketFlowCreator/main/src/pocketflow_creator/help/img/flow_run_complete.png)
+
+---
+
+## Relationship to PocketFlow
+
+PocketFlow Creator is an independent visual workflow designer inspired by the excellent [PocketFlow](https://github.com/The-Pocket/PocketFlow) project.
+
+[PocketFlow](https://github.com/The-Pocket/PocketFlow) is a small, elegant, MIT-licensed framework for building LLM workflows using nodes, flows, shared state, and action-based transitions. PocketFlow Creator was created to explore a complementary idea: making PocketFlow-style workflows visible, editable, testable, and exportable through a desktop GUI.
+
+**This project is not an official PocketFlow project** and is not affiliated with, endorsed by, or maintained by the PocketFlow maintainers. It is an independent project built with appreciation for the ideas and simplicity of the upstream PocketFlow framework.
+
+Thank you to the PocketFlow project and its maintainers for releasing their work under the MIT license and for helping make simple, understandable LLM workflow development more accessible.
+
+### Prefer a code-first workflow?
+
+PocketFlow Creator is intended for users who want a GUI-assisted workflow design experience.
+
+If you prefer a lightweight, code-first approach without a visual editor, you should start with the upstream PocketFlow project directly:
+
+* **PocketFlow:** [https://github.com/The-Pocket/PocketFlow](https://github.com/The-Pocket/PocketFlow)
+
+PocketFlow is the better choice if you want to work directly in Python, keep the framework minimal, avoid GUI tooling, or build workflows entirely by hand.
 
 ---
 
