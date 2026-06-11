@@ -12,7 +12,7 @@ An independent PySide6 desktop application for visually designing, testing, and 
 ## Status — v0.3.1 (comprehensive standalone support)
 
 Milestones M0–M17 complete. 181 CI-safe/headless tests passing.
-**NEW:** All 91+ node types have standalone Python script generation. Export graphs as self-contained scripts with embedded providers and zero external dependencies.
+**NEW:** All 90+ node types have standalone Python script generation. Export graphs as self-contained scripts with embedded providers and zero external dependencies.
 
 ![PocketFlow Creator — sentiment triage flow after a complete run, Object Inspector open on a Classifier node](https://raw.githubusercontent.com/Monotoba/PocketFlowCreator/main/src/pocketflow_creator/help/img/flow_run_complete.png)
 
@@ -45,7 +45,7 @@ PocketFlow is the better choice if you want to work directly in Python, keep the
 ### Visual Graph Designer
 - Drag nodes from the Component Palette onto the canvas
 - Wire action ports to create directed edges between nodes
-- **91+ built-in node types** available in the visual palette with purpose-drawn icons across 28 categories:
+- **90+ built-in node types** available in the visual palette with purpose-drawn icons across 28 categories:
   - *(All with complete standalone Python script generator support)*
   - **Flow Control:** Start, Stop, Basic, Router, Subflow
   - **LLM / AI:** LLM Prompt, JSON LLM, Classifier, Agent, RAG, Judge

@@ -1040,9 +1040,9 @@
 
 ## Summary
 
-**Total coverage: 91+ node types** across 28 categories. Each node is fully implemented in:
+**Total coverage: 90+ node types** across 28 categories. Each node is fully implemented in:
 - ✅ Visual palette with custom icons
-- ✅ Standalone Python script generation (all 91+ node types supported)
+- ✅ Standalone Python script generation (all 90+ node types supported)
 - ✅ Object Inspector property editor
 - ✅ Node dispatcher with type-based execution
 - ✅ Proper I/O handling in standalone scripts:

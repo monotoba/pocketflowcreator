@@ -341,7 +341,7 @@ python script.py
 
 ## Supported Features in Standalone Scripts
 
-**All 91+ node types are fully supported in standalone scripts.**
+**All 90+ node types are fully supported in standalone scripts.**
 
 Below is a breakdown by category showing what external dependencies (if any) each category requires:
 

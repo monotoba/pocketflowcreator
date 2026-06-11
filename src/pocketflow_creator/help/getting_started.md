@@ -125,7 +125,7 @@ PocketFlow Creator flows export as self-contained Python scripts with no framewo
 
 **File > Export Standalone Archive** creates a ready-to-run package:
 - `scripts/` folder with generated `.py` files
-- All 91+ node types fully supported
+- All 90+ node types fully supported
 - Embedded provider implementations (Ollama, OpenAI, Anthropic, Gemini, DeepSeek)
 - Standalone scripts work in CI/CD, serverless, containers, and headless environments
 
