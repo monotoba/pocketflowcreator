@@ -1,6 +1,6 @@
 # PocketFlow Creator — Status
 
-## Current State: v0.3.1 — M0–M17 Complete
+## Current State: v0.3.2 — M0–M17 Complete
 
 PocketFlow Creator is active and unarchived.
 

@@ -9,7 +9,7 @@
 
 An independent PySide6 desktop application for visually designing, testing, and exporting [PocketFlow](https://github.com/The-Pocket/PocketFlow)-style LLM workflows and agentic applications. Design flows on a live canvas, run them against any supported LLM provider (local model hosts like Ollama, cloud APIs like OpenAI/Claude/Gemini, or mock providers for testing), inspect shared-store state step-by-step, and export a runnable Python package — all from one IDE-like GUI.
 
-## Status — v0.3.1 (comprehensive standalone support)
+## Status — v0.3.2 (comprehensive standalone support)
 
 Milestones M0–M17 complete. 181 CI-safe/headless tests passing.
 **NEW:** All 90+ node types have standalone Python script generation. Export graphs as self-contained scripts with embedded providers and zero external dependencies.

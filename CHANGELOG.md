@@ -7,7 +7,11 @@ Entries are ordered newest-first within each version.
 
 ## [Unreleased]
 
-### Added — Provider Failover Node with typed error handling
+---
+
+## [0.3.2] — 2026-06-11
+
+### Added — Provider Failover Node & Complete Standalone Support
 
 **Resilient multi-provider LLM node**
 - New `Provider Failover` node in Resilience category for handling provider failures across multiple LLM backends
@@ -16,6 +20,7 @@ Entries are ordered newest-first within each version.
 - Session/token expiration detection and cooldown tracking — expired providers are temporarily disabled until reinstatement time + configurable offset
 - Configurable retry delays between attempts for timeout/network errors
 - Actions: `success` (provider returned response) or `all_failed` (all retries exhausted)
+- Full standalone Python script generation support with embedded FailoverProvider class
 
 **Typed error taxonomy for providers**
 - 6 new error types (all inherit from RuntimeError for backwards compatibility):
@@ -27,8 +32,16 @@ Entries are ordered newest-first within each version.
   - `AllProvidersFailedError` — all providers and retries exhausted
 - All 5 existing providers (Ollama, OpenAI, Anthropic, Gemini, DeepSeek) updated to classify and raise typed errors
 
-**Known limitation:**
-- Standalone script generation support for Provider Failover Node deferred; will be added in a follow-up
+**Complete standalone script generation for all 90+ node types**
+- ✅ All 90+ node types now have working standalone Python script generation (100% coverage)
+- Added explicit Trace Node handler for observability in standalone mode
+- Node count metric changed from exact number (91) to 90+ to allow growth without constant updates
+
+**Comprehensive documentation and tutorials**
+- New `resilience_failover.md` tutorial with multi-provider setup, error handling, session recovery, advanced patterns
+- New `provider_failover_help.md` context help with configuration reference and best practices
+- Updated standalone scripts tutorial with complete node support table
+- Updated documentation across all help files to reflect 90+ node types with complete standalone support
 
 ---
 

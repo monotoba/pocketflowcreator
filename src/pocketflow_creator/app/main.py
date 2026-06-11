@@ -115,7 +115,7 @@ from pocketflow_creator.runtime.runner import FlowRunner, RunStep, RunTrace, Ste
 from pocketflow_creator.validation.graph_validator import GraphValidator
 
 _MAX_RECENT = 5
-_VERSION = "0.3.1"
+_VERSION = "0.3.2"
 _TEMP_PROJECT_DIR = ".pocketflow_creator_temp"
 _PNG_BACKGROUND_DARK = 0xFF1A1A1A  # ARGB dark background for PNG export
 
