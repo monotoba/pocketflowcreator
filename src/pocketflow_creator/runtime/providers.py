@@ -428,7 +428,7 @@ class FailoverProvider:
 
         for attempt in range(max(error_retry_counts.values()) + 1):
             try:
-                result = entry.provider.complete(prompt, model=entry.model or model)
+                entry.provider.complete(prompt, model=entry.model or model)
                 return None  # Success
             except ProviderTimeoutError as exc:
                 if attempt < entry.timeout_retries:

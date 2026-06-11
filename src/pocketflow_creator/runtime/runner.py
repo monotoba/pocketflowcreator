@@ -382,8 +382,6 @@ class FlowRunner:
                 provider = None
 
             if provider:
-                from dataclasses import replace
-
                 entry = ProviderEntry(
                     priority=priority,
                     provider=provider,
